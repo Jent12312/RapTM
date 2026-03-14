@@ -10,25 +10,29 @@ export function Header() {
   const LangBtn = ({ lang, label }: { lang: Language, label: string }) => (
     <button 
       onClick={() => setLanguage(lang)}
-      className={`px-2 py-1 text-[10px] font-bold rounded-lg transition-all ${language === lang ? 'bg-white shadow-sm' : ''}`}
+      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${
+        language === lang 
+          ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' 
+          : 'text-slate-500 hover:text-slate-700'
+      }`}
     >
       {label}
     </button>
   );
 
   return (
-    <div className="p-4 flex justify-between items-center bg-white border-b shadow-sm sticky top-0 z-50">
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+    <div className="px-5 py-4 flex justify-between items-center bg-white/80 backdrop-blur-md sticky top-0 z-50">
+      <div className="flex bg-slate-100 p-1 rounded-xl">
         <LangBtn lang="ru" label="RU" />
         <LangBtn lang="tm" label="TM" />
         <LangBtn lang="en" label="EN" />
       </div>
       <button 
         onClick={() => setActiveTab('profile')} 
-        className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-2xl active:scale-95 transition-all border border-gray-100"
+        className="flex items-center gap-2.5 bg-white px-3 py-1.5 rounded-full active:scale-95 transition-all shadow-sm ring-1 ring-slate-100"
       >
-        <span className="text-xs font-bold text-gray-500">{t(language, 'userLabel')}</span>
-        <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center text-white font-bold">
+        <span className="text-xs font-medium text-slate-600">{t(language, 'userLabel')}</span>
+        <div className="w-7 h-7 bg-gradient-to-tr from-emerald-500 to-emerald-400 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-inner">
           A
         </div>
       </button>
@@ -44,19 +48,27 @@ export function BottomNav() {
     return (
       <button 
         onClick={() => setActiveTab(id)} 
-        className={`flex flex-col items-center gap-1 transition-all ${isActive ? 'text-emerald-600 scale-105' : 'text-gray-400'}`}
+        className={`flex flex-col items-center gap-1.5 transition-all duration-300 w-16 ${
+          isActive ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-500'
+        }`}
       >
-        <Icon className="w-6 h-6" strokeWidth={isActive ? 2.5 : 2} />
-        <span className="text-[9px] font-black uppercase tracking-tighter italic">{label}</span>
+        <div className={`p-2 rounded-2xl transition-all duration-300 ${isActive ? 'bg-emerald-50' : 'bg-transparent'}`}>
+          <Icon className="w-6 h-6" strokeWidth={isActive ? 2.5 : 2} />
+        </div>
+        <span className={`text-[10px] font-medium tracking-wide ${isActive ? 'font-semibold' : ''}`}>
+          {label}
+        </span>
       </button>
     );
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-gray-100 px-8 py-5 flex justify-between items-center z-50 rounded-t-[2.5rem]">
-      <NavBtn id="wallet" icon={Wallet} label={t(language, 'navGapjyk')} />
-      <NavBtn id="exchange" icon={ArrowRightLeft} label={t(language, 'navAlys')} />
-      <NavBtn id="p2p" icon={Users} label={t(language, 'navP2P')} />
-    </nav>
+    <div className="fixed bottom-0 left-0 right-0 p-4 z-50 pointer-events-none">
+      <nav className="mx-auto max-w-md bg-white/90 backdrop-blur-xl border border-slate-100/50 shadow-2xl shadow-slate-200/50 px-6 py-2 flex justify-between items-center rounded-3xl pointer-events-auto">
+        <NavBtn id="wallet" icon={Wallet} label={t(language, 'navGapjyk')} />
+        <NavBtn id="exchange" icon={ArrowRightLeft} label={t(language, 'navAlys')} />
+        <NavBtn id="p2p" icon={Users} label={t(language, 'navP2P')} />
+      </nav>
+    </div>
   );
 }

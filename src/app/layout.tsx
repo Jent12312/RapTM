@@ -21,7 +21,7 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         <script src="https://telegram.org/js/telegram-web-app.js" async></script>
       </head>
-      <body className={`${inter.className} bg-slate-50 text-slate-900 pb-24`}>
+      <body className={`${inter.className} bg-slate-50 text-slate-900 pb-28 min-h-screen selection:bg-emerald-200`}>
         <TelegramProvider>
           {children}
         </TelegramProvider>
