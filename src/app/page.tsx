@@ -1,15 +1,18 @@
 'use client';
 
-import WebApp from '@twa-dev/sdk';
 import { useEffect, useState } from 'react';
 
 export default function Home() {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    if (WebApp.initDataUnsafe.user) {
-      setUser(WebApp.initDataUnsafe.user);
-    }
+    // Точно так же импортируем SDK динамически
+    import('@twa-dev/sdk').then((module) => {
+      const WebApp = module.default;
+      if (WebApp.initDataUnsafe && WebApp.initDataUnsafe.user) {
+        setUser(WebApp.initDataUnsafe.user);
+      }
+    });
   }, []);
 
   return (
