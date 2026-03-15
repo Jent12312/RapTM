@@ -140,8 +140,11 @@ export default function P2PScreen() {
       {/* --- Модалка сделки --- */}
       {selectedAd && (
         <>
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 transition-opacity" onClick={closeModal}></div>
-          <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[2.5rem] p-6 z-50 animate-in slide-in-from-bottom duration-300 shadow-2xl mx-auto max-w-md">
+          {/* z-[60] перекроет нижнюю навигацию */}
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] transition-opacity" onClick={closeModal}></div>
+          
+          {/* z-[70], добавили max-h-[90vh], overflow-y-auto и pb-12 для скролла на небольших экранах */}
+          <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[2.5rem] p-6 z-[70] animate-in slide-in-from-bottom duration-300 shadow-2xl mx-auto max-w-md max-h-[90vh] overflow-y-auto pb-12">
             
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-slate-800">
@@ -200,7 +203,7 @@ export default function P2PScreen() {
             </div>
 
             <button 
-              className={`w-full py-5 rounded-[2rem] font-bold text-lg text-white shadow-xl active:scale-95 transition-all ${
+              className={`w-full py-5 rounded-[2rem] font-bold text-lg text-white shadow-xl active:scale-95 transition-all mt-4 ${
                 selectedAd.type === 'buy' ? 'bg-emerald-500 shadow-emerald-200' : 'bg-red-500 shadow-red-200'
               }`}
             >
