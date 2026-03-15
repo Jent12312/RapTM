@@ -6,50 +6,70 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("POSTGRES_URL") // Используем прямую ссылку на базу
+  url       = env("POSTGRES_URL")
 }
 
-// 1. Модель Пользователя
 model User {
   id          String   @id @default(uuid())
-  telegramId  String   @unique // Храним как String, чтобы не было багов с большими числами
+  telegramId  String   @unique
   username    String?
   firstName   String?
   isVerified  Boolean  @default(false)
   createdAt   DateTime @default(now())
 
-  // Связи
   wallet      Wallet?
   ads         P2PAd[]
+  
+  // Связи для сделок (как покупатель и как продавец)
+  ordersAsBuyer  Order[] @relation("BuyerOrders")
+  ordersAsSeller Order[] @relation("SellerOrders")
 }
 
-// 2. Модель Кошелька (Один к одному с Пользователем)
 model Wallet {
   id          String   @id @default(uuid())
   userId      String   @unique
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  usdtBalance Float    @default(0.0) // Баланс Крипты
-  tmtBalance  Float    @default(0.0) // Баланс внутреннего TMT
+  usdtBalance Float    @default(0.0)
+  tmtBalance  Float    @default(0.0)
 }
 
-// 3. Модель P2P Объявления (Один ко многим от Пользователя)
 model P2PAd {
   id          String   @id @default(uuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  type        String   // "buy" (Покупает) или "sell" (Продает)
-  asset       String   // "USDT" или "TMT"
-  fiat        String   // "TMT" или "USD"
-  priceType   String   // "fixed" или "floating"
-  
-  price       Float    // Курс
-  minLimit    Float    // Минимальная сумма
-  maxLimit    Float    // Максимальная сумма
-  city        String   // Город (Наличные)
-  autoReply   String?  // Автоответ
-
-  isActive    Boolean  @default(true) // Включено или выключено
+  type        String   
+  asset       String   
+  fiat        String   
+  priceType   String   
+  price       Float    
+  minLimit    Float    
+  maxLimit    Float    
+  city        String   
+  autoReply   String?  
+  isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
+  orders      Order[]
+}
+
+// НОВАЯ МОДЕЛЬ: Сделка
+model Order {
+  id          String   @id @default(uuid())
+  
+  adId        String
+  ad          P2PAd    @relation(fields: [adId], references: [id])
+
+  buyerId     String
+  buyer       User     @relation("BuyerOrders", fields: [buyerId], references: [id])
+  
+  sellerId    String
+  seller      User     @relation("SellerOrders", fields: [sellerId], references: [id])
+
+  amountAsset Float    // Кол-во крипты (напр. 50 USDT)
+  amountFiat  Float    // Кол-во фиата (напр. 1000 TMT)
+  
+  // Статусы: PENDING (ожидание), PAID (оплачено покупателем), COMPLETED (завершено), CANCELLED (отменено)
+  status      String   @default("PENDING") 
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

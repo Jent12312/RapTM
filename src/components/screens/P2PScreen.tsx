@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { t } from '@/lib/dictionaries';
 import { BadgeCheck, Clock, MapPin, Filter, X, ArrowDownUp, RefreshCw } from 'lucide-react';
+import OrderScreen from './OrderScreen';
 
 export default function P2PScreen() {
-  const { language, ads, isLoadingAds, fetchAds } = useAppStore();
+  const { language, ads, isLoadingAds, fetchAds, user } = useAppStore();
   
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
   const [asset, setAsset] = useState<'USDT' | 'TMT'>('USDT');
@@ -14,6 +15,7 @@ export default function P2PScreen() {
   
   const [selectedAd, setSelectedAd] = useState<any>(null);
   const [tradeAmount, setTradeAmount] = useState('');
+  const [activeOrder, setActiveOrder] = useState<any>(null);
 
   // Загружаем объявления при открытии экрана
   useEffect(() => {
@@ -42,6 +44,32 @@ export default function P2PScreen() {
       return (amount * selectedAd.price).toFixed(2);
     }
   };
+
+    const handleStartOrder = async () => {
+    if (!tradeAmount) return alert("Введите сумму");
+    
+    const res = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        adId: selectedAd.id,
+        buyerId: user.id,
+        amountAsset: calculateReceiveAmount(),
+        amountFiat: tradeAmount
+      })
+    });
+    
+    const data = await res.json();
+    if (data.success) {
+      setActiveOrder(data.order);
+      setSelectedAd(null); // Закрываем модалку выбора суммы
+    }
+  };
+
+    if (activeOrder) {
+    return <OrderScreen order={activeOrder} onClose={() => setActiveOrder(null)} />;
+  }
+
 
   return (
     <div className="pb-32 animate-in fade-in duration-300">
@@ -203,7 +231,8 @@ export default function P2PScreen() {
             </div>
 
             <button 
-              className={`w-full py-5 rounded-[2rem] font-bold text-lg text-white shadow-xl active:scale-95 transition-all mt-4 ${
+              onClick={handleStartOrder} // <-- ЗАМЕНИТЬ ЭТО
+              className={`w-full py-5 rounded-[2rem] font-bold text-lg text-white shadow-xl active:scale-95 transition-all ${
                 selectedAd.type === 'buy' ? 'bg-emerald-500 shadow-emerald-200' : 'bg-red-500 shadow-red-200'
               }`}
             >
