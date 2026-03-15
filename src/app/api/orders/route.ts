@@ -34,3 +34,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Failed to create order' }, { status: 500 });
   }
 }
+
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get('userId');
+
+    const orders = await prisma.order.findMany({
+      where: {
+        OR: [{ buyerId: userId as string }, { sellerId: userId as string }]
+      },
+      include: { ad: true, seller: true, buyer: true },
+      orderBy: { createdAt: 'desc' }
+    });
+    return NextResponse.json(orders);
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed' }, { status: 500 });
+  }
+}

@@ -6,6 +6,7 @@ import { ShieldAlert, PlusCircle, ListOrdered, ChevronRight, Store } from 'lucid
 import WebApp from '@twa-dev/sdk';
 import CreateAdScreen from './CreateAdScreen'; // <-- Импортируем наш новый экран
 import MyAdsScreen from './MyAdsScreen';
+import MyOrdersScreen from './MyOrdersScreen';
 
 export default function ProfileScreen() {
   const { language } = useAppStore();
@@ -14,6 +15,7 @@ export default function ProfileScreen() {
   // Стейт для управления открытием формы создания объявления
   const [isCreatingAd, setIsCreatingAd] = useState(false);
   const [isViewingMyAds, setIsViewingMyAds] = useState(false);
+  const [isViewingMyOrders, setIsViewingMyOrders] = useState(false);
 
   useEffect(() => {
     if (WebApp.initDataUnsafe?.user) {
@@ -28,6 +30,10 @@ export default function ProfileScreen() {
 
   if (isViewingMyAds) {
     return <MyAdsScreen onClose={() => setIsViewingMyAds(false)} />;
+  }
+
+  if (isViewingMyOrders) {
+    return <MyOrdersScreen onClose={() => setIsViewingMyOrders(false)} />;
   }
 
   return (
@@ -101,7 +107,10 @@ export default function ProfileScreen() {
             <ChevronRight className="w-4 h-4 text-slate-300" />
           </button>
 
-          <button className="w-full p-4 flex justify-between items-center transition-all active:bg-slate-50 group">
+          <button 
+            onClick={() => setIsViewingMyOrders(true)} 
+            className="w-full p-4 flex justify-between items-center transition-all active:bg-slate-50 group"
+          >
             <div className="flex items-center gap-3">
               <div className="bg-amber-50 p-2 rounded-xl group-hover:bg-amber-100 transition-colors">
                 <ListOrdered className="w-5 h-5 text-amber-500" />
