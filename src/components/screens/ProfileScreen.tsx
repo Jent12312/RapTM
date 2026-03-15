@@ -2,19 +2,27 @@
 
 import { useState, useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
-import { t } from '@/lib/dictionaries';
-import { ShieldAlert, ShieldCheck, PlusCircle, ListOrdered, UserCircle2, Settings, ChevronRight, Store } from 'lucide-react';
+import { ShieldAlert, PlusCircle, ListOrdered, ChevronRight, Store } from 'lucide-react';
 import WebApp from '@twa-dev/sdk';
+import CreateAdScreen from './CreateAdScreen'; // <-- Импортируем наш новый экран
 
 export default function ProfileScreen() {
   const { language } = useAppStore();
   const [user, setUser] = useState<any>(null);
+  
+  // Стейт для управления открытием формы создания объявления
+  const [isCreatingAd, setIsCreatingAd] = useState(false);
 
   useEffect(() => {
     if (WebApp.initDataUnsafe?.user) {
       setUser(WebApp.initDataUnsafe.user);
     }
   }, []);
+
+  // Если нажали "Создать", рендерим ТОЛЬКО этот экран поверх всего
+  if (isCreatingAd) {
+    return <CreateAdScreen onClose={() => setIsCreatingAd(false)} />;
+  }
 
   return (
     <div className="px-5 py-4 space-y-6 animate-in fade-in duration-300 pb-32">
@@ -71,7 +79,11 @@ export default function ProfileScreen() {
             </div>
           </button>
 
-          <button className="w-full p-4 flex justify-between items-center border-b border-slate-50 transition-all active:bg-slate-50 group">
+          {/* КНОПКА ОТКРЫТИЯ ФОРМЫ */}
+          <button 
+            onClick={() => setIsCreatingAd(true)} 
+            className="w-full p-4 flex justify-between items-center border-b border-slate-50 transition-all active:bg-slate-50 group"
+          >
             <div className="flex items-center gap-3">
               <div className="bg-emerald-50 p-2 rounded-xl group-hover:bg-emerald-100 transition-colors">
                 <PlusCircle className="w-5 h-5 text-emerald-500" />
@@ -98,22 +110,18 @@ export default function ProfileScreen() {
       <div>
         <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-2 mb-3">Безопасность</h3>
         <div className="bg-white rounded-[2rem] overflow-hidden shadow-sm ring-1 ring-slate-100">
-          
           <button className="w-full p-4 flex justify-between items-center border-b border-slate-50">
             <span className="font-bold text-slate-700">Телефон</span>
             <span className="text-[10px] font-bold bg-emerald-50 text-emerald-600 px-2 py-1 rounded-md uppercase tracking-wider">
               Привязать +
             </span>
           </button>
-          
           <button className="w-full p-4 flex justify-between items-center">
             <span className="font-bold text-slate-700">Telegram Уведомления</span>
-            {/* Имитация iOS тумблера (Toggle) */}
             <div className="w-10 h-6 bg-emerald-500 rounded-full relative shadow-inner">
               <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full shadow-sm"></div>
             </div>
           </button>
-
         </div>
       </div>
 
