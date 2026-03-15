@@ -1,3 +1,4 @@
+// src/store/useAppStore.ts
 import { create } from 'zustand';
 import { Language } from '../lib/dictionaries';
 
@@ -8,16 +9,21 @@ interface AppState {
   activeTab: Tab;
   isBalanceVisible: boolean;
   
-  // Данные пользователя из БД
   user: any | null;
   balances: { tmt: number; usdt: number };
+  
+  // Добавляем хранилище для объявлений
+  ads: any[];
+  isLoadingAds: boolean;
   
   setLanguage: (lang: Language) => void;
   setActiveTab: (tab: Tab) => void;
   toggleBalance: () => void;
   
-  // Функция для загрузки/регистрации пользователя
   initUser: (tgData: any) => Promise<void>;
+  
+  // Функция загрузки объявлений из базы
+  fetchAds: () => Promise<void>;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -26,6 +32,9 @@ export const useAppStore = create<AppState>((set) => ({
   isBalanceVisible: true,
   user: null,
   balances: { tmt: 0, usdt: 0 },
+  
+  ads: [],
+  isLoadingAds: false,
 
   setLanguage: (lang) => set({ language: lang }),
   setActiveTab: (tab) => set({ activeTab: tab }),
@@ -56,4 +65,18 @@ export const useAppStore = create<AppState>((set) => ({
       console.error("Ошибка авторизации:", err);
     }
   },
+
+  fetchAds: async () => {
+    set({ isLoadingAds: true });
+    try {
+      const res = await fetch('/api/p2p'); // Дергаем наш GET роут
+      if (res.ok) {
+        const data = await res.json();
+        set({ ads: data, isLoadingAds: false });
+      }
+    } catch (error) {
+      console.error("Ошибка загрузки объявлений:", error);
+      set({ isLoadingAds: false });
+    }
+  }
 }));
