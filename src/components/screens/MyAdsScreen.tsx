@@ -1,0 +1,140 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useAppStore } from '@/store/useAppStore';
+import { ChevronLeft, Trash2, Power } from 'lucide-react';
+
+interface Props {
+  onClose: () => void;
+}
+
+export default function MyAdsScreen({ onClose }: Props) {
+  const { user } = useAppStore();
+  const [myAds, setMyAds] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Загружаем только объявления текущего юзера
+  const loadMyAds = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/p2p?userId=${user.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setMyAds(data);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.id) loadMyAds();
+  }, [user]);
+
+  // Функция переключения тумблера
+  const toggleAdStatus = async (adId: string, currentStatus: boolean) => {
+    // Оптимистичное обновление UI (сразу меняем цвет тумблера, не дожидаясь ответа сервера)
+    setMyAds(myAds.map(ad => ad.id === adId ? { ...ad, isActive: !currentStatus } : ad));
+
+    try {
+      await fetch(`/api/p2p/${adId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !currentStatus })
+      });
+    } catch (error) {
+      // Если ошибка — возвращаем как было
+      alert("Ошибка при обновлении статуса");
+      loadMyAds();
+    }
+  };
+
+  // Функция удаления
+  const deleteAd = async (adId: string) => {
+    if (!confirm('Вы уверены, что хотите удалить объявление?')) return;
+    
+    try {
+      await fetch(`/api/p2p/${adId}`, { method: 'DELETE' });
+      setMyAds(myAds.filter(ad => ad.id !== adId));
+    } catch (error) {
+      alert('Ошибка при удалении');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-slate-50 overflow-y-auto animate-in slide-in-from-right duration-300">
+      
+      {/* Шапка */}
+      <div className="bg-white px-4 py-4 flex items-center gap-3 sticky top-0 z-10 border-b border-slate-100 shadow-sm">
+        <button onClick={onClose} className="p-2 -ml-2 bg-slate-50 rounded-full text-slate-500 active:scale-95">
+          <ChevronLeft className="w-6 h-6" />
+        </button>
+        <div>
+          <h2 className="text-lg font-bold text-slate-800 tracking-tight">Мои объявления</h2>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Управление P2P</p>
+        </div>
+      </div>
+
+      <div className="p-4 space-y-4 pb-32">
+        {isLoading ? (
+          <div className="text-center py-10 text-slate-400 font-bold">Загрузка...</div>
+        ) : myAds.length === 0 ? (
+          <div className="text-center py-20 text-slate-400 font-medium text-sm bg-white rounded-[2rem] ring-1 ring-slate-100">
+            <div className="text-4xl mb-3 opacity-50">📭</div>
+            У вас пока нет объявлений.<br/>
+            Создайте свое первое объявление!
+          </div>
+        ) : (
+          myAds.map((ad) => (
+            <div key={ad.id} className={`bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-slate-100 transition-all ${!ad.isActive ? 'opacity-70 grayscale-[30%]' : ''}`}>
+              
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex items-center gap-2">
+                  <div className={`p-2 rounded-xl ${ad.type === 'buy' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
+                    <span className="text-xs font-bold uppercase tracking-wider">{ad.type === 'buy' ? 'Покупка' : 'Продажа'}</span>
+                  </div>
+                  <span className="font-bold text-slate-800">{ad.asset}</span>
+                </div>
+                
+                {/* iOS Toggle (Тумблер) */}
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    {ad.isActive ? 'Активно' : 'Выкл'}
+                  </span>
+                  <button 
+                    onClick={() => toggleAdStatus(ad.id, ad.isActive)}
+                    className={`w-12 h-7 rounded-full relative transition-all duration-300 ${ad.isActive ? 'bg-emerald-500 shadow-inner shadow-emerald-700/50' : 'bg-slate-200 shadow-inner shadow-slate-300/50'}`}
+                  >
+                    <div className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow-sm transition-all duration-300 ${ad.isActive ? 'left-6' : 'left-1'}`}></div>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-end border-t border-slate-50 pt-4">
+                <div>
+                  <div className="text-xl font-bold text-slate-800">
+                    {ad.price.toFixed(2)} <span className="text-xs font-medium text-slate-400">{ad.fiat}</span>
+                  </div>
+                  <div className="text-[10px] text-slate-500 font-medium mt-1">
+                    Лимит: {ad.minLimit} - {ad.maxLimit} {ad.fiat}
+                  </div>
+                </div>
+
+                {/* Кнопка удаления */}
+                <button 
+                  onClick={() => deleteAd(ad.id)}
+                  className="p-2.5 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-colors active:scale-95"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+              </div>
+
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}

@@ -5,6 +5,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { ShieldAlert, PlusCircle, ListOrdered, ChevronRight, Store } from 'lucide-react';
 import WebApp from '@twa-dev/sdk';
 import CreateAdScreen from './CreateAdScreen'; // <-- Импортируем наш новый экран
+import MyAdsScreen from './MyAdsScreen';
 
 export default function ProfileScreen() {
   const { language } = useAppStore();
@@ -12,6 +13,7 @@ export default function ProfileScreen() {
   
   // Стейт для управления открытием формы создания объявления
   const [isCreatingAd, setIsCreatingAd] = useState(false);
+  const [isViewingMyAds, setIsViewingMyAds] = useState(false);
 
   useEffect(() => {
     if (WebApp.initDataUnsafe?.user) {
@@ -22,6 +24,10 @@ export default function ProfileScreen() {
   // Если нажали "Создать", рендерим ТОЛЬКО этот экран поверх всего
   if (isCreatingAd) {
     return <CreateAdScreen onClose={() => setIsCreatingAd(false)} />;
+  }
+
+  if (isViewingMyAds) {
+    return <MyAdsScreen onClose={() => setIsViewingMyAds(false)} />;
   }
 
   return (
@@ -66,7 +72,10 @@ export default function ProfileScreen() {
         <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-2 mb-3">P2P Центр</h3>
         <div className="bg-white rounded-[2rem] overflow-hidden shadow-sm ring-1 ring-slate-100">
           
-          <button className="w-full p-4 flex justify-between items-center border-b border-slate-50 transition-all active:bg-slate-50 group">
+          <button 
+            onClick={() => setIsViewingMyAds(true)} 
+            className="w-full p-4 flex justify-between items-center border-b border-slate-50 transition-all active:bg-slate-50 group"
+          >
             <div className="flex items-center gap-3">
               <div className="bg-blue-50 p-2 rounded-xl group-hover:bg-blue-100 transition-colors">
                 <Store className="w-5 h-5 text-blue-500" />
@@ -74,7 +83,6 @@ export default function ProfileScreen() {
               <span className="font-bold text-slate-700">Мои объявления</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="bg-blue-100 text-blue-600 text-[10px] font-bold px-2 py-0.5 rounded-md">2 активных</span>
               <ChevronRight className="w-4 h-4 text-slate-300" />
             </div>
           </button>

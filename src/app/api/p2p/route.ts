@@ -2,14 +2,19 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-// 1. Получить список всех активных объявлений
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get('userId');
+
+    // Если передан userId — ищем все объявления этого юзера (и активные, и выключенные). 
+    // Если нет — ищем только активные для общего Маркета.
     const ads = await prisma.p2PAd.findMany({
-      where: { isActive: true },
-      include: { user: true }, // Чтобы знать, кто продавец
+      where: userId ? { userId } : { isActive: true },
+      include: { user: true },
       orderBy: { createdAt: 'desc' }
     });
+    
     return NextResponse.json(ads);
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch ads' }, { status: 500 });
