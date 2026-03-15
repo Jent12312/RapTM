@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ChevronLeft, Info, CheckCircle2 } from 'lucide-react';
+import { useAppStore } from '@/store/useAppStore';
 
 interface Props {
   onClose: () => void;
@@ -18,6 +19,7 @@ export default function CreateAdScreen({ onClose }: Props) {
   const [minLimit, setMinLimit] = useState('');
   const [maxLimit, setMaxLimit] = useState('');
   const [city, setCity] = useState('Ашхабад');
+  const { user } = useAppStore();
 
   // Логика блокировки TMT-TMT
   useEffect(() => {
@@ -146,13 +148,36 @@ export default function CreateAdScreen({ onClose }: Props) {
       {/* Плавающая кнопка Опубликовать */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-xl border-t border-slate-100 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-20">
         <button 
-          onClick={() => {
-            alert('Объявление сохранено! (Заглушка)');
+        onClick={async () => {
+            if (!price || !minLimit || !maxLimit) return alert("Заполните все поля");
+
+            const res = await fetch('/api/p2p', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                userId: user.id, // ID из нашей БД
+                type: adDirection,
+                asset,
+                fiat,
+                priceType,
+                price,
+                minLimit,
+                maxLimit,
+                city,
+                autoReply: "" // Пока пусто
+            })
+            });
+
+            if (res.ok) {
+            alert('Объявление успешно опубликовано!');
             onClose();
-          }}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-[2rem] shadow-lg shadow-blue-200 active:scale-95 transition-all text-lg tracking-wide"
+            } else {
+            alert('Ошибка при публикации');
+            }
+        }}
+        className="w-full bg-blue-600 text-white font-bold py-4 rounded-[2rem] shadow-lg active:scale-95 transition-all text-lg"
         >
-          Опубликовать
+        Опубликовать
         </button>
       </div>
 
