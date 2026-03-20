@@ -72,7 +72,25 @@ export default function P2PScreen() {
 
   // Функция создания сделки в БД
   const handleStartOrder = async () => {
-    if (!tradeAmount) return alert("Введите сумму");
+    const inputAmount = Number(tradeAmount);
+    if (!inputAmount) return alert("Введите сумму");
+    
+    // ПРОВЕРКА ЛИМИТОВ
+    if (inputAmount < selectedAd.minLimit || inputAmount > selectedAd.maxLimit) {
+      return alert(`Ошибка: Сумма должна быть от ${selectedAd.minLimit} до ${selectedAd.maxLimit} ${selectedAd.type === 'buy' ? selectedAd.fiat : selectedAd.asset}`);
+    }
+
+    // ПРАВИЛЬНОЕ РАСПРЕДЕЛЕНИЕ СУММ
+    let amountAsset, amountFiat;
+    if (selectedAd.type === 'buy') {
+      // Я покупаю Крипту. Ввожу Фиат.
+      amountFiat = inputAmount;
+      amountAsset = Number(calculateReceiveAmount());
+    } else {
+      // Я продаю Крипту. Ввожу Крипту.
+      amountAsset = inputAmount;
+      amountFiat = Number(calculateReceiveAmount());
+    }
     
     const res = await fetch('/api/orders', {
       method: 'POST',
@@ -80,8 +98,8 @@ export default function P2PScreen() {
       body: JSON.stringify({
         adId: selectedAd.id,
         buyerId: user.id,
-        amountAsset: calculateReceiveAmount(),
-        amountFiat: tradeAmount
+        amountAsset, 
+        amountFiat
       })
     });
     

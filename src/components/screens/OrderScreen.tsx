@@ -172,15 +172,19 @@ export default function OrderScreen({ order, onClose }: Props) {
           {status !== 'COMPLETED' && (
             <div className="bg-white p-6 rounded-[2rem] shadow-sm ring-1 ring-slate-100 space-y-4">
               <div className="flex justify-between items-center pb-4 border-b border-slate-50">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t(language, 'payAmount')}</span>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  {user.id === order.buyerId ? 'Вы платите' : 'Вам заплатят'}
+                </span>
                 <span className="text-lg font-black text-slate-800">{order.amountFiat} {order.ad.fiat}</span>
               </div>
               <div className="flex justify-between items-center pb-4 border-b border-slate-50">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t(language, 'receiveAmount')}</span>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  {user.id === order.buyerId ? 'Вы получаете' : 'Вы отдаете'}
+                </span>
                 <span className="text-lg font-black text-emerald-600">{order.amountAsset} {order.ad.asset}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t(language, 'meetingCity')}</span>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Город встречи</span>
                 <span className="text-sm font-bold text-slate-700 flex items-center gap-1">
                   <MapPin className="w-4 h-4 text-emerald-500" /> {order.ad.city}
                 </span>
