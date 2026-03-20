@@ -45,14 +45,13 @@ export default function P2PScreen() {
     if (asset === 'TMT' && fiat === 'TMT') setFiat('USD');
   }, [asset, fiat]);
 
-  // Фильтрация объявлений из базы
+  // 1. ПРАВИЛЬНЫЙ ФИЛЬТР (Ищем зеркальные объявления)
+  const targetAdType = tradeType === 'buy' ? 'sell' : 'buy';
   const filteredAds = ads.filter(ad => {
-    const matchType = ad.type === tradeType && ad.asset === asset && ad.fiat === fiat;
+    const matchBase = ad.type === targetAdType && ad.asset === asset && ad.fiat === fiat;
+    if (!filterAmount) return matchBase;
     const amount = Number(filterAmount);
-    if (!amount) return matchType;
-    
-    // Проверяем, входит ли введенная сумма в лимиты объявления
-    return matchType && amount >= ad.minLimit && amount <= ad.maxLimit;
+    return matchBase && amount >= ad.minLimit && amount <= ad.maxLimit;
   });
 
   const closeModal = () => {
@@ -70,24 +69,20 @@ export default function P2PScreen() {
     }
   };
 
-  // Функция создания сделки в БД
+  // 2. ИСПРАВЛЕННЫЙ ЗАПРОС СОЗДАНИЯ СДЕЛКИ
   const handleStartOrder = async () => {
     const inputAmount = Number(tradeAmount);
     if (!inputAmount) return alert("Введите сумму");
     
-    // ПРОВЕРКА ЛИМИТОВ
     if (inputAmount < selectedAd.minLimit || inputAmount > selectedAd.maxLimit) {
-      return alert(`Ошибка: Сумма должна быть от ${selectedAd.minLimit} до ${selectedAd.maxLimit} ${selectedAd.type === 'buy' ? selectedAd.fiat : selectedAd.asset}`);
+      return alert(`Лимит: от ${selectedAd.minLimit} до ${selectedAd.maxLimit}`);
     }
 
-    // ПРАВИЛЬНОЕ РАСПРЕДЕЛЕНИЕ СУММ
     let amountAsset, amountFiat;
-    if (selectedAd.type === 'buy') {
-      // Я покупаю Крипту. Ввожу Фиат.
+    if (tradeType === 'buy') {
       amountFiat = inputAmount;
       amountAsset = Number(calculateReceiveAmount());
     } else {
-      // Я продаю Крипту. Ввожу Крипту.
       amountAsset = inputAmount;
       amountFiat = Number(calculateReceiveAmount());
     }
@@ -97,7 +92,7 @@ export default function P2PScreen() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         adId: selectedAd.id,
-        buyerId: user.id,
+        takerId: user.id, // Отправляем ID того, кто кликнул
         amountAsset, 
         amountFiat
       })

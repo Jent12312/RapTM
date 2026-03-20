@@ -73,9 +73,9 @@ model Order {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Новое: Чат и Отзыв к этой сделке
+  // Новое: Чат и Отзывы к этой сделке
   messages    Message[]
-  review      Review?
+  reviews     Review[]
 }
 
 // НОВАЯ МОДЕЛЬ: Сообщения Чата
@@ -94,15 +94,15 @@ model Message {
 // НОВАЯ МОДЕЛЬ: Отзывы (Смайлики)
 model Review {
   id        String   @id @default(uuid())
-  orderId   String   @unique // Один отзыв на одну сделку
+  orderId   String   // УБРАЛИ @unique - теперь оба могут оценить друг друга
   order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  
+
   authorId  String
   author    User     @relation("ReviewsGiven", fields: [authorId], references: [id], onDelete: Cascade)
-  
+
   targetId  String
   target    User     @relation("ReviewsReceived", fields: [targetId], references: [id], onDelete: Cascade)
-  
+
   rating    String   // "GOOD" (Smile), "NEUTRAL" (Meh), "BAD" (Frown)
   comment   String?
   createdAt DateTime @default(now())

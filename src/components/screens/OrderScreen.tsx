@@ -13,21 +13,24 @@ interface Props {
 
 export default function OrderScreen({ order: initialOrder, onClose }: Props) {
   const { user, language } = useAppStore();
-  const [order, setOrder] = useState(initialOrder); // Стейт для обновления в реальном времени
+  const [order, setOrder] = useState(initialOrder);
   const [status, setStatus] = useState(initialOrder.status);
   const [isChatOpen, setIsChatOpen] = useState(false);
   
-  // Стейты для отзыва
-  const [hasReviewed, setHasReviewed] = useState(initialOrder.review ? true : false);
-  const [selectedRating, setSelectedRating] = useState<string | null>(initialOrder.review?.rating || null);
+  // ИЩЕМ ТОЛЬКО МОЙ ОТЗЫВ В МАССИВЕ REVIEWS
+  const myReview = initialOrder.reviews?.find((r: any) => r.authorId === user.id);
+  const [hasReviewed, setHasReviewed] = useState(!!myReview);
+  const [selectedRating, setSelectedRating] = useState<string | null>(myReview?.rating || null);
 
-  const isBuyer = user.id === order.buyerId;
+  // РОЛИ ТЕПЕРЬ ЖЕЛЕЗОБЕТОННЫЕ:
+  const isBuyer = user.id === order.buyerId; // Тот кто ПОЛУЧАЕТ крипту
+  const isSeller = user.id === order.sellerId; // Тот кто ОТДАЕТ крипту
+  
   const partnerName = isBuyer ? order.seller.firstName : order.buyer.firstName;
   const partnerId = isBuyer ? order.sellerId : order.buyerId;
 
-  // 1. РЕАЛЬНОЕ ВРЕМЯ: Обновление статуса каждые 3 секунды
   useEffect(() => {
-    if (status === 'COMPLETED' && hasReviewed) return; // Если всё закончено, останавливаем таймер
+    if (status === 'COMPLETED' && hasReviewed) return;
 
     const interval = setInterval(async () => {
       try {
@@ -38,15 +41,20 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
           setStatus(freshOrder.status);
           setOrder(freshOrder);
         }
-        if (freshOrder.review && !hasReviewed) {
-          setHasReviewed(true);
-          setSelectedRating(freshOrder.review.rating);
+        
+        // Проверяем наличие МОЕГО нового отзыва
+        if (freshOrder.reviews) {
+           const newMyReview = freshOrder.reviews.find((r: any) => r.authorId === user.id);
+           if (newMyReview && !hasReviewed) {
+             setHasReviewed(true);
+             setSelectedRating(newMyReview.rating);
+           }
         }
-      } catch (e) { console.error(e); }
+      } catch (e) {}
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [order.id, status, hasReviewed]);
+  }, [order.id, status, hasReviewed, user.id]);
 
   const updateOrderStatus = async (newStatus: string) => {
     try {

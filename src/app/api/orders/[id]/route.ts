@@ -7,7 +7,7 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
     const { id } = await context.params;
     const order = await prisma.order.findUnique({
       where: { id },
-      include: { ad: true, seller: true, buyer: true, review: true }
+      include: { ad: true, seller: true, buyer: true, reviews: true }
     });
     return NextResponse.json(order);
   } catch (error) {

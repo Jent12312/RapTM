@@ -2,31 +2,38 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-// Создать новую сделку
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { adId, buyerId, amountAsset, amountFiat } = body;
+    const { adId, takerId, amountAsset, amountFiat } = body; // takerId - тот кто кликнул
 
-    // 1. Находим объявление, чтобы узнать продавца
     const ad = await prisma.p2PAd.findUnique({ where: { id: adId } });
     if (!ad) return NextResponse.json({ error: 'Ad not found' }, { status: 404 });
 
-    // 2. Создаем сделку
+    // ПРАВИЛЬНОЕ РАСПРЕДЕЛЕНИЕ РОЛЕЙ
+    let buyerId, sellerId;
+    if (ad.type === 'buy') {
+      // Мейкер (создатель ad) хочет КУПИТЬ крипту. 
+      // Значит Тейкер (тот кто кликнул) - ПРОДАЕТ крипту.
+      buyerId = ad.userId;
+      sellerId = takerId;
+    } else {
+      // Мейкер (создатель ad) хочет ПРОДАТЬ крипту.
+      // Значит Тейкер (тот кто кликнул) - ПОКУПАЕТ крипту.
+      buyerId = takerId;
+      sellerId = ad.userId;
+    }
+
     const order = await prisma.order.create({
       data: {
         adId,
         buyerId,
-        sellerId: ad.userId,
+        sellerId,
         amountAsset: Number(amountAsset),
         amountFiat: Number(amountFiat),
         status: 'PENDING'
       },
-      include: {
-        ad: true,
-        seller: true,
-        buyer: true
-      }
+      include: { ad: true, seller: true, buyer: true, reviews: true }
     });
 
     return NextResponse.json({ success: true, order });
@@ -44,7 +51,7 @@ export async function GET(req: Request) {
       where: {
         OR: [{ buyerId: userId as string }, { sellerId: userId as string }]
       },
-      include: { ad: true, seller: true, buyer: true, review: true },
+      include: { ad: true, seller: true, buyer: true, reviews: true },
       orderBy: { createdAt: 'desc' }
     });
     return NextResponse.json(orders);
