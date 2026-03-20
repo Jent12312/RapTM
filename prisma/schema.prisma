@@ -20,9 +20,13 @@ model User {
   wallet      Wallet?
   ads         P2PAd[]
   
-  // Связи для сделок (как покупатель и как продавец)
   ordersAsBuyer  Order[] @relation("BuyerOrders")
   ordersAsSeller Order[] @relation("SellerOrders")
+
+  // Новое: Сообщения в чате и Отзывы
+  messages       Message[]
+  reviewsGiven   Review[]  @relation("ReviewsGiven")
+  reviewsReceived Review[] @relation("ReviewsReceived")
 }
 
 model Wallet {
@@ -51,25 +55,53 @@ model P2PAd {
   orders      Order[]
 }
 
-// НОВАЯ МОДЕЛЬ: Сделка
 model Order {
   id          String   @id @default(uuid())
-  
   adId        String
   ad          P2PAd    @relation(fields: [adId], references: [id])
-
   buyerId     String
   buyer       User     @relation("BuyerOrders", fields: [buyerId], references: [id])
-  
   sellerId    String
   seller      User     @relation("SellerOrders", fields: [sellerId], references: [id])
 
-  amountAsset Float    // Кол-во крипты (напр. 50 USDT)
-  amountFiat  Float    // Кол-во фиата (напр. 1000 TMT)
-  
-  // Статусы: PENDING (ожидание), PAID (оплачено покупателем), COMPLETED (завершено), CANCELLED (отменено)
+  amountAsset Float    
+  amountFiat  Float    
   status      String   @default("PENDING") 
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  // Новое: Чат и Отзыв к этой сделке
+  messages    Message[]
+  review      Review?
+}
+
+// НОВАЯ МОДЕЛЬ: Сообщения Чата
+model Message {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  
+  text      String
+  createdAt DateTime @default(now())
+}
+
+// НОВАЯ МОДЕЛЬ: Отзывы (Смайлики)
+model Review {
+  id        String   @id @default(uuid())
+  orderId   String   @unique // Один отзыв на одну сделку
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  authorId  String
+  author    User     @relation("ReviewsGiven", fields: [authorId], references: [id], onDelete: Cascade)
+  
+  targetId  String
+  target    User     @relation("ReviewsReceived", fields: [targetId], references: [id], onDelete: Cascade)
+  
+  rating    String   // "GOOD" (Smile), "NEUTRAL" (Meh), "BAD" (Frown)
+  comment   String?
+  createdAt DateTime @default(now())
 }
