@@ -1,17 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { ChevronLeft, MessageCircle, ShieldCheck, Clock, MapPin, CheckCircle2, Smile, Meh, Frown } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import { 
-  ChevronLeft, 
-  MessageCircle, 
-  ShieldCheck, 
-  Clock, 
-  MapPin, 
-  CheckCircle2, 
-  Info,
-  AlertCircle
-} from 'lucide-react';
 import ChatScreen from './ChatScreen';
 
 interface Props {
@@ -21,14 +12,16 @@ interface Props {
 
 export default function OrderScreen({ order, onClose }: Props) {
   const { user } = useAppStore();
-  const [status, setStatus] = useState(order.status); // PENDING, PAID, COMPLETED
+  const [status, setStatus] = useState(order.status);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  
+  // Стейты для отзыва
+  const [hasReviewed, setHasReviewed] = useState(order.review ? true : false);
+  const [selectedRating, setSelectedRating] = useState<string | null>(order.review?.rating || null);
 
-  // Определяем роль текущего пользователя в этой сделке
-  const isBuyer = user.id === order.buyerId;
-  const partnerName = isBuyer ? order.seller.firstName : order.buyer.firstName;
+  const partnerName = user.id === order.buyerId ? order.seller.firstName : order.buyer.firstName;
+  const partnerId = user.id === order.buyerId ? order.sellerId : order.buyerId;
 
-  // Функция обновления статуса сделки в базе данных
   const updateOrderStatus = async (newStatus: string) => {
     try {
       const res = await fetch(`/api/orders/${order.id}`, {
@@ -37,17 +30,33 @@ export default function OrderScreen({ order, onClose }: Props) {
         body: JSON.stringify({ status: newStatus })
       });
       const data = await res.json();
-      if (data.success) {
-        setStatus(newStatus);
-      }
-    } catch (error) {
-      alert("Ошибка при обновлении статуса");
+      if (data.success) setStatus(newStatus);
+    } catch (e) {
+      alert('Ошибка при обновлении статуса');
+    }
+  };
+
+  const handleLeaveReview = async (rating: 'GOOD' | 'NEUTRAL' | 'BAD') => {
+    setSelectedRating(rating);
+    setHasReviewed(true);
+
+    try {
+      await fetch(`/api/orders/${order.id}/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          authorId: user.id,
+          targetId: partnerId,
+          rating
+        })
+      });
+    } catch (e) {
+      alert('Ошибка при отправке отзыва');
     }
   };
 
   return (
     <>
-      {/* Окно Чата (выезжает поверх сделки) */}
       {isChatOpen && (
         <ChatScreen 
           orderId={order.id} 
@@ -58,148 +67,156 @@ export default function OrderScreen({ order, onClose }: Props) {
 
       <div className="fixed inset-0 z-[150] bg-slate-50 overflow-y-auto animate-in fade-in duration-300">
         
-        {/* --- ШАПКА --- */}
+        {/* Шапка */}
         <div className="bg-white px-5 py-4 flex justify-between items-center sticky top-0 z-10 border-b border-slate-100 shadow-sm">
-          <button onClick={onClose} className="p-2 -ml-2 bg-slate-50 rounded-full text-slate-500 active:scale-95 transition-all">
+          <button onClick={onClose} className="p-2 -ml-2 bg-slate-50 rounded-full text-slate-500">
             <ChevronLeft className="w-6 h-6" />
           </button>
-          
           <div className="text-center">
-            <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-0.5">Сделка #{order.id.slice(0, 8)}</h2>
-            <div className="flex items-center justify-center gap-1 text-[10px] text-emerald-600 font-bold uppercase tracking-widest">
-              <ShieldCheck className="w-3.5 h-3.5" /> Безопасная сделка
+            <h2 className="text-sm font-bold text-slate-800 uppercase tracking-tighter">Сделка #{order.id.slice(0,8)}</h2>
+            <div className={`flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-widest ${status === 'COMPLETED' ? 'text-blue-500' : 'text-emerald-600'}`}>
+              {status === 'COMPLETED' ? 'Успешно завершена' : <><ShieldCheck className="w-3 h-3" /> Безопасная сделка</>}
             </div>
           </div>
-
-          <button 
-            onClick={() => setIsChatOpen(true)}
-            className="p-2.5 bg-blue-50 text-blue-600 rounded-full relative active:scale-95 transition-all shadow-sm ring-1 ring-blue-100"
-          >
+          <button onClick={() => setIsChatOpen(true)} className="p-2 bg-slate-50 rounded-full text-blue-500 relative">
             <MessageCircle className="w-6 h-6" />
-            <span className="absolute top-1 right-1 w-3 h-3 bg-red-500 border-2 border-white rounded-full animate-pulse"></span>
+            {status !== 'COMPLETED' && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></span>}
           </button>
         </div>
 
-        <div className="p-5 space-y-6 pb-40">
+        <div className="p-5 space-y-6 pb-32">
           
-          {/* --- КАРТОЧКА СТАТУСА --- */}
-          <div className="bg-white p-6 rounded-[2.5rem] shadow-sm ring-1 ring-slate-100 text-center relative overflow-hidden">
-            {/* Фон-декор для статуса */}
-            <div className={`absolute top-0 left-0 w-full h-1 ${
-              status === 'PENDING' ? 'bg-amber-400' : status === 'PAID' ? 'bg-blue-500' : 'bg-emerald-500'
-            }`}></div>
-
-            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold mb-5 ${
-              status === 'PENDING' ? 'bg-amber-50 text-amber-600' : status === 'PAID' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'
-            }`}>
-              <Clock className="w-4 h-4" /> 
-              {status === 'PENDING' ? 'Ожидание оплаты' : status === 'PAID' ? 'Оплата подтверждена' : 'Сделка завершена'}
-            </div>
-
-            <h3 className="text-2xl font-black text-slate-800 leading-tight mb-2">
-              {status === 'PENDING' 
-                ? (isBuyer ? `Переведите ${order.amountFiat} ${order.ad.fiat}` : `Ожидайте ${order.amountFiat} ${order.ad.fiat}`)
-                : status === 'PAID' 
-                ? (isBuyer ? 'Ожидайте подтверждения' : 'Подтвердите получение')
-                : 'Криптовалюта зачислена'}
-            </h3>
+          {/* Главный блок Статуса */}
+          <div className={`p-6 rounded-[2rem] shadow-sm ring-1 ring-slate-100 text-center transition-all ${status === 'COMPLETED' ? 'bg-gradient-to-b from-emerald-50 to-white' : 'bg-white'}`}>
             
-            <p className="text-sm text-slate-500 font-medium px-4 leading-relaxed">
-              {status === 'PENDING' 
-                ? 'Свяжитесь с партнером в чате, чтобы договориться о встрече и передаче наличных.'
-                : status === 'PAID'
-                ? 'Покупатель подтвердил отправку денег. Проверьте баланс перед завершением.'
-                : 'Спасибо за сделку! Оставьте отзыв партнеру.'}
-            </p>
-          </div>
-
-          {/* --- ДЕТАЛИ ПЛАТЕЖА --- */}
-          <div className="bg-white p-6 rounded-[2.5rem] shadow-sm ring-1 ring-slate-100 space-y-5">
-            <div className="flex justify-between items-center">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em]">Сумма Фиата</span>
-              <span className="text-xl font-black text-slate-800 tracking-tight">{order.amountFiat.toLocaleString()} {order.ad.fiat}</span>
-            </div>
-            
-            <div className="flex justify-between items-center">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em]">Кол-во Актива</span>
-              <span className="text-xl font-black text-emerald-600 tracking-tight">{order.amountAsset} {order.ad.asset}</span>
-            </div>
-
-            <div className="pt-4 border-t border-slate-50 flex justify-between items-center">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em]">Город / Метод</span>
-              <span className="text-sm font-bold text-slate-700 flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl">
-                <MapPin className="w-4 h-4 text-emerald-500" /> {order.ad.city} (Наличные)
-              </span>
-            </div>
-          </div>
-
-          {/* --- ПРЕДУПРЕЖДЕНИЕ --- */}
-          <div className={`p-5 rounded-[2rem] flex gap-4 ${isBuyer ? 'bg-blue-50 ring-1 ring-blue-100' : 'bg-red-50 ring-1 ring-red-100'}`}>
-            <AlertCircle className={`w-6 h-6 shrink-0 ${isBuyer ? 'text-blue-500' : 'text-red-500'}`} />
-            <div>
-              <h4 className={`text-sm font-bold mb-1 ${isBuyer ? 'text-blue-800' : 'text-red-800'}`}>
-                {isBuyer ? 'Совет покупателю' : 'Важное правило'}
-              </h4>
-              <p className={`text-[11px] font-medium leading-relaxed opacity-80 ${isBuyer ? 'text-blue-700' : 'text-red-700'}`}>
-                {isBuyer 
-                  ? 'После передачи денег обязательно нажмите кнопку "Я оплатил", иначе сделка отменится по таймеру.' 
-                  : 'Никогда не нажимайте "Подтвердить получение", пока не пересчитаете наличные деньги в руках!'}
-              </p>
-            </div>
-          </div>
-
-        </div>
-
-        {/* --- ФИКСИРОВАННАЯ ПАНЕЛЬ КНОПОК --- */}
-        <div className="fixed bottom-0 left-0 right-0 p-5 bg-white/90 backdrop-blur-xl border-t border-slate-100 shadow-2xl z-20">
-          <div className="max-w-md mx-auto">
-            {status === 'PENDING' && isBuyer && (
-              <div className="flex gap-4">
-                <button className="flex-1 py-4 text-slate-400 font-bold text-xs uppercase tracking-widest active:bg-slate-50 rounded-2xl transition-all">Отменить</button>
-                <button 
-                  onClick={() => updateOrderStatus('PAID')}
-                  className="flex-[2] bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-emerald-100 active:scale-95 transition-all uppercase tracking-widest text-sm"
-                >
-                  Я оплатил
-                </button>
-              </div>
-            )}
-
-            {status === 'PAID' && !isBuyer && (
-              <button 
-                onClick={() => updateOrderStatus('COMPLETED')}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-5 rounded-2xl shadow-xl shadow-blue-100 active:scale-95 transition-all uppercase tracking-[0.1em] text-sm"
-              >
-                Подтвердить получение денег
-              </button>
-            )}
-
-            {status === 'PAID' && isBuyer && (
-              <div className="text-center py-2 text-slate-500 font-bold flex flex-col items-center gap-2">
-                <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center animate-pulse">
-                   <Clock className="w-6 h-6" />
+            {status === 'PENDING' && (
+              <>
+                <div className="inline-flex items-center gap-2 bg-amber-50 text-amber-600 px-4 py-1.5 rounded-full text-xs font-bold mb-4">
+                  <Clock className="w-4 h-4" /> Ожидание оплаты: 14:59
                 </div>
-                Ожидаем подтверждения от продавца
-              </div>
+                <h3 className="text-2xl font-black text-slate-800 mb-2">Переведите {order.amountFiat} {order.ad.fiat}</h3>
+                <p className="text-sm text-slate-500 font-medium">Свяжитесь с продавцом в чате для передачи наличных</p>
+              </>
+            )}
+
+            {status === 'PAID' && (
+              <>
+                <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-xs font-bold mb-4 animate-pulse">
+                  Оплата подтверждена покупателем
+                </div>
+                <h3 className="text-2xl font-black text-slate-800 mb-2">Ожидание перевода крипты</h3>
+                <p className="text-sm text-slate-500 font-medium">Продавец проверяет получение средств...</p>
+              </>
             )}
 
             {status === 'COMPLETED' && (
-              <div className="text-center flex flex-col items-center gap-3">
-                <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shadow-inner">
+              <>
+                <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
                   <CheckCircle2 className="w-8 h-8" />
                 </div>
-                <div>
-                  <h4 className="font-bold text-slate-800">Сделка завершена успешно!</h4>
-                  <p className="text-xs text-slate-400 font-medium mt-1">Криптовалюта зачислена на кошелек покупателя.</p>
+                <h3 className="text-2xl font-black text-slate-800 mb-2">Сделка Завершена</h3>
+                <p className="text-sm text-emerald-600 font-bold mb-6">+{order.amountAsset} {order.ad.asset} зачислено на кошелек</p>
+                
+                {/* БЛОК ОТЗЫВОВ */}
+                <div className="border-t border-slate-100 pt-6">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Оцените сделку с {partnerName}</p>
+                  
+                  <div className="flex justify-center gap-4">
+                    <button 
+                      disabled={hasReviewed}
+                      onClick={() => handleLeaveReview('GOOD')}
+                      className={`p-4 rounded-2xl flex flex-col items-center gap-2 transition-all ${
+                        selectedRating === 'GOOD' ? 'bg-blue-50 ring-2 ring-blue-500 scale-110' : 
+                        hasReviewed ? 'opacity-30' : 'bg-slate-50 hover:bg-blue-50 active:scale-95'
+                      }`}
+                    >
+                      <Smile className={`w-8 h-8 ${selectedRating === 'GOOD' ? 'text-blue-500' : 'text-slate-400'}`} />
+                      <span className={`text-[10px] font-bold ${selectedRating === 'GOOD' ? 'text-blue-600' : 'text-slate-400'}`}>Отлично</span>
+                    </button>
+
+                    <button 
+                      disabled={hasReviewed}
+                      onClick={() => handleLeaveReview('NEUTRAL')}
+                      className={`p-4 rounded-2xl flex flex-col items-center gap-2 transition-all ${
+                        selectedRating === 'NEUTRAL' ? 'bg-slate-100 ring-2 ring-slate-400 scale-110' : 
+                        hasReviewed ? 'opacity-30' : 'bg-slate-50 hover:bg-slate-100 active:scale-95'
+                      }`}
+                    >
+                      <Meh className={`w-8 h-8 ${selectedRating === 'NEUTRAL' ? 'text-slate-500' : 'text-slate-400'}`} />
+                      <span className={`text-[10px] font-bold ${selectedRating === 'NEUTRAL' ? 'text-slate-600' : 'text-slate-400'}`}>Нормально</span>
+                    </button>
+
+                    <button 
+                      disabled={hasReviewed}
+                      onClick={() => handleLeaveReview('BAD')}
+                      className={`p-4 rounded-2xl flex flex-col items-center gap-2 transition-all ${
+                        selectedRating === 'BAD' ? 'bg-red-50 ring-2 ring-red-500 scale-110' : 
+                        hasReviewed ? 'opacity-30' : 'bg-slate-50 hover:bg-red-50 active:scale-95'
+                      }`}
+                    >
+                      <Frown className={`w-8 h-8 ${selectedRating === 'BAD' ? 'text-red-500' : 'text-slate-400'}`} />
+                      <span className={`text-[10px] font-bold ${selectedRating === 'BAD' ? 'text-red-600' : 'text-slate-400'}`}>Плохо</span>
+                    </button>
+                  </div>
+                  
+                  {hasReviewed && (
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-4">Отзыв сохранен. Спасибо!</p>
+                  )}
                 </div>
-                <button 
-                  className="mt-2 w-full py-4 border-2 border-emerald-500 text-emerald-600 rounded-2xl font-bold uppercase text-[10px] tracking-widest active:bg-emerald-50 transition-all"
-                >
-                  Оставить отзыв
-                </button>
-              </div>
+              </>
             )}
           </div>
+
+          {/* Детали платежа (скрываем если завершено) */}
+          {status !== 'COMPLETED' && (
+            <div className="bg-white p-6 rounded-[2rem] shadow-sm ring-1 ring-slate-100 space-y-4">
+              <div className="flex justify-between items-center pb-4 border-b border-slate-50">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Сумма к оплате</span>
+                <span className="text-lg font-black text-slate-800">{order.amountFiat} {order.ad.fiat}</span>
+              </div>
+              <div className="flex justify-between items-center pb-4 border-b border-slate-50">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Вы получаете</span>
+                <span className="text-lg font-black text-emerald-600">{order.amountAsset} {order.ad.asset}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Город встречи</span>
+                <span className="text-sm font-bold text-slate-700 flex items-center gap-1">
+                  <MapPin className="w-4 h-4 text-emerald-500" /> {order.ad.city}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Кнопки действий снизу */}
+        <div className="fixed bottom-0 left-0 right-0 p-5 bg-white/90 backdrop-blur-xl border-t border-slate-100 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-20">
+          {status === 'PENDING' && user.id === order.buyerId && (
+            <div className="flex gap-3">
+              <button className="flex-1 py-4 text-slate-400 font-bold text-sm uppercase">Отменить</button>
+              <button onClick={() => updateOrderStatus('PAID')} className="flex-[2] bg-emerald-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-emerald-200 active:scale-95 transition-all uppercase tracking-wide">
+                Я оплатил
+              </button>
+            </div>
+          )}
+
+          {status === 'PAID' && user.id === order.sellerId && (
+            <button onClick={() => updateOrderStatus('COMPLETED')} className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-200 active:scale-95 transition-all uppercase tracking-wide">
+              Подтвердить получение
+            </button>
+          )}
+
+          {status === 'COMPLETED' && (
+            <button onClick={onClose} className="w-full bg-slate-100 text-slate-600 font-bold py-4 rounded-2xl active:scale-95 transition-all uppercase tracking-wide">
+              Вернуться в кошелек
+            </button>
+          )}
+
+          {status === 'PENDING' && user.id === order.sellerId && (
+            <div className="text-center text-slate-500 font-bold text-sm">Ожидаем оплату от покупателя...</div>
+          )}
+          {status === 'PAID' && user.id === order.buyerId && (
+            <div className="text-center text-blue-500 font-bold text-sm animate-pulse">Ожидаем подтверждения продавца...</div>
+          )}
         </div>
 
       </div>
