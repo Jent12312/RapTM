@@ -56,12 +56,16 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
         body: JSON.stringify({ status: newStatus })
       });
       const data = await res.json();
-      if (data.success) {
+      
+      // ЗАЩИТА: Обновляем стейт ТОЛЬКО если бэкенд прислал объект ордера
+      if (data.success && data.order) {
         setStatus(newStatus);
         setOrder(data.order);
+      } else {
+        alert('Ошибка: Сервер не вернул данные ордера');
       }
     } catch (e) {
-      alert(t(language, 'error'));
+      alert('Ошибка при обновлении статуса');
     }
   };
 

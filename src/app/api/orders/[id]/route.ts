@@ -18,9 +18,9 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
 export async function PATCH(req: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
-    const { status } = await req.json();
+    const body = await req.json();
+    const { status } = body;
 
-    // 1. Находим сделку со всеми данными
     const order = await prisma.order.findUnique({
       where: { id },
       include: { ad: true, seller: true, buyer: true }
@@ -28,35 +28,35 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
 
     if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 });
 
-    // 2. Если статус меняется на COMPLETED и это сделка по USDT
+    // Если это успешное завершение сделки по USDT
     if (status === 'COMPLETED' && order.status !== 'COMPLETED' && order.ad.asset === 'USDT') {
       
-      // ИСПОЛЬЗУЕМ ТРАНЗАКЦИЮ (либо всё сработает, либо ничего)
-      await prisma.$transaction([
-        // Списываем у продавца
+      // Выполняем транзакцию и ЗАБИРАЕМ результат обновления ордера
+      const [ , , updatedOrder ] = await prisma.$transaction([
         prisma.wallet.update({
           where: { userId: order.sellerId },
           data: { usdtBalance: { decrement: order.amountAsset } }
         }),
-        // Начисляем покупателю
         prisma.wallet.update({
           where: { userId: order.buyerId },
           data: { usdtBalance: { increment: order.amountAsset } }
         }),
-        // Обновляем статус заказа
         prisma.order.update({
           where: { id },
-          data: { status: 'COMPLETED' }
+          data: { status: 'COMPLETED' },
+          include: { ad: true, seller: true, buyer: true } // Обязательно возвращаем связи!
         })
       ]);
 
-      return NextResponse.json({ success: true, message: 'USDT Transferred' });
+      // Возвращаем обновленный ордер
+      return NextResponse.json({ success: true, order: updatedOrder });
     }
 
-    // Если это не USDT или другой статус - просто обновляем статус
+    // Для остальных статусов (например PAID)
     const updatedOrder = await prisma.order.update({
       where: { id },
-      data: { status }
+      data: { status },
+      include: { ad: true, seller: true, buyer: true } // Тоже возвращаем связи
     });
 
     return NextResponse.json({ success: true, order: updatedOrder });
