@@ -30,19 +30,30 @@ export default function MyOrdersScreen({ onClose }: { onClose: () => void }) {
 
       <div className="p-5 space-y-4">
         {orders.map(order => (
-          <button
-            key={order.id}
+          <button 
+            key={order.id} 
             onClick={() => setSelectedOrder(order)}
-            className="w-full bg-white p-5 rounded-3xl ring-1 ring-slate-100 flex justify-between items-center text-left"
+            className="w-full bg-white p-5 rounded-3xl ring-1 ring-slate-200 shadow-sm flex justify-between items-center text-left hover:shadow-md transition-all active:scale-95"
           >
             <div>
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
-                {order.buyerId === user.id ? t(language, 'buy') : t(language, 'sell')} • {order.status}
+              <div className="flex items-center gap-2 mb-2">
+                <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${
+                  order.buyerId === user.id ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'
+                }`}>
+                  {order.buyerId === user.id ? 'Покупка' : 'Продажа'}
+                </span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  {order.status}
+                </span>
               </div>
-              <div className="font-bold text-slate-800">{order.amountAsset} {order.ad.asset}</div>
-              <div className="text-xs text-slate-500">{order.amountFiat} {order.ad.fiat}</div>
+              <div className="text-xl font-black text-slate-800 tracking-tight">
+                {order.amountAsset} <span className="text-sm font-bold text-slate-500">{order.ad.asset}</span>
+              </div>
+              <div className="text-xs font-bold text-slate-500 mt-1">
+                За {order.amountFiat} {order.ad.fiat}
+              </div>
             </div>
-            <ArrowRightLeft className="w-5 h-5 text-slate-300" />
+            <ArrowRightLeft className="w-6 h-6 text-slate-300" />
           </button>
         ))}
       </div>

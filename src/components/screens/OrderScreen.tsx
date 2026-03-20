@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronLeft, MessageCircle, ShieldCheck, Clock, MapPin, CheckCircle2, Smile, Meh, Frown } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { t } from '@/lib/dictionaries';
@@ -11,17 +11,42 @@ interface Props {
   onClose: () => void;
 }
 
-export default function OrderScreen({ order, onClose }: Props) {
+export default function OrderScreen({ order: initialOrder, onClose }: Props) {
   const { user, language } = useAppStore();
-  const [status, setStatus] = useState(order.status);
+  const [order, setOrder] = useState(initialOrder); // Стейт для обновления в реальном времени
+  const [status, setStatus] = useState(initialOrder.status);
   const [isChatOpen, setIsChatOpen] = useState(false);
-
+  
   // Стейты для отзыва
-  const [hasReviewed, setHasReviewed] = useState(order.review ? true : false);
-  const [selectedRating, setSelectedRating] = useState<string | null>(order.review?.rating || null);
+  const [hasReviewed, setHasReviewed] = useState(initialOrder.review ? true : false);
+  const [selectedRating, setSelectedRating] = useState<string | null>(initialOrder.review?.rating || null);
 
-  const partnerName = user.id === order.buyerId ? order.seller.firstName : order.buyer.firstName;
-  const partnerId = user.id === order.buyerId ? order.sellerId : order.buyerId;
+  const isBuyer = user.id === order.buyerId;
+  const partnerName = isBuyer ? order.seller.firstName : order.buyer.firstName;
+  const partnerId = isBuyer ? order.sellerId : order.buyerId;
+
+  // 1. РЕАЛЬНОЕ ВРЕМЯ: Обновление статуса каждые 3 секунды
+  useEffect(() => {
+    if (status === 'COMPLETED' && hasReviewed) return; // Если всё закончено, останавливаем таймер
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/orders/${order.id}`);
+        const freshOrder = await res.json();
+        
+        if (freshOrder.status !== status) {
+          setStatus(freshOrder.status);
+          setOrder(freshOrder);
+        }
+        if (freshOrder.review && !hasReviewed) {
+          setHasReviewed(true);
+          setSelectedRating(freshOrder.review.rating);
+        }
+      } catch (e) { console.error(e); }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [order.id, status, hasReviewed]);
 
   const updateOrderStatus = async (newStatus: string) => {
     try {
@@ -31,9 +56,12 @@ export default function OrderScreen({ order, onClose }: Props) {
         body: JSON.stringify({ status: newStatus })
       });
       const data = await res.json();
-      if (data.success) setStatus(newStatus);
+      if (data.success) {
+        setStatus(newStatus);
+        setOrder(data.order);
+      }
     } catch (e) {
-      alert('Ошибка при обновлении статуса');
+      alert(t(language, 'error'));
     }
   };
 
@@ -59,15 +87,15 @@ export default function OrderScreen({ order, onClose }: Props) {
   return (
     <>
       {isChatOpen && (
-        <ChatScreen 
-          orderId={order.id} 
-          partnerName={partnerName} 
-          onClose={() => setIsChatOpen(false)} 
+        <ChatScreen
+          orderId={order.id}
+          partnerName={partnerName}
+          onClose={() => setIsChatOpen(false)}
         />
       )}
 
       <div className="fixed inset-0 z-[150] bg-slate-50 overflow-y-auto animate-in fade-in duration-300">
-        
+
         {/* Шапка */}
         <div className="bg-white px-5 py-4 flex justify-between items-center sticky top-0 z-10 border-b border-slate-100 shadow-sm">
           <button onClick={onClose} className="p-2 -ml-2 bg-slate-50 rounded-full text-slate-500">
@@ -86,27 +114,31 @@ export default function OrderScreen({ order, onClose }: Props) {
         </div>
 
         <div className="p-5 space-y-6 pb-32">
-          
+
           {/* Главный блок Статуса */}
           <div className={`p-6 rounded-[2rem] shadow-sm ring-1 ring-slate-100 text-center transition-all ${status === 'COMPLETED' ? 'bg-gradient-to-b from-emerald-50 to-white' : 'bg-white'}`}>
-            
+
             {status === 'PENDING' && (
               <>
                 <div className="inline-flex items-center gap-2 bg-amber-50 text-amber-600 px-4 py-1.5 rounded-full text-xs font-bold mb-4">
-                  <Clock className="w-4 h-4" /> {t(language, 'statusPending')}: 14:59
+                  <Clock className="w-4 h-4" /> {isBuyer ? 'Оплатите продавцу' : 'Ожидайте оплату'}
                 </div>
-                <h3 className="text-2xl font-black text-slate-800 mb-2">{t(language, 'payAmount')}</h3>
-                <p className="text-sm text-slate-500 font-medium">{t(language, 'step1')}</p>
+                <h3 className="text-2xl font-black text-slate-800 mb-2">
+                  {isBuyer ? `Переведите ${order.amountFiat} ${order.ad.fiat}` : `Вам переведут ${order.amountFiat} ${order.ad.fiat}`}
+                </h3>
+                <p className="text-sm text-slate-500 font-medium">Свяжитесь в чате для передачи наличных</p>
               </>
             )}
 
             {status === 'PAID' && (
               <>
                 <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-xs font-bold mb-4 animate-pulse">
-                  {t(language, 'statusPaid')}
+                  Оплата подтверждена
                 </div>
-                <h3 className="text-2xl font-black text-slate-800 mb-2">{t(language, 'confirmRec')}</h3>
-                <p className="text-sm text-slate-500 font-medium">{t(language, 'step3')}</p>
+                <h3 className="text-2xl font-black text-slate-800 mb-2">Ожидание перевода крипты</h3>
+                <p className="text-sm text-slate-500 font-medium">
+                  {isBuyer ? 'Продавец проверяет получение средств...' : 'Подтвердите получение денег, чтобы отправить крипту.'}
+                </p>
               </>
             )}
 
@@ -116,11 +148,16 @@ export default function OrderScreen({ order, onClose }: Props) {
                   <CheckCircle2 className="w-8 h-8" />
                 </div>
                 <h3 className="text-2xl font-black text-slate-800 mb-2">{t(language, 'statusCompleted')}</h3>
-                <p className="text-sm text-emerald-600 font-bold mb-6">+{order.amountAsset} {order.ad.asset} {t(language, 'salmak')}</p>
-
-                {/* БЛОК ОТЗЫВОВ */}
+                
+                {/* ИСПРАВЛЕНИЕ ЛОГИКИ + и - */}
+                <p className={`text-sm font-bold mb-6 ${isBuyer ? 'text-emerald-600' : 'text-red-500'}`}>
+                  {isBuyer ? '+' : '-'}{order.amountAsset} {order.ad.asset} {isBuyer ? 'зачислено на кошелек' : 'списано с кошелька'}
+                </p>
+                
                 <div className="border-t border-slate-100 pt-6">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">{t(language, 'reviewTitle')}</p>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
+                    {t(language, 'reviewTitle')} {partnerName}
+                  </p>
 
                   <div className="flex justify-center gap-4">
                     <button
@@ -173,13 +210,13 @@ export default function OrderScreen({ order, onClose }: Props) {
             <div className="bg-white p-6 rounded-[2rem] shadow-sm ring-1 ring-slate-100 space-y-4">
               <div className="flex justify-between items-center pb-4 border-b border-slate-50">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  {user.id === order.buyerId ? 'Вы платите' : 'Вам заплатят'}
+                  {isBuyer ? 'Вы платите' : 'Вам заплатят'}
                 </span>
                 <span className="text-lg font-black text-slate-800">{order.amountFiat} {order.ad.fiat}</span>
               </div>
               <div className="flex justify-between items-center pb-4 border-b border-slate-50">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  {user.id === order.buyerId ? 'Вы получаете' : 'Вы отдаете'}
+                  {isBuyer ? 'Вы получаете' : 'Вы отдаете'}
                 </span>
                 <span className="text-lg font-black text-emerald-600">{order.amountAsset} {order.ad.asset}</span>
               </div>
@@ -195,16 +232,16 @@ export default function OrderScreen({ order, onClose }: Props) {
 
         {/* Кнопки действий снизу */}
         <div className="fixed bottom-0 left-0 right-0 p-5 bg-white/90 backdrop-blur-xl border-t border-slate-100 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-20">
-          {status === 'PENDING' && user.id === order.buyerId && (
+          {status === 'PENDING' && isBuyer && (
             <div className="flex gap-3">
-              <button className="flex-1 py-4 text-slate-400 font-bold text-sm uppercase">{t(language, 'cancel')}</button>
+              <button className="flex-1 py-4 text-slate-400 font-bold text-sm uppercase bg-slate-50 rounded-2xl active:scale-95">{t(language, 'cancel')}</button>
               <button onClick={() => updateOrderStatus('PAID')} className="flex-[2] bg-emerald-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-emerald-200 active:scale-95 transition-all uppercase tracking-wide">
                 {t(language, 'iPay')}
               </button>
             </div>
           )}
 
-          {status === 'PAID' && user.id === order.sellerId && (
+          {status === 'PAID' && !isBuyer && (
             <button onClick={() => updateOrderStatus('COMPLETED')} className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-200 active:scale-95 transition-all uppercase tracking-wide">
               {t(language, 'confirmRec')}
             </button>
@@ -216,10 +253,10 @@ export default function OrderScreen({ order, onClose }: Props) {
             </button>
           )}
 
-          {status === 'PENDING' && user.id === order.sellerId && (
+          {status === 'PENDING' && !isBuyer && (
             <div className="text-center text-slate-500 font-bold text-sm">{t(language, 'statusPending')}...</div>
           )}
-          {status === 'PAID' && user.id === order.buyerId && (
+          {status === 'PAID' && isBuyer && (
             <div className="text-center text-blue-500 font-bold text-sm animate-pulse">{t(language, 'confirmRec')}...</div>
           )}
         </div>

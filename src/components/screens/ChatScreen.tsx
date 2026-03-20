@@ -139,7 +139,7 @@ export default function ChatScreen({ orderId, partnerName, onClose }: Props) {
           placeholder={t(language, 'chatPlaceholder')}
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
-          className="flex-1 bg-slate-50 ring-1 ring-slate-200 rounded-full px-5 py-3 text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+          className="flex-1 bg-slate-50 ring-1 ring-slate-200 rounded-full px-5 py-3 text-sm font-bold text-slate-800 placeholder:text-slate-400 placeholder:font-medium outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
         />
         <button
           type="submit"

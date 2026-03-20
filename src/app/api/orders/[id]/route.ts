@@ -2,6 +2,19 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
+export async function GET(req: Request, context: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await context.params;
+    const order = await prisma.order.findUnique({
+      where: { id },
+      include: { ad: true, seller: true, buyer: true, review: true }
+    });
+    return NextResponse.json(order);
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed' }, { status: 500 });
+  }
+}
+
 export async function PATCH(req: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
