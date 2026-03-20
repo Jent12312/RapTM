@@ -3,32 +3,46 @@
 import { useState, useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { t } from '@/lib/dictionaries';
-import { BadgeCheck, Clock, MapPin, Filter, X, ArrowDownUp, RefreshCw } from 'lucide-react';
+import { 
+  BadgeCheck, Clock, MapPin, Filter, X, 
+  ArrowDownUp, RefreshCw, MessageSquare 
+} from 'lucide-react';
+
+// Импортируем дочерние экраны
+import MerchantProfileModal from './MerchantProfileModal';
+import MyOrdersScreen from './MyOrdersScreen';
 import OrderScreen from './OrderScreen';
 
 export default function P2PScreen() {
   const { language, ads, isLoadingAds, fetchAds, user } = useAppStore();
   
+  // Состояния фильтров
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
   const [asset, setAsset] = useState<'USDT' | 'TMT'>('USDT');
   const [fiat, setFiat] = useState<'TMT' | 'USD'>('TMT');
   
-  const [selectedAd, setSelectedAd] = useState<any>(null);
+  // Состояния навигации и модалок
+  const [selectedAd, setSelectedAd] = useState<any>(null); // Для модалки ввода суммы
+  const [activeOrder, setActiveOrder] = useState<any>(null); // Для экрана живой сделки
+  const [viewingMerchant, setViewingMerchant] = useState<any>(null); // Для карточки статистики
+  const [isViewingChats, setIsViewingChats] = useState(false); // Для списка активных сделок
+  
   const [tradeAmount, setTradeAmount] = useState('');
-  const [activeOrder, setActiveOrder] = useState<any>(null);
 
-  // Загружаем объявления при открытии экрана
+  // Загрузка объявлений из БД при входе
   useEffect(() => {
     fetchAds();
   }, [fetchAds]);
 
-  // Защита: нельзя купить TMT за TMT
+  // Защита от пары TMT/TMT
   useEffect(() => {
     if (asset === 'TMT' && fiat === 'TMT') setFiat('USD');
   }, [asset, fiat]);
 
-  // Фильтруем РЕАЛЬНЫЕ объявления из базы
-  const filteredAds = ads.filter(ad => ad.type === tradeType && ad.asset === asset && ad.fiat === fiat);
+  // Фильтрация объявлений из базы
+  const filteredAds = ads.filter(ad => 
+    ad.type === tradeType && ad.asset === asset && ad.fiat === fiat
+  );
 
   const closeModal = () => {
     setSelectedAd(null);
@@ -45,7 +59,8 @@ export default function P2PScreen() {
     }
   };
 
-    const handleStartOrder = async () => {
+  // Функция создания сделки в БД
+  const handleStartOrder = async () => {
     if (!tradeAmount) return alert("Введите сумму");
     
     const res = await fetch('/api/orders', {
@@ -62,35 +77,72 @@ export default function P2PScreen() {
     const data = await res.json();
     if (data.success) {
       setActiveOrder(data.order);
-      setSelectedAd(null); // Закрываем модалку выбора суммы
+      setSelectedAd(null);
+    } else {
+      alert("Ошибка при создании сделки");
     }
   };
 
-    if (activeOrder) {
+  // ПРИОРЕТЕТНЫЙ РЕНДЕР ЭКРАНОВ (поверх списка)
+  if (activeOrder) {
     return <OrderScreen order={activeOrder} onClose={() => setActiveOrder(null)} />;
   }
-
+  if (viewingMerchant) {
+    return <MerchantProfileModal merchant={viewingMerchant} onClose={() => setViewingMerchant(null)} />;
+  }
+  if (isViewingChats) {
+    return <MyOrdersScreen onClose={() => setIsViewingChats(false)} />;
+  }
 
   return (
     <div className="pb-32 animate-in fade-in duration-300">
       
-      {/* --- Верхняя панель (Фильтры) --- */}
+      {/* --- ВЕРХНЯЯ ПАНЕЛЬ (Скрин 1) --- */}
       <div className="bg-white px-4 pt-2 pb-4 shadow-sm sticky top-[72px] z-30 border-b border-slate-100 space-y-4">
         
-        <div className="flex bg-slate-100 p-1 rounded-2xl">
-          <button onClick={() => setTradeType('buy')} className={`flex-1 py-2 text-sm font-bold rounded-xl transition-all ${tradeType === 'buy' ? 'bg-white text-emerald-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500'}`}>Купить</button>
-          <button onClick={() => setTradeType('sell')} className={`flex-1 py-2 text-sm font-bold rounded-xl transition-all ${tradeType === 'sell' ? 'bg-white text-red-500 shadow-sm ring-1 ring-slate-200' : 'text-slate-500'}`}>Продать</button>
+        {/* Табы Купить/Продать + Иконка Чата */}
+        <div className="flex justify-between items-center gap-3">
+          <div className="flex bg-slate-100 p-1 rounded-2xl flex-1">
+            <button 
+              onClick={() => setTradeType('buy')} 
+              className={`flex-1 py-2 text-sm font-bold rounded-xl transition-all ${tradeType === 'buy' ? 'bg-white text-emerald-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500'}`}
+            >
+              Купить
+            </button>
+            <button 
+              onClick={() => setTradeType('sell')} 
+              className={`flex-1 py-2 text-sm font-bold rounded-xl transition-all ${tradeType === 'sell' ? 'bg-white text-red-500 shadow-sm ring-1 ring-slate-200' : 'text-slate-500'}`}
+            >
+              Продать
+            </button>
+          </div>
+          
+          <button 
+            onClick={() => setIsViewingChats(true)}
+            className="p-3 bg-white text-blue-500 rounded-2xl ring-1 ring-slate-200 shadow-sm relative active:scale-95 transition-all"
+          >
+            <MessageSquare className="w-5 h-5" />
+            <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+          </button>
         </div>
 
+        {/* Выбор Актива (USDT / TMT) */}
         <div className="flex gap-2">
-          <button onClick={() => setAsset('USDT')} className={`flex-1 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${asset === 'USDT' ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'bg-slate-50 text-slate-500'}`}>
+          <button 
+            onClick={() => setAsset('USDT')} 
+            className={`flex-1 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${asset === 'USDT' ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'bg-slate-50 text-slate-500'}`}
+          >
             <div className="w-5 h-5 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-[10px]">₮</div> USDT
           </button>
-          <button onClick={() => setAsset('TMT')} className={`flex-1 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${asset === 'TMT' ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200' : 'bg-slate-50 text-slate-500'}`}>
+          <button 
+            onClick={() => setAsset('TMT')} 
+            className={`flex-1 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${asset === 'TMT' ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200' : 'bg-slate-50 text-slate-500'}`}
+          >
             <div className="w-5 h-5 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-[10px]">M</div> TMT
           </button>
         </div>
 
+        {/* Выбор Фиата и Фильтр */}
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide items-center justify-between">
           <div className="flex gap-2">
             <div className="flex bg-slate-100 p-1 rounded-xl shrink-0">
@@ -99,29 +151,29 @@ export default function P2PScreen() {
             </div>
             <button className="flex items-center gap-1.5 bg-slate-50 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 ring-1 ring-slate-200 shrink-0">Сумма <Filter className="w-3 h-3" /></button>
           </div>
-          
-          {/* Кнопка обновления списка */}
           <button onClick={fetchAds} className="p-2 bg-slate-100 text-slate-500 rounded-xl active:rotate-180 transition-all duration-300">
             <RefreshCw className={`w-4 h-4 ${isLoadingAds ? 'animate-spin text-emerald-500' : ''}`} />
           </button>
         </div>
       </div>
 
-      {/* --- Список реальных объявлений --- */}
+      {/* --- ЛЕНТА ОБЪЯВЛЕНИЙ --- */}
       <div className="px-4 py-4 space-y-4 relative z-10">
         {isLoadingAds ? (
-          // Скелетон загрузки
-          [1, 2, 3].map(i => (
-            <div key={i} className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-slate-100 animate-pulse h-36"></div>
-          ))
+          [1, 2, 3].map(i => <div key={i} className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-slate-100 animate-pulse h-36"></div>)
         ) : filteredAds.length > 0 ? (
           filteredAds.map((ad) => (
             <div key={ad.id} className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-slate-100 transition-all hover:shadow-md">
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <div className="flex items-center gap-1.5">
-                    {/* Берем имя создателя из связи user (которую мы добавили в API) */}
-                    <span className="font-bold text-slate-800 text-sm">{ad.user?.firstName || 'Мерчант'}</span>
+                    {/* Кликабельное имя мерчанта для открытия статистики */}
+                    <button 
+                      onClick={() => setViewingMerchant(ad.user)} 
+                      className="font-bold text-slate-800 text-sm hover:underline"
+                    >
+                      {ad.user?.firstName || 'Мерчант'}
+                    </button>
                     {ad.user?.isVerified && <BadgeCheck className="w-4 h-4 text-blue-500" />}
                   </div>
                   <div className="text-[10px] text-slate-400 font-medium mt-0.5">Новый продавец</div>
@@ -139,15 +191,15 @@ export default function P2PScreen() {
                   <div className="text-[10px] text-slate-500 font-medium mt-1">
                     Лимит: {ad.minLimit.toLocaleString()} - {ad.maxLimit.toLocaleString()} {ad.fiat}
                   </div>
-                  <div className="flex items-center gap-1.5 mt-2">
+                  <div className="flex items-center gap-1.5 mt-2 font-bold text-slate-600">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">Наличные ({ad.city})</span>
+                    <span className="text-[10px] uppercase">Наличные ({ad.city})</span>
                   </div>
                 </div>
 
                 <button 
                   onClick={() => setSelectedAd(ad)}
-                  className={`px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm transition-all active:scale-95 ${
+                  className={`px-6 py-2.5 rounded-xl font-bold text-sm shadow-sm transition-all active:scale-95 ${
                     tradeType === 'buy' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
                   }`}
                 >
@@ -157,21 +209,20 @@ export default function P2PScreen() {
             </div>
           ))
         ) : (
-          <div className="text-center py-10 text-slate-400 font-medium text-sm bg-white rounded-[2rem] ring-1 ring-slate-100">
-            <div className="text-4xl mb-2">🔍</div>
-            Нет активных объявлений для<br/>
-            <span className="text-slate-800 font-bold">{asset} за {fiat}</span>
+          <div className="text-center py-20 text-slate-400 font-medium text-sm bg-white rounded-[2rem] ring-1 ring-slate-100 shadow-inner">
+            <div className="text-4xl mb-3">🔍</div>
+            Нет объявлений для пары<br/><span className="text-slate-800 font-bold">{asset} за {fiat}</span>
           </div>
         )}
       </div>
 
-      {/* --- Модалка сделки --- */}
+      {/* --- МОДАЛКА ВВОДА СУММЫ --- */}
       {selectedAd && (
         <>
-          {/* z-[60] перекроет нижнюю навигацию */}
+          {/* z-[60] чтобы быть выше навигации */}
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] transition-opacity" onClick={closeModal}></div>
           
-          {/* z-[70], добавили max-h-[90vh], overflow-y-auto и pb-12 для скролла на небольших экранах */}
+          {/* z-[70], max-h-[90vh] и pb-12 для правильного отображения на телефонах */}
           <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[2.5rem] p-6 z-[70] animate-in slide-in-from-bottom duration-300 shadow-2xl mx-auto max-w-md max-h-[90vh] overflow-y-auto pb-12">
             
             <div className="flex justify-between items-center mb-6">
@@ -190,7 +241,9 @@ export default function P2PScreen() {
               </div>
               <div className="text-right">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Продавец</p>
-                <p className="text-sm font-bold text-slate-700">{selectedAd.user?.firstName || 'Мерчант'}</p>
+                <button onClick={() => { setSelectedAd(null); setViewingMerchant(selectedAd.user); }} className="text-sm font-bold text-blue-600 underline">
+                  {selectedAd.user?.firstName || 'Мерчант'}
+                </button>
               </div>
             </div>
 
@@ -231,12 +284,12 @@ export default function P2PScreen() {
             </div>
 
             <button 
-              onClick={handleStartOrder} // <-- ЗАМЕНИТЬ ЭТО
-              className={`w-full py-5 rounded-[2rem] font-bold text-lg text-white shadow-xl active:scale-95 transition-all ${
+              onClick={handleStartOrder}
+              className={`w-full py-5 rounded-[2rem] font-bold text-lg text-white shadow-xl active:scale-95 transition-all mt-4 ${
                 selectedAd.type === 'buy' ? 'bg-emerald-500 shadow-emerald-200' : 'bg-red-500 shadow-red-200'
               }`}
             >
-              Начать сделку
+              Заключить сделку
             </button>
           </div>
         </>
