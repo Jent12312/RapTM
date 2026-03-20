@@ -11,7 +11,7 @@ interface Props {
 
 export default function CreateAdScreen({ onClose }: Props) {
   // Состояния формы
-  const { user, language } = useAppStore();
+  const { user, language, balances } = useAppStore();
   const [adDirection, setAdDirection] = useState<'buy' | 'sell'>('buy');
   const [asset, setAsset] = useState<'USDT' | 'TMT'>('USDT');
   const [fiat, setFiat] = useState<'TMT' | 'USD'>('TMT');
@@ -150,6 +150,13 @@ export default function CreateAdScreen({ onClose }: Props) {
         <button
         onClick={async () => {
             if (!price || !minLimit || !maxLimit) return alert(t(language, 'error'));
+
+            // Проверка: если продаем USDT, лимит не может превышать баланс
+            if (adDirection === 'sell' && asset === 'USDT') {
+              if (Number(maxLimit) > balances.usdt) {
+                return alert(`У вас недостаточно USDT. Ваш баланс: ${balances.usdt.toFixed(2)}`);
+              }
+            }
 
             const res = await fetch('/api/p2p', {
             method: 'POST',

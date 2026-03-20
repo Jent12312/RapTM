@@ -3,9 +3,22 @@
 import { useAppStore } from '@/store/useAppStore';
 import { t } from '@/lib/dictionaries';
 import { Eye, EyeOff, Plus, ArrowDownToLine, RefreshCcw } from 'lucide-react';
+import WebApp from '@twa-dev/sdk';
 
 export default function WalletScreen() {
-  const { language, isBalanceVisible, toggleBalance, balances, setActiveTab } = useAppStore();
+  const { language, isBalanceVisible, toggleBalance, balances, setActiveTab, user, initUser } = useAppStore();
+
+  const handleDeposit = async () => {
+    const res = await fetch('/api/wallet/faucet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: user.id })
+    });
+    if (res.ok) {
+      WebApp.HapticFeedback.notificationOccurred('success');
+      initUser(WebApp.initDataUnsafe.user);
+    }
+  };
 
   return (
     <div className="px-5 py-2 space-y-8 animate-in fade-in duration-500">
@@ -39,7 +52,7 @@ export default function WalletScreen() {
         
         {/* Кнопки действий */}
         <div className="grid grid-cols-3 gap-4 mt-8 relative z-10">
-          <button className="flex flex-col items-center gap-2 group">
+          <button onClick={handleDeposit} className="flex flex-col items-center gap-2 group">
             <div className="w-12 h-12 bg-white/15 group-hover:bg-white/25 rounded-2xl flex items-center justify-center backdrop-blur-sm transition-all active:scale-95">
               <Plus className="w-6 h-6" />
             </div>
