@@ -7,26 +7,30 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await context.params;
+    const { id } = await context.params; // Это id самой сделки (orderId)
     const body = await req.json();
     const { authorId, targetId, rating } = body;
 
-    // Проверяем, не оставляли ли уже отзыв к этой сделке
-    const existingReview = await prisma.review.findUnique({
-      where: { orderId: id }
+    // ИСПОЛЬЗУЕМ findFirst вместо findUnique
+    // Проверяем: есть ли уже отзыв к ЭТОЙ сделке от ЭТОГО автора?
+    const existingReview = await prisma.review.findFirst({
+      where: { 
+        orderId: id,
+        authorId: authorId 
+      }
     });
 
     if (existingReview) {
-      return NextResponse.json({ error: 'Review already exists' }, { status: 400 });
+      return NextResponse.json({ error: 'Вы уже оставили отзыв к этой сделке' }, { status: 400 });
     }
 
-    // Создаем отзыв (смайлик)
+    // Создаем новый отзыв
     const review = await prisma.review.create({
       data: {
         orderId: id,
         authorId,
         targetId,
-        rating // "GOOD", "NEUTRAL" или "BAD"
+        rating
       }
     });
 
