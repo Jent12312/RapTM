@@ -44,7 +44,7 @@ export async function GET(req: Request) {
       where: {
         OR: [{ buyerId: userId as string }, { sellerId: userId as string }]
       },
-      include: { ad: true, seller: true, buyer: true },
+      include: { ad: true, seller: true, buyer: true, review: true },
       orderBy: { createdAt: 'desc' }
     });
     return NextResponse.json(orders);

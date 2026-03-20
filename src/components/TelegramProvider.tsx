@@ -12,6 +12,8 @@ export default function TelegramProvider({ children }: { children: React.ReactNo
       
       WebApp.ready();
       WebApp.expand();
+      WebApp.setBackgroundColor('#f8fafc');
+      WebApp.setHeaderColor('#ffffff'); // Белая шапка
       
       if (WebApp.isVersionAtLeast('7.7')) {
         WebApp.setHeaderColor('bg_color');

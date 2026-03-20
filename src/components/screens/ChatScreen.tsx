@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, Send, ShieldAlert } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
+import { t } from '@/lib/dictionaries';
 
 interface Props {
   orderId: string;
@@ -11,7 +12,7 @@ interface Props {
 }
 
 export default function ChatScreen({ orderId, partnerName, onClose }: Props) {
-  const { user } = useAppStore();
+  const { user, language } = useAppStore();
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -87,7 +88,7 @@ export default function ChatScreen({ orderId, partnerName, onClose }: Props) {
         <div>
           <h2 className="text-lg font-bold text-slate-800 tracking-tight">{partnerName}</h2>
           <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> В сети
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> {t(language, 'online')}
           </p>
         </div>
       </div>
@@ -96,17 +97,17 @@ export default function ChatScreen({ orderId, partnerName, onClose }: Props) {
       <div className="bg-amber-50 px-4 py-3 shrink-0 border-b border-amber-100 flex items-start gap-3">
         <ShieldAlert className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
         <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wider leading-relaxed">
-          Внимание! Никогда не переводите криптовалюту до фактического получения наличных денег. Служба поддержки Rapira TM никогда не пишет первой.
+          {t(language, 'securityWarning')}
         </p>
       </div>
 
       {/* Список сообщений */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {isLoading ? (
-          <div className="text-center text-slate-400 font-medium text-sm mt-10">Загрузка чата...</div>
+          <div className="text-center text-slate-400 font-medium text-sm mt-10">{t(language, 'loading')}</div>
         ) : messages.length === 0 ? (
           <div className="text-center text-slate-400 font-medium text-sm mt-10">
-            Здесь пока нет сообщений.<br/>Напишите первым, чтобы договориться о встрече!
+            {t(language, 'noAds')}<br/>{t(language, 'step1')}
           </div>
         ) : (
           messages.map((msg) => {
@@ -133,15 +134,15 @@ export default function ChatScreen({ orderId, partnerName, onClose }: Props) {
 
       {/* Поле ввода */}
       <form onSubmit={handleSendMessage} className="bg-white p-4 shrink-0 border-t border-slate-100 flex gap-2 pb-8">
-        <input 
-          type="text" 
-          placeholder="Написать сообщение..." 
+        <input
+          type="text"
+          placeholder={t(language, 'chatPlaceholder')}
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           className="flex-1 bg-slate-50 ring-1 ring-slate-200 rounded-full px-5 py-3 text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
         />
-        <button 
-          type="submit" 
+        <button
+          type="submit"
           disabled={!newMessage.trim()}
           className="p-3 bg-blue-500 text-white rounded-full disabled:bg-slate-200 disabled:text-slate-400 transition-all active:scale-95"
         >

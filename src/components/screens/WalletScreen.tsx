@@ -74,7 +74,7 @@ export default function WalletScreen() {
               </div>
               <div>
                 <div className="font-bold text-slate-800 text-base">Tether USDT</div>
-                <div className="text-xs font-medium text-slate-400">Digital Dollar</div>
+                <div className="text-xs font-medium text-slate-400">{t(language, 'digitalDollar')}</div>
               </div>
             </div>
             <div className="text-right">
@@ -90,7 +90,7 @@ export default function WalletScreen() {
               </div>
               <div>
                 <div className="font-bold text-slate-800 text-base">TMT (Manat)</div>
-                <div className="text-xs font-medium text-slate-400">Local Currency</div>
+                <div className="text-xs font-medium text-slate-400">{t(language, 'localCurrency')}</div>
               </div>
             </div>
             <div className="text-right">

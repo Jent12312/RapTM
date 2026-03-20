@@ -16,6 +16,8 @@ model User {
   firstName   String?
   isVerified  Boolean  @default(false)
   createdAt   DateTime @default(now())
+  nickname    String?  // Новое поле для ручного изменения
+  avatarUrl   String?  // Ссылка на аву
 
   wallet      Wallet?
   ads         P2PAd[]

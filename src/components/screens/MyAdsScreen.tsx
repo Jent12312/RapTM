@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
+import { t } from '@/lib/dictionaries';
 import { ChevronLeft, Trash2, Power } from 'lucide-react';
 
 interface Props {
@@ -9,7 +10,7 @@ interface Props {
 }
 
 export default function MyAdsScreen({ onClose }: Props) {
-  const { user } = useAppStore();
+  const { user, language } = useAppStore();
   const [myAds, setMyAds] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -72,19 +73,19 @@ export default function MyAdsScreen({ onClose }: Props) {
           <ChevronLeft className="w-6 h-6" />
         </button>
         <div>
-          <h2 className="text-lg font-bold text-slate-800 tracking-tight">Мои объявления</h2>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Управление P2P</p>
+          <h2 className="text-lg font-bold text-slate-800 tracking-tight">{t(language, 'myAds')}</h2>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t(language, 'merchantCenter')}</p>
         </div>
       </div>
 
       <div className="p-4 space-y-4 pb-32">
         {isLoading ? (
-          <div className="text-center py-10 text-slate-400 font-bold">Загрузка...</div>
+          <div className="text-center py-10 text-slate-400 font-bold">{t(language, 'loading')}</div>
         ) : myAds.length === 0 ? (
           <div className="text-center py-20 text-slate-400 font-medium text-sm bg-white rounded-[2rem] ring-1 ring-slate-100">
             <div className="text-4xl mb-3 opacity-50">📭</div>
-            У вас пока нет объявлений.<br/>
-            Создайте свое первое объявление!
+            {t(language, 'noAds')}<br/>
+            {t(language, 'createAd')}!
           </div>
         ) : (
           myAds.map((ad) => (
@@ -93,15 +94,15 @@ export default function MyAdsScreen({ onClose }: Props) {
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-2">
                   <div className={`p-2 rounded-xl ${ad.type === 'buy' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
-                    <span className="text-xs font-bold uppercase tracking-wider">{ad.type === 'buy' ? 'Покупка' : 'Продажа'}</span>
+                    <span className="text-xs font-bold uppercase tracking-wider">{ad.type === 'buy' ? t(language, 'buy') : t(language, 'sell')}</span>
                   </div>
                   <span className="font-bold text-slate-800">{ad.asset}</span>
                 </div>
-                
+
                 {/* iOS Toggle (Тумблер) */}
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                    {ad.isActive ? 'Активно' : 'Выкл'}
+                    {ad.isActive ? t(language, 'statusCompleted') : t(language, 'statusCancelled')}
                   </span>
                   <button 
                     onClick={() => toggleAdStatus(ad.id, ad.isActive)}

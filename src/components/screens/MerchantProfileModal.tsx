@@ -1,6 +1,8 @@
 'use client';
 
 import { ChevronLeft, Share, BarChart2, Smile, Frown, Meh, BadgeCheck } from 'lucide-react';
+import { useAppStore } from '@/store/useAppStore';
+import { t } from '@/lib/dictionaries';
 import WebApp from '@twa-dev/sdk';
 
 interface Props {
@@ -9,7 +11,8 @@ interface Props {
 }
 
 export default function MerchantProfileModal({ merchant, onClose }: Props) {
-  
+  const { language } = useAppStore();
+
   // Логика кнопки "Поделиться" (Скрин 3 и 4)
   const handleShare = () => {
     // В Telegram Mini Apps это открывает меню пересылки!
@@ -34,12 +37,12 @@ export default function MerchantProfileModal({ merchant, onClose }: Props) {
           </button>
           <div>
             <div className="flex items-center gap-1.5">
-              <h2 className="text-lg font-bold text-slate-800">{merchant.firstName || 'Мерчант'}</h2>
+              <h2 className="text-lg font-bold text-slate-800">{merchant.firstName || t(language, 'userLabel')}</h2>
               {merchant.isVerified && <BadgeCheck className="w-5 h-5 text-red-500" fill="currentColor" stroke="white" />}
             </div>
             <div className="flex gap-2 text-[10px] font-bold text-slate-400 mt-1">
-              <span>Email ❕</span>
-              <span>Телефон ❕</span>
+              <span>{t(language, 'email')} ❕</span>
+              <span>{t(language, 'phone')} ❕</span>
             </div>
           </div>
         </div>
@@ -61,15 +64,15 @@ export default function MerchantProfileModal({ merchant, onClose }: Props) {
           <div className="grid grid-cols-3 border-b border-slate-50">
             <div className="p-4 text-center border-r border-slate-50">
               <div className="text-lg font-black text-slate-800">142</div>
-              <div className="text-[10px] font-bold text-slate-400">Сделок</div>
+              <div className="text-[10px] font-bold text-slate-400">{t(language, 'trades')}</div>
             </div>
             <div className="p-4 text-center border-r border-slate-50">
               <div className="text-lg font-black text-slate-800">98.5%</div>
-              <div className="text-[10px] font-bold text-slate-400">Выполнено</div>
+              <div className="text-[10px] font-bold text-slate-400">{t(language, 'completion')}</div>
             </div>
             <div className="p-4 text-center">
               <div className="text-lg font-black text-slate-800">12k <span className="text-xs">USDT</span></div>
-              <div className="text-[10px] font-bold text-slate-400">Объём</div>
+              <div className="text-[10px] font-bold text-slate-400">{t(language, 'amount')}</div>
             </div>
           </div>
 
@@ -77,15 +80,15 @@ export default function MerchantProfileModal({ merchant, onClose }: Props) {
           <div className="grid grid-cols-3 border-b border-slate-50">
             <div className="p-4 text-center border-r border-slate-50">
               <div className="text-lg font-black text-slate-800">2 мин</div>
-              <div className="text-[10px] font-bold text-slate-400">Принятие ≈</div>
+              <div className="text-[10px] font-bold text-slate-400">{t(language, 'time')} ≈</div>
             </div>
             <div className="p-4 text-center border-r border-slate-50">
               <div className="text-lg font-black text-slate-800">5 мин</div>
-              <div className="text-[10px] font-bold text-slate-400">Отправка ≈</div>
+              <div className="text-[10px] font-bold text-slate-400">{t(language, 'time')} ≈</div>
             </div>
             <div className="p-4 text-center">
               <div className="text-lg font-black text-slate-800">3 мин</div>
-              <div className="text-[10px] font-bold text-slate-400">Подтверждение ≈</div>
+              <div className="text-[10px] font-bold text-slate-400">{t(language, 'time')} ≈</div>
             </div>
           </div>
 
@@ -93,7 +96,7 @@ export default function MerchantProfileModal({ merchant, onClose }: Props) {
           <div className="p-5 flex justify-between items-center bg-slate-50/50">
             <div>
               <div className="text-lg font-black text-red-500">99%</div>
-              <div className="text-[10px] font-bold text-slate-800 uppercase tracking-tight">положительных отзывов</div>
+              <div className="text-[10px] font-bold text-slate-800 uppercase tracking-tight">{t(language, 'positiveReviews')}</div>
             </div>
             <div className="flex gap-3">
               <div className="flex items-center gap-1"><Smile className="w-5 h-5 text-blue-500" /> <span className="text-sm font-bold">140</span></div>
@@ -105,9 +108,9 @@ export default function MerchantProfileModal({ merchant, onClose }: Props) {
         </div>
 
         {/* Заглушка активных объявлений продавца */}
-        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-8 mb-4 ml-2">Объявления пользователя</h3>
+        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-8 mb-4 ml-2">{t(language, 'myAds')}</h3>
         <div className="text-center py-10 bg-white rounded-[2rem] ring-1 ring-slate-100 text-slate-400 text-sm font-medium">
-          Здесь будут активные объявления
+          {t(language, 'loading')}
         </div>
       </div>
     </div>
