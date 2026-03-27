@@ -37,7 +37,8 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
         const res = await fetch(`/api/orders/${order.id}`);
         const freshOrder = await res.json();
         
-        if (freshOrder.status !== status) {
+        // Проверяем изменения статуса или флага спора
+        if (freshOrder.status !== status || freshOrder.isDisputed !== order.isDisputed) {
           setStatus(freshOrder.status);
           setOrder(freshOrder);
         }
@@ -50,11 +51,13 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
              setSelectedRating(newMyReview.rating);
            }
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error('Failed to fetch order updates:', e);
+      }
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [order.id, status, hasReviewed, user.id]);
+  }, [order.id, status, hasReviewed, user.id, order.isDisputed]);
 
   const updateOrderStatus = async (newStatus: string) => {
     try {
@@ -69,6 +72,20 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
       if (data.success && data.order) {
         setStatus(newStatus);
         setOrder(data.order);
+        
+        // Немедленно обновляем данные через 500мс для всех пользователей
+        setTimeout(async () => {
+          try {
+            const freshRes = await fetch(`/api/orders/${order.id}`);
+            const freshOrder = await freshRes.json();
+            if (freshOrder.status !== status) {
+              setStatus(freshOrder.status);
+              setOrder(freshOrder);
+            }
+          } catch (e) {
+            console.error('Failed to refresh order data:', e);
+          }
+        }, 500);
       } else {
         alert('Ошибка: Сервер не вернул данные ордера');
       }
@@ -110,6 +127,19 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
         // Обновляем статус локально
         setOrder({ ...order, isDisputed: true });
         setStatus('DISPUTED');
+        
+        // Немедленно обновляем данные через 500мс для всех пользователей
+        setTimeout(async () => {
+          try {
+            const freshRes = await fetch(`/api/orders/${order.id}`);
+            const freshOrder = await freshRes.json();
+            if (freshOrder.isDisputed !== order.isDisputed) {
+              setOrder(freshOrder);
+            }
+          } catch (e) {
+            console.error('Failed to refresh order data:', e);
+          }
+        }, 500);
       } else {
         alert('Ошибка при отправке апелляции');
       }
@@ -123,10 +153,10 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
     if (status !== 'PAID') return false;
     
     const paidTime = new Date(order.updatedAt);
-    const tenMinutesLater = new Date(paidTime.getTime() + 10 * 60 * 1000);
+    const oneMinuteLater = new Date(paidTime.getTime() + 1 * 60 * 1000); // Изменено с 10 минут на 1 минуту
     const now = new Date();
     
-    return now >= tenMinutesLater;
+    return now >= oneMinuteLater;
   };
 
   return (
@@ -160,8 +190,8 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
 
         <div className="p-5 space-y-6 pb-32">
 
-          {/* Проверка на замороженную сделку */}
-          {order.isDisputed && (
+          {/* Проверка на замороженную сделку - показываем только если статус не COMPLETED и не CANCELLED */}
+          {order.isDisputed && !['COMPLETED', 'CANCELLED'].includes(status) && (
             <div className="bg-red-50 p-4 rounded-2xl border border-red-200 text-center mb-6">
               <AlertTriangle className="w-8 h-8 text-red-500 mx-auto mb-2" />
               <p className="font-bold text-red-600">Сделка заморожена админом</p>

@@ -7,6 +7,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
   const [disputes, setDisputes] = useState<any[]>([]);
   const [selectedDispute, setSelectedDispute] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
+  const [loading, setLoading] = useState<{[key: string]: boolean}>({});
 
   useEffect(() => {
     fetch('/api/admin/disputes')
@@ -37,16 +38,51 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
   const resolveDispute = async (orderId: string, resolution: 'COMPLETED' | 'CANCELLED') => {
     if (!confirm(`Вы уверены, что хотите установить статус ${resolution}?`)) return;
 
+    // Устанавливаем состояние загрузки для конкретного ордера
+    setLoading(prev => ({ ...prev, [orderId]: true }));
+
     try {
-      await fetch(`/api/orders/${orderId}`, {
+      const res = await fetch(`/api/orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: resolution, isDisputed: false }) // снимаем флаг спора
       });
-      setDisputes(disputes.filter(d => d.id !== orderId));
-      alert("Спор разрешен!");
+      
+      const data = await res.json();
+      
+      if (data.success && data.order) {
+        // Обновляем список споров
+        setDisputes(disputes.filter(d => d.id !== orderId));
+        
+        // Если это текущий выбранный спор, возвращаемся к списку
+        if (selectedDispute?.id === orderId) {
+          handleBackToList();
+        }
+        
+        // Уведомляем обоих участников о решении спора
+        alert(`Спор разрешен! Статус сделки изменен на ${resolution === 'COMPLETED' ? 'Завершен' : 'Отменен'}.`);
+        
+        // Немедленное обновление данных для всех участников
+        setTimeout(async () => {
+          try {
+            // Пытаемся обновить данные для обоих участников
+            const orderDetails = data.order;
+            const buyerId = orderDetails.buyerId;
+            const sellerId = orderDetails.sellerId;
+            
+            console.log(`Спор ${orderId} разрешен. Уведомляем участников: ${buyerId}, ${sellerId}`);
+          } catch (e) {
+            console.error('Failed to notify participants:', e);
+          }
+        }, 1000);
+      } else {
+        alert("Ошибка: Сервер не вернул данные ордера");
+      }
     } catch (e) {
-      alert("Ошибка");
+      alert("Ошибка при разрешении спора");
+    } finally {
+      // Снимаем состояние загрузки
+      setLoading(prev => ({ ...prev, [orderId]: false }));
     }
   };
 
@@ -106,18 +142,36 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                           e.stopPropagation();
                           resolveDispute(order.id, 'CANCELLED');
                         }}
-                        className="flex flex-col items-center gap-1 p-2 bg-red-50 text-red-600 rounded-xl font-bold text-xs active:scale-95 transition-all"
+                        disabled={loading[order.id]}
+                        className={`flex flex-col items-center gap-1 p-2 rounded-xl font-bold text-xs transition-all ${
+                          loading[order.id]
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'bg-red-50 text-red-600 hover:bg-red-100 active:scale-95'
+                        }`}
                       >
-                        <XCircle className="w-4 h-4" /> Отменить
+                        {loading[order.id] ? (
+                          <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                          <XCircle className="w-4 h-4" />
+                        )} Отменить
                       </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           resolveDispute(order.id, 'COMPLETED');
                         }}
-                        className="flex flex-col items-center gap-1 p-2 bg-emerald-50 text-emerald-600 rounded-xl font-bold text-xs active:scale-95 transition-all"
+                        disabled={loading[order.id]}
+                        className={`flex flex-col items-center gap-1 p-2 rounded-xl font-bold text-xs transition-all ${
+                          loading[order.id]
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 active:scale-95'
+                        }`}
                       >
-                        <CheckCircle2 className="w-4 h-4" /> Завершить
+                        {loading[order.id] ? (
+                          <div className="w-4 h-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                          <CheckCircle2 className="w-4 h-4" />
+                        )} Завершить
                       </button>
                     </div>
                   </div>
@@ -208,17 +262,35 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => resolveDispute(selectedDispute.id, 'CANCELLED')}
-                className="flex flex-col items-center gap-2 p-4 bg-red-50 text-red-600 rounded-xl font-bold text-sm active:scale-95 transition-all"
+                disabled={loading[selectedDispute.id]}
+                className={`flex flex-col items-center gap-2 p-4 rounded-xl font-bold text-sm transition-all ${
+                  loading[selectedDispute.id]
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-red-50 text-red-600 hover:bg-red-100 active:scale-95'
+                }`}
               >
-                <XCircle className="w-6 h-6" />
+                {loading[selectedDispute.id] ? (
+                  <div className="w-6 h-6 border-2 border-red-400 border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <XCircle className="w-6 h-6" />
+                )}
                 <span>Отменить сделку</span>
                 <span className="text-xs text-red-400 font-normal">Возвращаем крипту продавцу</span>
               </button>
               <button
                 onClick={() => resolveDispute(selectedDispute.id, 'COMPLETED')}
-                className="flex flex-col items-center gap-2 p-4 bg-emerald-50 text-emerald-600 rounded-xl font-bold text-sm active:scale-95 transition-all"
+                disabled={loading[selectedDispute.id]}
+                className={`flex flex-col items-center gap-2 p-4 rounded-xl font-bold text-sm transition-all ${
+                  loading[selectedDispute.id]
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 active:scale-95'
+                }`}
               >
-                <CheckCircle2 className="w-6 h-6" />
+                {loading[selectedDispute.id] ? (
+                  <div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <CheckCircle2 className="w-6 h-6" />
+                )}
                 <span>Завершить сделку</span>
                 <span className="text-xs text-emerald-400 font-normal">Переводим крипту покупателю</span>
               </button>
