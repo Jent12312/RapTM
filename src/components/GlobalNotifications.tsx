@@ -10,6 +10,8 @@ export default function GlobalNotifications() {
   const [knownOrderIds, setKnownOrderIds] = useState<Set<string>>(new Set());
 
   // Фоновый слушатель новых сделок
+  const [knownOrders, setKnownOrders] = useState<Record<string, string>>({});
+
   useEffect(() => {
     if (!user?.id) return;
 
@@ -19,38 +21,43 @@ export default function GlobalNotifications() {
         if (!res.ok) return;
         const orders = await res.json();
         
-        const currentOrderIds = new Set<string>();
-        let hasNewOrder = false;
-        let newOrderAmount = 0;
+        const newKnown = { ...knownOrders };
+        const isFirstLoad = Object.keys(knownOrders).length === 0;
 
         orders.forEach((order: any) => {
-          currentOrderIds.add(order.id);
-          // Если ордер в статусе PENDING, мы его еще не знали, и мы в нем участвуем
-          if (order.status === 'PENDING' && !knownOrderIds.has(order.id) && knownOrderIds.size > 0) {
-            hasNewOrder = true;
-            newOrderAmount = order.amountAsset;
+          const prevStatus = knownOrders[order.id];
+
+          // Если это совершенно новая сделка (и мы уже прогрузили первичный список)
+          if (!prevStatus && !isFirstLoad) {
+            // Уведомляем о "Новой сделке" ТОЛЬКО Мейкера (создателя объявления)
+            if (order.ad.userId === user.id) {
+              addToast(`У вас новая сделка на ${order.amountAsset} ${order.ad.asset}!`, 'success');
+            }
+          } 
+          // Если сделка уже была, но у неё изменился статус
+          else if (prevStatus && prevStatus !== order.status) {
+            if (order.status === 'PAID' && order.sellerId === user.id) {
+              addToast('Покупатель подтвердил оплату! Проверьте баланс карты.', 'info');
+            }
+            if (order.status === 'COMPLETED') {
+              addToast(`Сделка #${order.id.slice(0,4)} успешно завершена`, 'success');
+            }
           }
+
+          // Обновляем статус в нашем словаре
+          newKnown[order.id] = order.status;
         });
 
-        if (hasNewOrder) {
-          addToast(`У вас новая сделка на ${newOrderAmount} USDT!`, 'success');
-        }
-
-        setKnownOrderIds(currentOrderIds);
+        setKnownOrders(newKnown);
       } catch (error) {
-        console.error("Failed to fetch orders for notifications");
+        console.error("Notifications fetch error", error);
       }
     };
 
-    // Первый запуск для инициализации известных ID
-    if (knownOrderIds.size === 0) {
-      checkForNewOrders();
-    }
-
-    // Проверяем каждые 10 секунд
-    const interval = setInterval(checkForNewOrders, 10000);
+    if (Object.keys(knownOrders).length === 0) checkForNewOrders();
+    const interval = setInterval(checkForNewOrders, 5000);
     return () => clearInterval(interval);
-  }, [user?.id, knownOrderIds]);
+  }, [user?.id, knownOrders]);
 
   return (
     <div className="fixed top-4 left-0 right-0 z-[9999] flex flex-col items-center gap-2 pointer-events-none px-4">
