@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChevronLeft, MessageCircle, ShieldCheck, Clock, MapPin, CheckCircle2, Smile, Meh, Frown } from 'lucide-react';
+import { ChevronLeft, MessageCircle, ShieldCheck, Clock, MapPin, CheckCircle2, Smile, Meh, Frown, AlertTriangle, Gavel } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { t } from '@/lib/dictionaries';
 import ChatScreen from './ChatScreen';
@@ -96,6 +96,39 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
     }
   };
 
+  const handleDispute = async () => {
+    if (!confirm('Вы уверены, что хотите вызвать арбитра? Сделка будет заморожена до решения спора.')) return;
+
+    try {
+      const res = await fetch(`/api/orders/${order.id}/dispute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (res.ok) {
+        alert('Апелляция отправлена! Админ будет уведомлен.');
+        // Обновляем статус локально
+        setOrder({ ...order, isDisputed: true });
+        setStatus('DISPUTED');
+      } else {
+        alert('Ошибка при отправке апелляции');
+      }
+    } catch (e) {
+      alert('Ошибка при отправке апелляции');
+    }
+  };
+
+  // Проверяем, можно ли показать кнопку апелляции (через 10 минут после PAID)
+  const canShowDisputeButton = () => {
+    if (status !== 'PAID') return false;
+    
+    const paidTime = new Date(order.updatedAt);
+    const tenMinutesLater = new Date(paidTime.getTime() + 10 * 60 * 1000);
+    const now = new Date();
+    
+    return now >= tenMinutesLater;
+  };
+
   return (
     <>
       {isChatOpen && (
@@ -126,6 +159,15 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
         </div>
 
         <div className="p-5 space-y-6 pb-32">
+
+          {/* Проверка на замороженную сделку */}
+          {order.isDisputed && (
+            <div className="bg-red-50 p-4 rounded-2xl border border-red-200 text-center mb-6">
+              <AlertTriangle className="w-8 h-8 text-red-500 mx-auto mb-2" />
+              <p className="font-bold text-red-600">Сделка заморожена админом</p>
+              <p className="text-xs text-red-400 mt-1">Ожидайте решения арбитража</p>
+            </div>
+          )}
 
           {/* Главный блок Статуса */}
           <div className={`p-6 rounded-[2rem] shadow-sm ring-1 ring-slate-100 text-center transition-all ${status === 'COMPLETED' ? 'bg-gradient-to-b from-emerald-50 to-white' : 'bg-white'}`}>
@@ -244,7 +286,15 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
 
         {/* Кнопки действий снизу */}
         <div className="fixed bottom-0 left-0 right-0 p-5 bg-white/90 backdrop-blur-xl border-t border-slate-100 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-20">
-          {status === 'PENDING' && isBuyer && (
+          
+          {/* Блокировка кнопок при споре */}
+          {order.isDisputed && (
+            <div className="text-center text-red-500 font-bold text-sm mb-4">
+              ⚠️ Сделка заморожена. Действия заблокированы.
+            </div>
+          )}
+
+          {status === 'PENDING' && isBuyer && !order.isDisputed && (
             <div className="flex gap-3">
               <button className="flex-1 py-4 text-slate-400 font-bold text-sm uppercase bg-slate-50 rounded-2xl active:scale-95">{t(language, 'cancel')}</button>
               <button onClick={() => updateOrderStatus('PAID')} className="flex-[2] bg-emerald-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-emerald-200 active:scale-95 transition-all uppercase tracking-wide">
@@ -253,7 +303,7 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
             </div>
           )}
 
-          {status === 'PAID' && !isBuyer && (
+          {status === 'PAID' && !isBuyer && !order.isDisputed && (
             <button onClick={() => updateOrderStatus('COMPLETED')} className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-200 active:scale-95 transition-all uppercase tracking-wide">
               {t(language, 'confirmRec')}
             </button>
@@ -265,10 +315,21 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
             </button>
           )}
 
+          {/* Кнопка апелляции появляется через 10 минут после PAID */}
+          {status === 'PAID' && canShowDisputeButton() && !order.isDisputed && (
+            <button
+              onClick={handleDispute}
+              className="w-full bg-amber-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-amber-200 active:scale-95 transition-all uppercase tracking-wide mb-3"
+            >
+              <Gavel className="w-5 h-5 inline mr-2" />
+              Вызвать арбитра
+            </button>
+          )}
+
           {status === 'PENDING' && !isBuyer && (
             <div className="text-center text-slate-500 font-bold text-sm">{t(language, 'statusPending')}...</div>
           )}
-          {status === 'PAID' && isBuyer && (
+          {status === 'PAID' && isBuyer && !order.isDisputed && (
             <div className="text-center text-blue-500 font-bold text-sm animate-pulse">{t(language, 'confirmRec')}...</div>
           )}
         </div>
