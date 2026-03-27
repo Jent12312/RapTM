@@ -16,8 +16,13 @@ model User {
   firstName   String?
   isVerified  Boolean  @default(false)
   createdAt   DateTime @default(now())
-  nickname    String?  // Новое поле для ручного изменения
-  avatarUrl   String?  // Ссылка на аву
+  nickname    String?  
+  avatarUrl   String?  
+  
+  // Новые поля из PDF
+  phone       String?  // Для верификации
+  passcode    String?  // Для 2FA PIN-кода
+  isAdmin     Boolean  @default(false) // Для доступа в админку
 
   wallet      Wallet?
   ads         P2PAd[]
@@ -25,7 +30,6 @@ model User {
   ordersAsBuyer  Order[] @relation("BuyerOrders")
   ordersAsSeller Order[] @relation("SellerOrders")
 
-  // Новое: Сообщения в чате и Отзывы
   messages       Message[]
   reviewsGiven   Review[]  @relation("ReviewsGiven")
   reviewsReceived Review[] @relation("ReviewsReceived")
@@ -47,11 +51,20 @@ model P2PAd {
   asset       String   
   fiat        String   
   priceType   String   
-  price       Float    
+  price       Float    // Если priceType == 'floating', здесь хранится маржа (например, 1.5%)
   minLimit    Float    
   maxLimit    Float    
   city        String   
   autoReply   String?  
+  
+  // НОВЫЕ ПОЛЯ (Умный маркет)
+  description  String?  // Условия сделки
+  paymentTime  Int      @default(15) // Время на оплату в минутах
+  isPrivate    Boolean  @default(false) // Приватное объявление по ссылке
+  reqKyc       Boolean  @default(false) // Требовать верификацию
+  reqMinTrades Int      @default(0)     // Минимум сделок у контрагента
+  reqRating    Float    @default(0.0)   // Минимальный рейтинг контрагента
+
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   orders      Order[]
@@ -70,40 +83,35 @@ model Order {
   amountFiat  Float    
   status      String   @default("PENDING") 
   
+  isDisputed  Boolean  @default(false) // НОВОЕ: Нажат ли "Спор/Апелляция"
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Новое: Чат и Отзывы к этой сделке
   messages    Message[]
   reviews     Review[]
 }
 
-// НОВАЯ МОДЕЛЬ: Сообщения Чата
 model Message {
   id        String   @id @default(uuid())
   orderId   String
   order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  
   senderId  String
   sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  
   text      String
+  isSystem  Boolean  @default(false) // НОВОЕ: Системные сообщения (например автоответчик)
   createdAt DateTime @default(now())
 }
 
-// НОВАЯ МОДЕЛЬ: Отзывы (Смайлики)
 model Review {
   id        String   @id @default(uuid())
-  orderId   String   // УБРАЛИ @unique - теперь оба могут оценить друг друга
+  orderId   String   
   order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
   authorId  String
   author    User     @relation("ReviewsGiven", fields: [authorId], references: [id], onDelete: Cascade)
-
   targetId  String
   target    User     @relation("ReviewsReceived", fields: [targetId], references: [id], onDelete: Cascade)
-
-  rating    String   // "GOOD" (Smile), "NEUTRAL" (Meh), "BAD" (Frown)
+  rating    String   
   comment   String?
   createdAt DateTime @default(now())
 }

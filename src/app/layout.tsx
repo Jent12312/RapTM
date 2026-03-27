@@ -1,7 +1,9 @@
+// src/app/layout.tsx
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import TelegramProvider from "@/components/TelegramProvider";
+import GlobalNotifications from "@/components/GlobalNotifications";
 
 const inter = Inter({ subsets: ["latin", "cyrillic"] });
 
@@ -23,6 +25,7 @@ export default function RootLayout({
       </head>
       <body className={`${inter.className} bg-[#f8fafc] text-slate-900 pb-28 min-h-screen overflow-x-hidden selection:bg-emerald-200`}>
         <TelegramProvider>
+          <GlobalNotifications /> {/* <-- НОВОЕ */}
           {children}
         </TelegramProvider>
       </body>

@@ -25,20 +25,25 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { userId, type, asset, fiat, priceType, price, minLimit, maxLimit, city, autoReply } = body;
+    const { 
+      userId, type, asset, fiat, priceType, price, minLimit, maxLimit, 
+      city, autoReply, description, paymentTime, reqKyc, reqMinTrades, reqRating 
+    } = body;
 
     const newAd = await prisma.p2PAd.create({
       data: {
-        userId,
-        type,
-        asset,
-        fiat,
-        priceType,
+        userId, type, asset, fiat, priceType,
         price: Number(price),
         minLimit: Number(minLimit),
         maxLimit: Number(maxLimit),
-        city,
-        autoReply,
+        city, autoReply,
+        
+        // Новые поля
+        description: description || "",
+        paymentTime: Number(paymentTime) || 15,
+        reqKyc: Boolean(reqKyc),
+        reqMinTrades: Number(reqMinTrades) || 0,
+        reqRating: Number(reqRating) || 0,
       }
     });
 

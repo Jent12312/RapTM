@@ -36,7 +36,7 @@ export default function MyAdsScreen({ onClose }: Props) {
 
   // Функция переключения тумблера
   const toggleAdStatus = async (adId: string, currentStatus: boolean) => {
-    // Оптимистичное обновление UI (сразу меняем цвет тумблера, не дожидаясь ответа сервера)
+    const { addToast } = useAppStore.getState();
     setMyAds(myAds.map(ad => ad.id === adId ? { ...ad, isActive: !currentStatus } : ad));
 
     try {
@@ -45,22 +45,24 @@ export default function MyAdsScreen({ onClose }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isActive: !currentStatus })
       });
+      addToast("Статус обновлен", "info");
     } catch (error) {
-      // Если ошибка — возвращаем как было
-      alert("Ошибка при обновлении статуса");
+      addToast("Ошибка при обновлении статуса", "error");
       loadMyAds();
     }
   };
 
   // Функция удаления
   const deleteAd = async (adId: string) => {
+    const { addToast } = useAppStore.getState();
     if (!confirm('Вы уверены, что хотите удалить объявление?')) return;
     
     try {
       await fetch(`/api/p2p/${adId}`, { method: 'DELETE' });
       setMyAds(myAds.filter(ad => ad.id !== adId));
+      addToast("Объявление удалено", "success");
     } catch (error) {
-      alert('Ошибка при удалении');
+      addToast("Ошибка при удалении", "error");
     }
   };
 

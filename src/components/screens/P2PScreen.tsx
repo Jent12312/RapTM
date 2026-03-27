@@ -40,10 +40,6 @@ export default function P2PScreen() {
     fetchAds();
   }, [fetchAds]);
 
-  // Защита от пары TMT/TMT
-  useEffect(() => {
-    if (asset === 'TMT' && fiat === 'TMT') setFiat('USD');
-  }, [asset, fiat]);
 
   // 1. ПРАВИЛЬНЫЙ ФИЛЬТР (Ищем зеркальные объявления)
   const targetAdType = tradeType === 'buy' ? 'sell' : 'buy';
@@ -71,11 +67,17 @@ export default function P2PScreen() {
 
   // 2. ИСПРАВЛЕННЫЙ ЗАПРОС СОЗДАНИЯ СДЕЛКИ
   const handleStartOrder = async () => {
+    const { addToast } = useAppStore.getState(); // Достаем функцию тостов
     const inputAmount = Number(tradeAmount);
-    if (!inputAmount) return alert("Введите сумму");
+    
+    if (!inputAmount) {
+      addToast("Введите сумму", "error");
+      return;
+    }
     
     if (inputAmount < selectedAd.minLimit || inputAmount > selectedAd.maxLimit) {
-      return alert(`Лимит: от ${selectedAd.minLimit} до ${selectedAd.maxLimit}`);
+      addToast(`Лимит: от ${selectedAd.minLimit} до ${selectedAd.maxLimit}`, "error");
+      return;
     }
 
     let amountAsset, amountFiat;
@@ -92,7 +94,7 @@ export default function P2PScreen() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         adId: selectedAd.id,
-        takerId: user.id, // Отправляем ID того, кто кликнул
+        takerId: user.id,
         amountAsset, 
         amountFiat
       })
@@ -100,10 +102,11 @@ export default function P2PScreen() {
     
     const data = await res.json();
     if (data.success) {
+      addToast("Сделка успешно создана!", "success");
       setActiveOrder(data.order);
       setSelectedAd(null);
     } else {
-      alert("Ошибка при создании сделки");
+      addToast("Ошибка при создании сделки", "error");
     }
   };
 

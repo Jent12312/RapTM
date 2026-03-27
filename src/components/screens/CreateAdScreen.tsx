@@ -11,7 +11,7 @@ interface Props {
 
 export default function CreateAdScreen({ onClose }: Props) {
   // Состояния формы
-  const { user, language, balances } = useAppStore();
+  const { user, language, balances, addToast } = useAppStore();
   const [adDirection, setAdDirection] = useState<'buy' | 'sell'>('buy');
   const [asset, setAsset] = useState<'USDT' | 'TMT'>('USDT');
   const [fiat, setFiat] = useState<'TMT' | 'USD'>('TMT');
@@ -21,10 +21,6 @@ export default function CreateAdScreen({ onClose }: Props) {
   const [maxLimit, setMaxLimit] = useState('');
   const [city, setCity] = useState('Ашхабад');
 
-  // Логика блокировки TMT-TMT
-  useEffect(() => {
-    if (asset === 'TMT' && fiat === 'TMT') setFiat('USD');
-  }, [asset, fiat]);
 
   return (
     <div className="fixed inset-0 z-[100] bg-slate-50 overflow-y-auto animate-in slide-in-from-bottom duration-300">
@@ -78,7 +74,7 @@ export default function CreateAdScreen({ onClose }: Props) {
           <div className="flex justify-between items-center">
             <span className="text-sm font-bold text-slate-500">{adDirection === 'buy' ? t(language, 'payAmount') : t(language, 'receiveAmount')} ({t(language, 'fiat')})</span>
             <div className="flex bg-slate-100 p-1 rounded-lg">
-              <button disabled={asset === 'TMT'} onClick={() => setFiat('TMT')} className={`px-3 py-1 text-xs font-bold rounded-md ${fiat === 'TMT' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400'} ${asset === 'TMT' ? 'opacity-30' : ''}`}>TMT</button>
+              <button onClick={() => setFiat('TMT')} className={`px-3 py-1 text-xs font-bold rounded-md ${fiat === 'TMT' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400'} ${asset === 'TMT' ? 'opacity-30' : ''}`}>TMT</button>
               <button onClick={() => setFiat('USD')} className={`px-3 py-1 text-xs font-bold rounded-md ${fiat === 'USD' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400'}`}>USD</button>
             </div>
           </div>
@@ -149,19 +145,22 @@ export default function CreateAdScreen({ onClose }: Props) {
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-xl border-t border-slate-100 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-20">
         <button
         onClick={async () => {
-            if (!price || !minLimit || !maxLimit) return alert(t(language, 'error'));
+            if (!price || !minLimit || !maxLimit) {
+              addToast(t(language, 'error') + ': Заполните все поля', 'error');
+              return;
+            }
 
-            // Проверка: если продаем USDT, лимит не может превышать баланс
             if (adDirection === 'sell' && asset === 'USDT') {
               if (Number(maxLimit) > balances.usdt) {
-                return alert(`У вас недостаточно USDT. Ваш баланс: ${balances.usdt.toFixed(2)}`);
+                addToast(`Недостаточно USDT. Баланс: ${balances.usdt.toFixed(2)}`, 'error');
+                return;
               }
             }
 
             const res = await fetch('/api/p2p', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
                 userId: user.id,
                 type: adDirection,
                 asset,
@@ -171,17 +170,22 @@ export default function CreateAdScreen({ onClose }: Props) {
                 minLimit,
                 maxLimit,
                 city,
-                autoReply: ""
-            })
+                autoReply: "",
+                description: "", // Новые поля из БД
+                paymentTime: 15,
+                reqKyc: false,
+                reqMinTrades: 0,
+                reqRating: 0
+              })
             });
 
             if (res.ok) {
-            alert(t(language, 'success'));
-            onClose();
+              addToast(t(language, 'success'), 'success');
+              onClose();
             } else {
-            alert(t(language, 'error'));
+              addToast(t(language, 'error'), 'error');
             }
-        }}
+          }}
         className="w-full bg-blue-600 text-white font-bold py-4 rounded-[2rem] shadow-lg active:scale-95 transition-all text-lg"
         >
         {t(language, 'publish')}

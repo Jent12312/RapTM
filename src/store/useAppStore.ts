@@ -3,6 +3,13 @@ import { create } from 'zustand';
 import { Language } from '../lib/dictionaries';
 
 type Tab = 'wallet' | 'exchange' | 'p2p' | 'profile';
+export type ToastType = 'success' | 'error' | 'info';
+
+export interface ToastMessage {
+  id: string;
+  message: string;
+  type: ToastType;
+}
 
 interface AppState {
   language: Language;
@@ -12,18 +19,20 @@ interface AppState {
   user: any | null;
   balances: { tmt: number; usdt: number };
   
-  // Добавляем хранилище для объявлений
   ads: any[];
   isLoadingAds: boolean;
+  
+  toasts: ToastMessage[]; // <-- НОВОЕ
   
   setLanguage: (lang: Language) => void;
   setActiveTab: (tab: Tab) => void;
   toggleBalance: () => void;
   
   initUser: (tgData: any) => Promise<void>;
-  
-  // Функция загрузки объявлений из базы
   fetchAds: () => Promise<void>;
+  
+  addToast: (message: string, type: ToastType) => void; // <-- НОВОЕ
+  removeToast: (id: string) => void; // <-- НОВОЕ
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -35,6 +44,7 @@ export const useAppStore = create<AppState>((set) => ({
   
   ads: [],
   isLoadingAds: false,
+  toasts: [],
 
   setLanguage: (lang) => set({ language: lang }),
   setActiveTab: (tab) => set({ activeTab: tab }),
@@ -69,7 +79,7 @@ export const useAppStore = create<AppState>((set) => ({
   fetchAds: async () => {
     set({ isLoadingAds: true });
     try {
-      const res = await fetch('/api/p2p'); // Дергаем наш GET роут
+      const res = await fetch('/api/p2p');
       if (res.ok) {
         const data = await res.json();
         set({ ads: data, isLoadingAds: false });
@@ -78,5 +88,24 @@ export const useAppStore = create<AppState>((set) => ({
       console.error("Ошибка загрузки объявлений:", error);
       set({ isLoadingAds: false });
     }
-  }
+  },
+
+  addToast: (message, type) => {
+    const id = Date.now().toString();
+    set((state) => ({ toasts: [...state.toasts, { id, message, type }] }));
+    // Автоудаление через 3 секунды
+    setTimeout(() => {
+      set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }));
+    }, 3000);
+    
+    // Вибрация Telegram
+    import('@twa-dev/sdk').then((WebApp) => {
+      const t = WebApp.default;
+      if (type === 'success') t.HapticFeedback.notificationOccurred('success');
+      if (type === 'error') t.HapticFeedback.notificationOccurred('error');
+      if (type === 'info') t.HapticFeedback.impactOccurred('medium');
+    });
+  },
+
+  removeToast: (id) => set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }))
 }));

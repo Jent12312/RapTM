@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, Send, ShieldAlert } from 'lucide-react';
+import { ChevronLeft, Send, ShieldAlert, AlertTriangle } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { t } from '@/lib/dictionaries';
 
@@ -16,6 +16,15 @@ export default function ChatScreen({ orderId, partnerName, onClose }: Props) {
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [orderStatus, setOrderStatus] = useState<string>('');
+
+  // Загружаем статус заказа
+  useEffect(() => {
+    fetch(`/api/orders/${orderId}`)
+      .then(res => res.json())
+      .then(data => setOrderStatus(data.status))
+      .catch(console.error);
+  }, [orderId]);
   
   // Реф для автоматического скролла вниз
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -101,6 +110,33 @@ export default function ChatScreen({ orderId, partnerName, onClose }: Props) {
         </p>
       </div>
 
+      {/* Кнопка АПЕЛЛЯЦИИ */}
+      {orderStatus === 'paid' && (
+        <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+          <span className="text-[10px] font-bold text-slate-400 uppercase">Возникли проблемы?</span>
+          <button 
+            onClick={async () => {
+              if(confirm("Вы уверены, что хотите позвать Администратора? Сделка будет заморожена.")) {
+                 await fetch(`/api/orders/${orderId}`, {
+                   method: 'PATCH',
+                   headers: { 'Content-Type': 'application/json' },
+                   body: JSON.stringify({ isDisputed: true })
+                 });
+                 // Отправляем системное сообщение
+                 await fetch(`/api/orders/${orderId}/messages`, {
+                   method: 'POST',
+                   headers: { 'Content-Type': 'application/json' },
+                   body: JSON.stringify({ senderId: user.id, text: "🚨 Сделка приостановлена. Ожидайте решения администратора.", isSystem: true })
+                 });
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-bold active:scale-95"
+          >
+            <AlertTriangle className="w-3.5 h-3.5" /> Спор / Арбитраж
+          </button>
+        </div>
+      )}
+
       {/* Список сообщений */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {isLoading ? (
@@ -112,16 +148,23 @@ export default function ChatScreen({ orderId, partnerName, onClose }: Props) {
         ) : (
           messages.map((msg) => {
             const isMe = msg.senderId === user.id;
+            const isSystem = msg.isSystem;
             // Форматируем время (например: 14:30)
             const time = new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
             return (
-              <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+              <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} ${isSystem ? 'justify-center' : ''}`}>
                 <div className={`max-w-[75%] rounded-2xl p-3 shadow-sm ${
-                  isMe ? 'bg-emerald-500 text-white rounded-br-sm' : 'bg-white text-slate-800 ring-1 ring-slate-100 rounded-bl-sm'
+                  isSystem 
+                    ? 'bg-red-50 text-red-700 ring-1 ring-red-200 border-2 border-red-300' 
+                    : isMe 
+                      ? 'bg-emerald-500 text-white rounded-br-sm' 
+                      : 'bg-white text-slate-800 ring-1 ring-slate-100 rounded-bl-sm'
                 }`}>
                   <p className="text-sm font-medium leading-relaxed">{msg.text}</p>
-                  <div className={`text-[10px] font-bold mt-1 text-right ${isMe ? 'text-emerald-100' : 'text-slate-400'}`}>
+                  <div className={`text-[10px] font-bold mt-1 text-right ${
+                    isSystem ? 'text-red-400' : isMe ? 'text-emerald-100' : 'text-slate-400'
+                  }`}>
                     {time}
                   </div>
                 </div>
