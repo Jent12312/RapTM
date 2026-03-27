@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChevronLeft, MessageCircle, ShieldCheck, Clock, MapPin, CheckCircle2, Smile, Meh, Frown, AlertTriangle, Gavel } from 'lucide-react';
+import { ChevronLeft, MessageCircle, ShieldCheck, Clock, MapPin, CheckCircle2, Smile, Meh, Frown, AlertTriangle, Gavel, XCircle } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { t } from '@/lib/dictionaries';
 import ChatScreen from './ChatScreen';
@@ -182,9 +182,17 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
               {status === 'COMPLETED' ? t(language, 'success') : <><ShieldCheck className="w-3 h-3" /> {t(language, 'safeDeal')}</>}
             </div>
           </div>
-          <button onClick={() => setIsChatOpen(true)} className="p-2 bg-slate-50 rounded-full text-blue-500 relative">
+          <button
+            onClick={() => setIsChatOpen(true)}
+            disabled={['COMPLETED', 'CANCELLED'].includes(status)}
+            className={`p-2 rounded-full relative ${
+              ['COMPLETED', 'CANCELLED'].includes(status)
+                ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                : 'bg-slate-50 text-blue-500'
+            }`}
+          >
             <MessageCircle className="w-6 h-6" />
-            {status !== 'COMPLETED' && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></span>}
+            {status !== 'COMPLETED' && !['COMPLETED', 'CANCELLED'].includes(status) && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></span>}
           </button>
         </div>
 
@@ -200,7 +208,7 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
           )}
 
           {/* Главный блок Статуса */}
-          <div className={`p-6 rounded-[2rem] shadow-sm ring-1 ring-slate-100 text-center transition-all ${status === 'COMPLETED' ? 'bg-gradient-to-b from-emerald-50 to-white' : 'bg-white'}`}>
+          <div className={`p-6 rounded-[2rem] shadow-sm ring-1 ring-slate-100 text-center transition-all ${status === 'COMPLETED' ? 'bg-gradient-to-b from-emerald-50 to-white' : status === 'CANCELLED' ? 'bg-gradient-to-b from-red-50 to-white' : 'bg-white'}`}>
 
             {status === 'PENDING' && (
               <>
@@ -236,6 +244,68 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
                 {/* ИСПРАВЛЕНИЕ ЛОГИКИ + и - */}
                 <p className={`text-sm font-bold mb-6 ${isBuyer ? 'text-emerald-600' : 'text-red-500'}`}>
                   {isBuyer ? '+' : '-'}{order.amountAsset} {order.ad.asset} {isBuyer ? 'зачислено на кошелек' : 'списано с кошелька'}
+                </p>
+                
+                <div className="border-t border-slate-100 pt-6">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
+                    {t(language, 'reviewTitle')} {partnerName}
+                  </p>
+
+                  <div className="flex justify-center gap-4">
+                    <button
+                      disabled={hasReviewed}
+                      onClick={() => handleLeaveReview('GOOD')}
+                      className={`p-4 rounded-2xl flex flex-col items-center gap-2 transition-all ${
+                        selectedRating === 'GOOD' ? 'bg-blue-50 ring-2 ring-blue-500 scale-110' :
+                        hasReviewed ? 'opacity-30' : 'bg-slate-50 hover:bg-blue-50 active:scale-95'
+                      }`}
+                    >
+                      <Smile className={`w-8 h-8 ${selectedRating === 'GOOD' ? 'text-blue-500' : 'text-slate-400'}`} />
+                      <span className={`text-[10px] font-bold ${selectedRating === 'GOOD' ? 'text-blue-600' : 'text-slate-400'}`}>{t(language, 'excellent')}</span>
+                    </button>
+
+                    <button
+                      disabled={hasReviewed}
+                      onClick={() => handleLeaveReview('NEUTRAL')}
+                      className={`p-4 rounded-2xl flex flex-col items-center gap-2 transition-all ${
+                        selectedRating === 'NEUTRAL' ? 'bg-slate-100 ring-2 ring-slate-400 scale-110' :
+                        hasReviewed ? 'opacity-30' : 'bg-slate-50 hover:bg-slate-100 active:scale-95'
+                      }`}
+                    >
+                      <Meh className={`w-8 h-8 ${selectedRating === 'NEUTRAL' ? 'text-slate-500' : 'text-slate-400'}`} />
+                      <span className={`text-[10px] font-bold ${selectedRating === 'NEUTRAL' ? 'text-slate-600' : 'text-slate-400'}`}>{t(language, 'neutral')}</span>
+                    </button>
+
+                    <button
+                      disabled={hasReviewed}
+                      onClick={() => handleLeaveReview('BAD')}
+                      className={`p-4 rounded-2xl flex flex-col items-center gap-2 transition-all ${
+                        selectedRating === 'BAD' ? 'bg-red-50 ring-2 ring-red-500 scale-110' :
+                        hasReviewed ? 'opacity-30' : 'bg-slate-50 hover:bg-red-50 active:scale-95'
+                      }`}
+                    >
+                      <Frown className={`w-8 h-8 ${selectedRating === 'BAD' ? 'text-red-500' : 'text-slate-400'}`} />
+                      <span className={`text-[10px] font-bold ${selectedRating === 'BAD' ? 'text-red-600' : 'text-slate-400'}`}>{t(language, 'bad')}</span>
+                    </button>
+                  </div>
+
+                  {hasReviewed && (
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-4">{t(language, 'reviewSuccess')}</p>
+                  )}
+                </div>
+              </>
+            )}
+
+            {status === 'CANCELLED' && (
+              <>
+                <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
+                  <XCircle className="w-8 h-8" />
+                </div>
+                <h3 className="text-2xl font-black text-slate-800 mb-2">Сделка отменена</h3>
+                
+                {/* Отображение информации о том, что произошло с криптой */}
+                <p className={`text-sm font-bold mb-6 ${isBuyer ? 'text-red-500' : 'text-emerald-600'}`}>
+                  {isBuyer ? '-' : '+'}{order.amountAsset} {order.ad.asset} {isBuyer ? 'не зачислено' : 'возвращено'}
                 </p>
                 
                 <div className="border-t border-slate-100 pt-6">
@@ -344,9 +414,15 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
               {t(language, 'returnToWallet')}
             </button>
           )}
+          
+          {status === 'CANCELLED' && (
+            <button onClick={onClose} className="w-full bg-slate-100 text-slate-600 font-bold py-4 rounded-2xl active:scale-95 transition-all uppercase tracking-wide">
+              {t(language, 'returnToWallet')}
+            </button>
+          )}
 
-          {/* Кнопка апелляции появляется через 10 минут после PAID */}
-          {status === 'PAID' && canShowDisputeButton() && !order.isDisputed && (
+          {/* Кнопка апелляции появляется через 1 минуту после PAID и только для активных сделок */}
+          {status === 'PAID' && canShowDisputeButton() && !order.isDisputed && !['COMPLETED', 'CANCELLED'].includes(status) && (
             <button
               onClick={handleDispute}
               className="w-full bg-amber-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-amber-200 active:scale-95 transition-all uppercase tracking-wide mb-3"
