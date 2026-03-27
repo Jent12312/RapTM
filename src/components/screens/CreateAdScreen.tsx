@@ -74,7 +74,7 @@ export default function CreateAdScreen({ onClose }: Props) {
           <div className="flex justify-between items-center">
             <span className="text-sm font-bold text-slate-500">{adDirection === 'buy' ? t(language, 'payAmount') : t(language, 'receiveAmount')} ({t(language, 'fiat')})</span>
             <div className="flex bg-slate-100 p-1 rounded-lg">
-              <button onClick={() => setFiat('TMT')} className={`px-3 py-1 text-xs font-bold rounded-md ${fiat === 'TMT' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400'} ${asset === 'TMT' ? 'opacity-30' : ''}`}>TMT</button>
+              <button onClick={() => setFiat('TMT')} className={`px-3 py-1 text-xs font-bold rounded-md ${fiat === 'TMT' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400'}`}>TMT</button>
               <button onClick={() => setFiat('USD')} className={`px-3 py-1 text-xs font-bold rounded-md ${fiat === 'USD' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400'}`}>USD</button>
             </div>
           </div>

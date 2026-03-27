@@ -27,6 +27,7 @@ import WebApp from '@twa-dev/sdk';
 import CreateAdScreen from './CreateAdScreen';
 import MyAdsScreen from './MyAdsScreen';
 import MyOrdersScreen from './MyOrdersScreen';
+import AdminScreen from './AdminScreen';
 
 export default function ProfileScreen() {
   const { user, language, initUser } = useAppStore();
@@ -35,6 +36,8 @@ export default function ProfileScreen() {
   const [isCreatingAd, setIsCreatingAd] = useState(false);
   const [isViewingMyAds, setIsViewingMyAds] = useState(false);
   const [isViewingMyOrders, setIsViewingMyOrders] = useState(false);
+
+  const [isViewingAdmin, setIsViewingAdmin] = useState(false);
   
   // Статистика
   const [stats, setStats] = useState({ good: 0, neutral: 0, bad: 0, trades: 0, volume: 0 });
@@ -72,6 +75,7 @@ export default function ProfileScreen() {
   if (isCreatingAd) return <CreateAdScreen onClose={() => setIsCreatingAd(false)} />;
   if (isViewingMyAds) return <MyAdsScreen onClose={() => setIsViewingMyAds(false)} />;
   if (isViewingMyOrders) return <MyOrdersScreen onClose={() => setIsViewingMyOrders(false)} />;
+  if (isViewingAdmin) return <AdminScreen onClose={() => setIsViewingAdmin(false)} />;
 
   const displayName = user?.nickname || user?.firstName || 'User';
 
@@ -155,6 +159,18 @@ export default function ProfileScreen() {
       <div className="space-y-3">
         <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-4">{t(language, 'security')}</h3>
         <div className="bg-white rounded-[2.5rem] overflow-hidden shadow-sm ring-1 ring-slate-100">
+          
+          {/* НОВАЯ КНОПКА АДМИНА */}
+          {user?.isAdmin && (
+            <MenuBtn 
+              icon={ShieldAlert} 
+              label="Админ-Панель (Арбитраж)" 
+              color="text-red-500" 
+              bg="bg-red-50" 
+              onClick={() => setIsViewingAdmin(true)} 
+            />
+          )}
+
           <MenuBtn icon={Bell} label={t(language, 'notifications')} color="text-purple-500" bg="bg-purple-50" toggle />
           <MenuBtn icon={ShieldCheck} label={t(language, 'kycLabel')} color="text-emerald-600" bg="bg-emerald-50" badge={t(language, 'verified')} />
           <MenuBtn icon={HelpCircle} label={t(language, 'help')} color="text-slate-500" bg="bg-slate-100" />

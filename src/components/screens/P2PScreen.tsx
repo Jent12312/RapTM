@@ -173,7 +173,7 @@ export default function P2PScreen() {
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide items-center justify-between">
           <div className="flex gap-2">
             <div className="flex bg-slate-100 p-1 rounded-xl shrink-0">
-              <button disabled={asset === 'TMT'} onClick={() => setFiat('TMT')} className={`px-3 py-1.5 text-xs font-bold rounded-lg ${fiat === 'TMT' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'} ${asset === 'TMT' ? 'opacity-30' : ''}`}>TMT</button>
+              <button onClick={() => setFiat('TMT')} className={`px-3 py-1.5 text-xs font-bold rounded-lg ${fiat === 'TMT' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}>TMT</button>
               <button onClick={() => setFiat('USD')} className={`px-3 py-1.5 text-xs font-bold rounded-lg ${fiat === 'USD' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}>USD</button>
             </div>
             <div className="flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-2xl ring-1 ring-slate-200 transition-all focus-within:ring-emerald-500 focus-within:bg-white shrink-0">
