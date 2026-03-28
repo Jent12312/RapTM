@@ -28,6 +28,7 @@ import CreateAdScreen from './CreateAdScreen';
 import MyAdsScreen from './MyAdsScreen';
 import MyOrdersScreen from './MyOrdersScreen';
 import AdminScreen from './AdminScreen';
+import KycScreen from './KycScreen';
 
 export default function ProfileScreen() {
   const { user, language, initUser } = useAppStore();
@@ -38,6 +39,7 @@ export default function ProfileScreen() {
   const [isViewingMyOrders, setIsViewingMyOrders] = useState(false);
 
   const [isViewingAdmin, setIsViewingAdmin] = useState(false);
+  const [isViewingKyc, setIsViewingKyc] = useState(false);
   
   // Статистика
   const [stats, setStats] = useState({ good: 0, neutral: 0, bad: 0, trades: 0, volume: 0 });
@@ -76,6 +78,7 @@ export default function ProfileScreen() {
   if (isViewingMyAds) return <MyAdsScreen onClose={() => setIsViewingMyAds(false)} />;
   if (isViewingMyOrders) return <MyOrdersScreen onClose={() => setIsViewingMyOrders(false)} />;
   if (isViewingAdmin) return <AdminScreen onClose={() => setIsViewingAdmin(false)} />;
+  if (isViewingKyc) return <KycScreen onClose={() => setIsViewingKyc(false)} />;
 
   const displayName = user?.nickname || user?.firstName || 'User';
 
@@ -172,7 +175,14 @@ export default function ProfileScreen() {
           )}
 
           <MenuBtn icon={Bell} label={t(language, 'notifications')} color="text-purple-500" bg="bg-purple-50" toggle />
-          <MenuBtn icon={ShieldCheck} label={t(language, 'kycLabel')} color="text-emerald-600" bg="bg-emerald-50" badge={t(language, 'verified')} />
+          <MenuBtn 
+            icon={ShieldCheck} 
+            label={t(language, 'kycLabel')} 
+            color={user?.isVerified ? "text-emerald-600" : "text-amber-500"} 
+            bg={user?.isVerified ? "bg-emerald-50" : "bg-amber-50"} 
+            badge={user?.isVerified ? t(language, 'verified') : "Пройти"}
+            onClick={() => setIsViewingKyc(true)}
+          />
           <MenuBtn icon={HelpCircle} label={t(language, 'help')} color="text-slate-500" bg="bg-slate-100" />
           <MenuBtn icon={Trash2} label={t(language, 'deleteAccount')} color="text-red-500" bg="bg-red-50" last />
         </div>
