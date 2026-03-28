@@ -25,11 +25,18 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
   try {
     const { id } = await context.params;
     const body = await req.json();
-    const { nickname, avatarUrl } = body;
+    const { nickname, avatarUrl, isVerified, kycStatus, kycPhotoUrl } = body;
+
+    const updateData: any = {};
+    if (nickname !== undefined) updateData.nickname = nickname;
+    if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
+    if (isVerified !== undefined) updateData.isVerified = isVerified;
+    if (kycStatus !== undefined) updateData.kycStatus = kycStatus;
+    if (kycPhotoUrl !== undefined) updateData.kycPhotoUrl = kycPhotoUrl;
 
     const user = await prisma.user.update({
       where: { id },
-      data: { nickname, avatarUrl }
+      data: updateData
     });
 
     return NextResponse.json({ success: true, user });

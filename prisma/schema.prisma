@@ -15,10 +15,12 @@ model User {
   username    String?
   firstName   String?
   isVerified  Boolean  @default(false)
+  kycStatus   String   @default("none") // none, pending, verified, rejected
+  kycPhotoUrl String?  // URL загруженного фото документа
   createdAt   DateTime @default(now())
-  nickname    String?  
-  avatarUrl   String?  
-  
+  nickname    String?
+  avatarUrl   String?
+
   // Новые поля из PDF
   phone       String?  // Для верификации
   passcode    String?  // Для 2FA PIN-кода
@@ -26,7 +28,7 @@ model User {
 
   wallet      Wallet?
   ads         P2PAd[]
-  
+
   ordersAsBuyer  Order[] @relation("BuyerOrders")
   ordersAsSeller Order[] @relation("SellerOrders")
 

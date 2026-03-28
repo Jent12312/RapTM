@@ -178,9 +178,9 @@ export default function ProfileScreen() {
           <MenuBtn 
             icon={ShieldCheck} 
             label={t(language, 'kycLabel')} 
-            color={user?.isVerified ? "text-emerald-600" : "text-amber-500"} 
-            bg={user?.isVerified ? "bg-emerald-50" : "bg-amber-50"} 
-            badge={user?.isVerified ? t(language, 'verified') : "Пройти"}
+            color={user?.isVerified || user?.kycStatus === 'verified' ? "text-emerald-600" : user?.kycStatus === 'pending' ? "text-blue-500" : user?.kycStatus === 'rejected' ? "text-red-500" : "text-amber-500"} 
+            bg={user?.isVerified || user?.kycStatus === 'verified' ? "bg-emerald-50" : user?.kycStatus === 'pending' ? "bg-blue-50" : user?.kycStatus === 'rejected' ? "bg-red-50" : "bg-amber-50"} 
+            badge={user?.isVerified || user?.kycStatus === 'verified' ? t(language, 'verified') : user?.kycStatus === 'pending' ? 'На проверке' : user?.kycStatus === 'rejected' ? 'Отклонено' : 'Пройти'}
             onClick={() => setIsViewingKyc(true)}
           />
           <MenuBtn icon={HelpCircle} label={t(language, 'help')} color="text-slate-500" bg="bg-slate-100" />
