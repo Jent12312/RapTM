@@ -1,14 +1,16 @@
 'use client';
 
-import { useState } from 'react';
-import { ChevronLeft, ShieldCheck, UploadCloud, CheckCircle2, X } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { ChevronLeft, ShieldCheck, UploadCloud, CheckCircle2, X, Camera, Image } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import WebApp from '@twa-dev/sdk';
 
 export default function KycScreen({ onClose }: { onClose: () => void }) {
   const { user, addToast, initUser } = useAppStore();
-  const [kycPhoto, setKycPhoto] = useState<string | null>(null);
+  const [kycPhoto, setKycPhoto] = useState<File | null>(null);
+  const [kycPreview, setKycPreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Получаем актуальный статус из user или храним локально
   const kycStatus = user?.kycStatus || 'none';
@@ -16,30 +18,40 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
   const isPending = kycStatus === 'pending';
   const isRejected = kycStatus === 'rejected';
 
+  const handlePhotoSelect = (file: File) => {
+    // Проверка типа
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+      addToast('Только JPEG и PNG изображения', 'error');
+      return;
+    }
+
+    // Проверка размера (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      addToast('Размер файла должен быть меньше 5MB', 'error');
+      return;
+    }
+
+    setKycPhoto(file);
+    
+    // Создаём превью
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setKycPreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handlePhotoUpload = () => {
-    // Имитация загрузки фото - в Telegram используем нативный picker
-    WebApp.showPopup({
-      title: 'Загрузка фото',
-      message: 'Выберите способ загрузки',
-      buttons: [
-        {
-          id: 'camera',
-          text: 'Сделать фото',
-          type: 'default'
-        },
-        {
-          id: 'gallery',
-          text: 'Выбрать из галереи',
-          type: 'default'
-        }
-      ]
-    }, (btnId) => {
-      if (btnId) {
-        // Для демо просто ставим "загружено"
-        setKycPhoto('uploaded_photo.jpg');
-        WebApp.HapticFeedback.notificationOccurred('success');
-      }
-    });
+    // Открываем стандартный выбор файла через click
+    fileInputRef.current?.click();
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handlePhotoSelect(file);
+    }
   };
 
   const handleSubmitKyc = async () => {
@@ -51,12 +63,12 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
     setIsSubmitting(true);
 
     try {
-      const res = await fetch(`/api/user/${user.id}/kyc`, {
+      const formData = new FormData();
+      formData.append('photo', kycPhoto);
+
+      const res = await fetch(`/api/user/${user.id}/kyc-upload`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          kycPhotoUrl: kycPhoto
-        })
+        body: formData
       });
 
       const data = await res.json();
@@ -69,9 +81,18 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
         addToast(data.error || 'Ошибка при отправке заявки', 'error');
       }
     } catch (error) {
+      console.error(error);
       addToast('Ошибка сети', 'error');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    setKycPhoto(null);
+    setKycPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -165,7 +186,7 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
           </div>
 
           <button
-            onClick={() => { setKycPhoto(null); }}
+            onClick={handleRemovePhoto}
             className="w-full bg-emerald-500 text-white font-bold py-4 rounded-2xl shadow-lg active:scale-95 transition-all"
           >
             Подать заявку повторно
@@ -203,29 +224,60 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
         <div className="bg-white p-6 rounded-[2rem] shadow-sm ring-1 ring-slate-100">
           <h4 className="text-sm font-bold text-slate-700 mb-4">Шаг 1: Загрузите фото документа</h4>
           
-          {kycPhoto ? (
-            <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <CheckCircle2 className="w-8 h-8 text-emerald-500" />
-                <div>
-                  <p className="text-sm font-bold text-emerald-700">Фото загружено</p>
-                  <p className="text-xs text-emerald-600">{kycPhoto}</p>
-                </div>
+          {kycPreview ? (
+            <div className="relative">
+              <div className="rounded-2xl overflow-hidden border-2 border-emerald-200">
+                <img 
+                  src={kycPreview} 
+                  alt="KYC Photo" 
+                  className="w-full h-64 object-cover"
+                />
               </div>
-              <button onClick={() => setKycPhoto(null)} className="p-2 bg-white rounded-full text-red-500">
-                <X className="w-4 h-4" />
+              <button 
+                onClick={handleRemovePhoto}
+                className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur rounded-full text-red-500 shadow-lg hover:bg-white transition-all"
+              >
+                <X className="w-5 h-5" />
               </button>
             </div>
           ) : (
-            <button
-              onClick={handlePhotoUpload}
-              className="w-full border-2 border-dashed border-slate-200 p-8 rounded-2xl flex flex-col items-center justify-center gap-2 hover:border-emerald-400 transition-all"
-            >
-              <UploadCloud className="w-10 h-10 text-slate-400" />
-              <p className="text-sm font-bold text-slate-600">Нажмите для загрузки</p>
-              <p className="text-xs text-slate-400">JPEG, PNG до 5 MB</p>
-            </button>
+            <div className="space-y-3">
+              <button
+                onClick={handlePhotoUpload}
+                className="w-full border-2 border-dashed border-slate-200 p-8 rounded-2xl flex flex-col items-center justify-center gap-2 hover:border-emerald-400 transition-all"
+              >
+                <Camera className="w-10 h-10 text-slate-400" />
+                <p className="text-sm font-bold text-slate-600">Открыть камеру / Галерею</p>
+                <p className="text-xs text-slate-400">Telegram MediaPicker</p>
+              </button>
+              
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-slate-200"></div>
+                <span className="text-xs text-slate-400 font-medium">или</span>
+                <div className="flex-1 h-px bg-slate-200"></div>
+              </div>
+              
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full border-2 border-dashed border-slate-200 p-4 rounded-2xl flex items-center justify-center gap-3 hover:border-blue-400 transition-all"
+              >
+                <Image className="w-6 h-6 text-slate-400" />
+                <p className="text-sm font-bold text-slate-600">Выбрать файл</p>
+              </button>
+              
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/jpg"
+                onChange={handleFileInputChange}
+                className="hidden"
+              />
+            </div>
           )}
+          
+          <p className="text-xs text-slate-400 mt-3 text-center">
+            📸 Сделайте четкое фото паспорта или другого документа
+          </p>
         </div>
 
         <div className="bg-white p-6 rounded-[2rem] shadow-sm ring-1 ring-slate-100">
