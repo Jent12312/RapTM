@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChevronLeft, Info, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, Info, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { t } from '@/lib/dictionaries';
 
@@ -21,6 +21,12 @@ export default function CreateAdScreen({ onClose }: Props) {
   const [maxLimit, setMaxLimit] = useState('');
   const [city, setCity] = useState('Ашхабад');
 
+  // Новые стейты для продвинутых настроек
+  const [description, setDescription] = useState('');
+  const [paymentTime, setPaymentTime] = useState('15');
+  const [reqKyc, setReqKyc] = useState(false);
+  const [reqMinTrades, setReqMinTrades] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState(false); // Тоггл для скрытия/показа сложных настроек
 
   return (
     <div className="fixed inset-0 z-[100] bg-slate-50 overflow-y-auto animate-in slide-in-from-bottom duration-300">
@@ -114,14 +120,15 @@ export default function CreateAdScreen({ onClose }: Props) {
 
         {/* 4. Детали сделки */}
         <div className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-slate-100 space-y-4">
+          
           <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t(language, 'cash')}</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t(language, 'cash')} / Метод</label>
             <div className="flex items-center justify-between mt-2 bg-emerald-50 ring-1 ring-emerald-100 p-3 rounded-2xl">
               <span className="text-sm font-bold text-emerald-700 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4" /> {t(language, 'cash')}
+                <CheckCircle2 className="w-4 h-4" /> Наличные
               </span>
               <select value={city} onChange={(e) => setCity(e.target.value)} className="bg-white text-xs font-bold text-slate-700 px-3 py-1.5 rounded-lg outline-none ring-1 ring-slate-200 appearance-none text-center">
-                <option value="Ашхабад">{t(language, 'city')}</option>
+                <option value="Ашхабад">Ашхабад</option>
                 <option value="Мары">Мары</option>
                 <option value="Туркменабад">Туркменабад</option>
                 <option value="Дашогуз">Дашогуз</option>
@@ -130,13 +137,79 @@ export default function CreateAdScreen({ onClose }: Props) {
           </div>
 
           <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t(language, 'autoReply')}</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Условия сделки (Описание)</label>
             <textarea
-              placeholder={t(language, 'autoReply')}
-              className="w-full mt-1 bg-slate-50 p-4 rounded-2xl ring-1 ring-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium text-slate-700 min-h-[100px] resize-none"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Например: Передаю наличные только в центре города. Третьих лиц не принимаю."
+              className="w-full mt-1 bg-slate-50 p-4 rounded-2xl ring-1 ring-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium text-slate-700 min-h-[80px] resize-none"
             ></textarea>
-            <p className="text-[10px] text-slate-400 mt-1 text-right">0 / 1000</p>
           </div>
+
+          <div className="flex justify-between items-center pt-2">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Время на оплату</label>
+            <div className="flex bg-slate-100 p-1 rounded-lg">
+              {['15', '30', '45'].map(time => (
+                <button 
+                  key={time}
+                  onClick={() => setPaymentTime(time)} 
+                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${paymentTime === time ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400'}`}
+                >
+                  {time} мин
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* 5. Защита Мерчанта (Продвинутые настройки) */}
+        <div className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-slate-100 space-y-4">
+          <button 
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="w-full flex justify-between items-center"
+          >
+            <span className="text-sm font-bold text-slate-700 flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-blue-500" /> Защита контрагента
+            </span>
+            <span className="text-[10px] font-bold text-blue-500 uppercase bg-blue-50 px-2 py-1 rounded-lg">
+              {showAdvanced ? 'Скрыть' : 'Настроить'}
+            </span>
+          </button>
+
+          {showAdvanced && (
+            <div className="pt-4 border-t border-slate-50 space-y-4 animate-in fade-in slide-in-from-top-2">
+              
+              {/* Требовать KYC */}
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm font-bold text-slate-800">Только верифицированные</p>
+                  <p className="text-[10px] font-medium text-slate-400 mt-0.5">Покупатель должен пройти KYC</p>
+                </div>
+                <button 
+                  onClick={() => setReqKyc(!reqKyc)}
+                  className={`w-12 h-7 rounded-full relative transition-all duration-300 ${reqKyc ? 'bg-blue-500 shadow-inner' : 'bg-slate-200 shadow-inner'}`}
+                >
+                  <div className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow-sm transition-all duration-300 ${reqKyc ? 'left-6' : 'left-1'}`}></div>
+                </button>
+              </div>
+
+              {/* Минимум сделок */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Минимум успешных сделок</label>
+                <div className="flex items-center gap-3 mt-1 bg-slate-50 p-3 rounded-2xl ring-1 ring-slate-200">
+                  <input 
+                    type="number" 
+                    placeholder="0" 
+                    value={reqMinTrades} 
+                    onChange={(e) => setReqMinTrades(e.target.value)} 
+                    className="w-full font-bold text-slate-800 bg-transparent outline-none" 
+                  />
+                  <span className="text-xs font-bold text-slate-400">сделок</span>
+                </div>
+              </div>
+
+            </div>
+          )}
         </div>
 
       </div>
@@ -171,11 +244,12 @@ export default function CreateAdScreen({ onClose }: Props) {
                 maxLimit,
                 city,
                 autoReply: "",
-                description: "", // Новые поля из БД
-                paymentTime: 15,
-                reqKyc: false,
-                reqMinTrades: 0,
-                reqRating: 0
+                // НОВЫЕ ПОЛЯ
+                description: description,
+                paymentTime: Number(paymentTime),
+                reqKyc: reqKyc,
+                reqMinTrades: Number(reqMinTrades) || 0,
+                reqRating: 0 // Пока оставляем 0, добавим расчет рейтинга позже если нужно
               })
             });
 
