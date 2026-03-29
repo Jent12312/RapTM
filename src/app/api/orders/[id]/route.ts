@@ -29,7 +29,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
 
     if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 });
 
-    const appUrl = process.env.APP_URL || 'https://yourapp.com';
+    const appUrl = process.env.APP_URL || 'https://rap-tm.vercel.app';
     const orderUrl = `${appUrl}/orders/${order.id}`;
 
     // Если это успешное завершение сделки по USDT

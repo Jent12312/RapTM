@@ -1,6 +1,7 @@
 // src/app/api/telegram/webhook/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { sendNotification } from '@/lib/telegram';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -13,7 +14,13 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     console.log('Telegram webhook received:', JSON.stringify(body, null, 2));
 
-    // Обработка нового сообщения
+    // 1. Обработка Inline Query (поиск профиля)
+    if (body.inline_query) {
+      await handleInlineQuery(body.inline_query);
+      return NextResponse.json({ ok: true });
+    }
+
+    // 2. Обработка нового сообщения
     if (body.message) {
       const message = body.message;
       const chatId = message.chat.id;
@@ -51,9 +58,22 @@ export async function POST(req: NextRequest) {
       if (text?.startsWith('/')) {
         await handleCommand(chatId, text, user);
       }
+
+      // Обработка start_param (привязка аккаунта)
+      if (text === '/start' && message.from) {
+        const startParam = message.start_parameter;
+        if (startParam && startParam.startsWith('USER_')) {
+          const userId = startParam.replace('USER_', '');
+          await prisma.user.update({
+            where: { id: userId },
+            data: { tgChatId: chatId.toString() },
+          });
+          await sendMessage(chatId, '✅ Аккаунт успешно привязан!\n\nТеперь вы будете получать уведомления о сделках.');
+        }
+      }
     }
 
-    // Обработка callback query (кнопки)
+    // 3. Обработка callback query (кнопки)
     if (body.callback_query) {
       const callback = body.callback_query;
       const chatId = callback.message.chat.id;
@@ -66,6 +86,65 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Telegram webhook error:', error);
     return NextResponse.json({ ok: false, error: 'Webhook error' });
+  }
+}
+
+/**
+ * Обработка Inline Query (поиск профиля для shares)
+ */
+async function handleInlineQuery(inlineQuery: any) {
+  const queryId = inlineQuery.id;
+  const queryText = inlineQuery.query;
+
+  if (queryText.startsWith('profile_')) {
+    const userId = queryText.replace('profile_', '');
+
+    const user = await prisma.user.findFirst({
+      where: { OR: [{ id: userId }, { telegramId: userId }] }
+    });
+
+    let statsText = `❌ Пользователь не найден`;
+
+    if (user) {
+      const reviews = await prisma.review.findMany({ where: { targetId: user.id } });
+      const orders = await prisma.order.findMany({
+        where: { OR: [{ buyerId: user.id }, { sellerId: user.id }], status: 'COMPLETED' }
+      });
+
+      const goodReviews = reviews.filter(r => r.rating === 'GOOD').length;
+      const totalReviews = reviews.length;
+      const ratingPercent = totalReviews > 0 ? Math.round((goodReviews / totalReviews) * 100) : 0;
+      const volume = orders.reduce((acc, curr) => acc + curr.amountAsset, 0);
+
+      statsText = `👤 <b>Мерчант: ${user.nickname || user.firstName}</b> ⚡️\n\n🛡 Статус: ${user.isVerified ? 'Проверен' : 'Базовый'}\n📊 Сделок: ${orders.length}\n✅ Выполнено: 100%\n💎 Объём: ${volume.toFixed(2)} USDT\n👍 Рейтинг: ${ratingPercent}%\n\n👇 <i>Нажмите кнопку ниже, чтобы открыть профиль продавца в Rapira TM!</i>`;
+    }
+
+    const responsePayload = {
+      inline_query_id: queryId,
+      results: [{
+        type: 'article',
+        id: 'profile_card',
+        title: user ? `Профиль: ${user.nickname || user.firstName}` : 'Не найдено',
+        description: 'Поделиться статистикой продавца',
+        thumbnail_url: 'https://cdn-icons-png.flaticon.com/512/6001/6001368.png',
+        input_message_content: {
+          message_text: statsText,
+          parse_mode: 'HTML'
+        },
+        reply_markup: {
+          inline_keyboard: [[
+            { text: '📋 Посмотреть профиль', url: `https://t.me/rapira_tm_bot/app?startapp=user_${userId}` }
+          ]]
+        }
+      }],
+      cache_time: 0
+    };
+
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerInlineQuery`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(responsePayload)
+    });
   }
 }
 
@@ -87,9 +166,11 @@ async function handleCommand(chatId: number, command: string, user: any) {
 /status - Проверить статус сделок
 /help - Помощь
 /notifications - Управление уведомлениями
+/enable - Включить уведомления
+/disable - Отключить уведомления
 /unlink - Отвязать аккаунт
 
-🔗 Для привязки аккаунта используйте код из приложения.
+🔗 Для привязки аккаунта используйте кнопку в приложении.
       `.trim());
       break;
 
@@ -184,13 +265,11 @@ async function handleCallback(chatId: number, data: string) {
   switch (action) {
     case 'confirm_payment':
       const orderId = args[0];
-      // Здесь логика подтверждения оплаты
       await sendMessage(chatId, `✅ Оплата по сделке ${orderId} подтверждена!`);
       break;
 
     case 'dispute':
       const disputeOrderId = args[0];
-      // Логика открытия спора
       await sendMessage(chatId, `⚠️ Спор по сделке ${disputeOrderId} открыт. Ожидайте администратора.`);
       break;
 
