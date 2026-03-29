@@ -1,11 +1,12 @@
 // src/app/api/user/[id]/kyc-upload/route.ts
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { notifyUser } from '@/lib/telegram';
 
 export async function POST(req: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
-    
+
     // Проверяем пользователя
     const user = await prisma.user.findUnique({ where: { id } });
     if (!user) {
@@ -56,6 +57,19 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
         kycPhotoUrl: photoUrl
       }
     });
+
+    // Отправляем уведомление администраторам о новой заявке
+    const admins = await prisma.user.findMany({
+      where: { isAdmin: true },
+    });
+
+    for (const admin of admins) {
+      await notifyUser(admin.id, 'kyc_approved', { // Используем как "новая заявка"
+        userId: user.id,
+        userName: user.firstName || user.username,
+        action: 'new_kyc_application',
+      });
+    }
 
     return NextResponse.json({ success: true, user: updatedUser });
   } catch (error) {

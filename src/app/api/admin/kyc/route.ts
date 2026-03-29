@@ -1,6 +1,7 @@
 // src/app/api/admin/kyc/route.ts
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { notifyUser } from '@/lib/telegram';
 
 // GET /api/admin/kyc - Получить все заявки на KYC
 export async function GET() {
@@ -24,7 +25,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { userId, action } = body; // action: 'approve' | 'reject'
+    const { userId, action, reason } = body; // action: 'approve' | 'reject'
 
     if (!userId || !action) {
       return NextResponse.json({ error: 'Missing userId or action' }, { status: 400 });
@@ -40,7 +41,7 @@ export async function POST(req: Request) {
     }
 
     let updateData: any = {};
-    
+
     if (action === 'approve') {
       updateData = {
         kycStatus: 'verified',
@@ -59,6 +60,20 @@ export async function POST(req: Request) {
       where: { id: userId },
       data: updateData
     });
+
+    // Отправляем уведомление пользователю
+    if (action === 'approve') {
+      await notifyUser(userId, 'kyc_approved', {
+        userId: user.id,
+        userName: user.firstName || user.username,
+      });
+    } else {
+      await notifyUser(userId, 'kyc_rejected', {
+        userId: user.id,
+        userName: user.firstName || user.username,
+        reason: reason || 'Не указано',
+      });
+    }
 
     return NextResponse.json({ success: true, user: updatedUser });
   } catch (error) {

@@ -1,6 +1,7 @@
 // src/app/api/orders/route.ts
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { notifyUser } from '@/lib/telegram';
 
 export async function POST(req: Request) {
   try {
@@ -13,7 +14,7 @@ export async function POST(req: Request) {
     // ПРАВИЛЬНОЕ РАСПРЕДЕЛЕНИЕ РОЛЕЙ
     let buyerId, sellerId;
     if (ad.type === 'buy') {
-      // Мейкер (создатель ad) хочет КУПИТЬ крипту. 
+      // Мейкер (создатель ad) хочет КУПИТЬ крипту.
       // Значит Тейкер (тот кто кликнул) - ПРОДАЕТ крипту.
       buyerId = ad.userId;
       sellerId = takerId;
@@ -36,8 +37,39 @@ export async function POST(req: Request) {
       include: { ad: true, seller: true, buyer: true, reviews: true }
     });
 
+    // Отправка Telegram уведомлений
+    const appUrl = process.env.APP_URL || 'https://yourapp.com';
+    const orderUrl = `${appUrl}/orders/${order.id}`;
+
+    // Уведомление покупателю
+    await notifyUser(buyerId, 'order_created', {
+      orderId: order.id,
+      amountFiat: order.amountFiat,
+      fiat: ad.fiat,
+      amountAsset: order.amountAsset,
+      asset: ad.asset,
+      buyerName: order.buyer.firstName || order.buyer.username || 'Покупатель',
+      sellerName: order.seller.firstName || order.seller.username || 'Продавец',
+      paymentTime: ad.paymentTime,
+      orderUrl,
+    });
+
+    // Уведомление продавцу
+    await notifyUser(sellerId, 'order_created', {
+      orderId: order.id,
+      amountFiat: order.amountFiat,
+      fiat: ad.fiat,
+      amountAsset: order.amountAsset,
+      asset: ad.asset,
+      buyerName: order.buyer.firstName || order.buyer.username || 'Покупатель',
+      sellerName: order.seller.firstName || order.seller.username || 'Продавец',
+      paymentTime: ad.paymentTime,
+      orderUrl,
+    });
+
     return NextResponse.json({ success: true, order });
   } catch (error) {
+    console.error('Create order error:', error);
     return NextResponse.json({ error: 'Failed to create order' }, { status: 500 });
   }
 }

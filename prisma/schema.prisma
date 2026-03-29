@@ -26,6 +26,10 @@ model User {
   passcode    String?  // Для 2FA PIN-кода
   isAdmin     Boolean  @default(false) // Для доступа в админку
 
+  // Telegram Bot настройки
+  tgNotifications Boolean @default(true) // Включены ли уведомления
+  tgChatId        String? // Chat ID для отправки уведомлений
+
   wallet      Wallet?
   ads         P2PAd[]
 
