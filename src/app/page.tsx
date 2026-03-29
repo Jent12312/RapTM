@@ -5,35 +5,55 @@ import { Header, BottomNav } from '@/components/LayoutElements';
 import WalletScreen from '@/components/screens/WalletScreen';
 import P2PScreen from '@/components/screens/P2PScreen';
 import ProfileScreen from '@/components/screens/ProfileScreen';
-import MerchantProfileModal from '@/components/screens/MerchantProfileModal'; // <-- Добавили импорт
+import MerchantProfileModal from '@/components/screens/MerchantProfileModal';
+import OrderScreen from '@/components/screens/OrderScreen';
 import { useEffect, useState } from 'react';
 
 export default function Home() {
   const { activeTab, initUser, user } = useAppStore();
-  
+
   // Стейт для продавца, если мы пришли по ссылке-поделиться
   const [deepLinkMerchant, setDeepLinkMerchant] = useState<any>(null);
+  // Стейт для заказа, если пришли по ссылке на сделку
+  const [deepLinkOrder, setDeepLinkOrder] = useState<any>(null);
+  // Стейт для прямого перехода на экран (wallet, p2p, profile, my_orders и т.д.)
+  const [deepLinkScreen, setDeepLinkScreen] = useState<string | null>(null);
 
   useEffect(() => {
     import('@twa-dev/sdk').then((module) => {
       const WebApp = module.default;
       WebApp.ready();
-      
+
       if (WebApp.initDataUnsafe?.user) {
         initUser(WebApp.initDataUnsafe.user);
       }
 
-      // ЛОВИМ DEEP LINK (ссылку "Поделиться")
-      const startParam = WebApp.initDataUnsafe?.start_param; // Приходит из ?startapp=...
-      if (startParam && startParam.startsWith('user_')) {
-        const targetUserId = startParam.replace('user_', '');
-        
-        // Делаем запрос в базу, чтобы получить данные этого продавца
-        fetch(`/api/user/${targetUserId}`)
-          .then(res => res.json())
-          .then(data => {
-            if (data.user) setDeepLinkMerchant(data.user);
-          });
+      // ЛОВИМ DEEP LINK (ссылку "Поделиться" или уведомление)
+      const startParam = WebApp.initDataUnsafe?.start_param;
+      
+      if (startParam) {
+        // 1. Профиль пользователя (share)
+        if (startParam.startsWith('user_')) {
+          const targetUserId = startParam.replace('user_', '');
+          fetch(`/api/user/${targetUserId}`)
+            .then(res => res.json())
+            .then(data => {
+              if (data.user) setDeepLinkMerchant(data.user);
+            });
+        }
+        // 2. Заказ (уведомление о сделке)
+        else if (startParam.startsWith('order_')) {
+          const orderId = startParam.replace('order_', '');
+          fetch(`/api/orders/${orderId}`)
+            .then(res => res.json())
+            .then(data => {
+              if (data) setDeepLinkOrder(data);
+            });
+        }
+        // 3. Прямой переход на экран
+        else if (['wallet', 'p2p', 'profile', 'my_orders', 'my_ads', 'create_ad', 'kyc'].includes(startParam)) {
+          setDeepLinkScreen(startParam);
+        }
       }
     });
   }, [initUser]);
@@ -49,15 +69,25 @@ export default function Home() {
     );
   }
 
+  // ЕСЛИ ПРИШЛИ ПО ССЫЛКЕ НА СДЕЛКУ - СРАЗУ ПОКАЗЫВАЕМ OrderScreen
+  if (deepLinkOrder) {
+    return (
+      <OrderScreen 
+        order={deepLinkOrder} 
+        onClose={() => setDeepLinkOrder(null)} 
+      />
+    );
+  }
+
   return (
     <main className="min-h-screen relative bg-slate-50">
       <Header />
-      
+
       {/* ЕСЛИ ПРИШЛИ ПО ССЫЛКЕ - СРАЗУ ПОКАЗЫВАЕМ ПРОФИЛЬ ПРОДАВЦА поверх всего */}
       {deepLinkMerchant && (
-        <MerchantProfileModal 
-          merchant={deepLinkMerchant} 
-          onClose={() => setDeepLinkMerchant(null)} 
+        <MerchantProfileModal
+          merchant={deepLinkMerchant}
+          onClose={() => setDeepLinkMerchant(null)}
         />
       )}
 
