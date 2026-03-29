@@ -190,12 +190,13 @@ async function handleCommand(chatId: number, command: string, user: any) {
       if (orders.length === 0) {
         await sendMessage(chatId, 'У вас нет активных сделок.');
       } else {
-        let message = '📊 <b>Ваши активные сделки:</b>\n\n';
-        for (const order of orders) {
-          message += `🛒 <code>${order.id}</code>\n`;
-          message += `💰 ${order.amountFiat} ${order.status === 'PENDING' ? '⏳ Ожидание' : '✅ Оплачено'}\n\n`;
-        }
-        await sendMessage(chatId, message);
+        // Формируем сообщение с кнопками для каждой сделки
+        const keyboard = orders.map(order => [{
+          text: ` ${order.amountFiat} ${order.status === 'PENDING' ? '⏳' : '✅'}`,
+          url: `https://t.me/rapira_tm_bot/app?startapp=order_${order.id}`
+        }]);
+
+        await sendMessageWithKeyboard(chatId, '📊 <b>Ваши активные сделки:</b>\n\nНажмите на сделку чтобы открыть:', keyboard);
       }
       break;
 
@@ -296,6 +297,34 @@ async function sendMessage(chatId: number, text: string): Promise<void> {
     });
   } catch (error) {
     console.error('Failed to send Telegram message:', error);
+  }
+}
+
+/**
+ * Отправка сообщения с клавиатурой (inline buttons)
+ */
+async function sendMessageWithKeyboard(
+  chatId: number,
+  text: string,
+  keyboard: Array<Array<{ text: string; url: string }>>
+): Promise<void> {
+  if (!TELEGRAM_BOT_TOKEN) return;
+
+  try {
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: keyboard,
+        },
+      }),
+    });
+  } catch (error) {
+    console.error('Failed to send Telegram message with keyboard:', error);
   }
 }
 
