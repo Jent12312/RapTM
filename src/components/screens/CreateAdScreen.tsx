@@ -1,12 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChevronLeft, Info, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { ChevronLeft, Info, CheckCircle2, ShieldCheck, TrendingUp, TrendingDown, Calculator } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { t } from '@/lib/dictionaries';
 
 interface Props {
   onClose: () => void;
+}
+
+interface MarketPrice {
+  basePrice: number;
+  pair: string;
+  change24h: number;
 }
 
 export default function CreateAdScreen({ onClose }: Props) {
@@ -17,9 +23,14 @@ export default function CreateAdScreen({ onClose }: Props) {
   const [fiat, setFiat] = useState<'TMT' | 'USD'>('TMT');
   const [priceType, setPriceType] = useState<'fixed' | 'floating'>('fixed');
   const [price, setPrice] = useState('');
+  const [pricePercent, setPricePercent] = useState('0'); // Процент для плавающей цены
   const [minLimit, setMinLimit] = useState('');
   const [maxLimit, setMaxLimit] = useState('');
   const [city, setCity] = useState('Ашхабад');
+
+  // Состояния для рыночной цены
+  const [marketPrice, setMarketPrice] = useState<MarketPrice | null>(null);
+  const [isLoadingPrice, setIsLoadingPrice] = useState(false);
 
   // Новые стейты для продвинутых настроек
   const [description, setDescription] = useState('');
@@ -27,6 +38,57 @@ export default function CreateAdScreen({ onClose }: Props) {
   const [reqKyc, setReqKyc] = useState(false);
   const [reqMinTrades, setReqMinTrades] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false); // Тоггл для скрытия/показа сложных настроек
+
+  // Загрузка рыночной цены при изменении asset/fiat
+  useEffect(() => {
+    const fetchMarketPrice = async () => {
+      setIsLoadingPrice(true);
+      try {
+        const res = await fetch(`/api/market-price?asset=${asset}&fiat=${fiat}`);
+        const data = await res.json();
+        if (data.basePrice) {
+          setMarketPrice(data);
+          // Для фиксированной цены - автозаполняем текущим курсом
+          if (priceType === 'fixed' && !price) {
+            setPrice(data.basePrice.toFixed(2));
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch market price:', error);
+      } finally {
+        setIsLoadingPrice(false);
+      }
+    };
+
+    fetchMarketPrice();
+  }, [asset, fiat, priceType]);
+
+  // Калькулятор цены
+  const calculatedPrice = (() => {
+    if (!marketPrice) return '0.00';
+    
+    if (priceType === 'fixed') {
+      return price || '0.00';
+    } else {
+      // Плавающая цена: basePrice + процент
+      const percent = parseFloat(pricePercent) || 0;
+      const calculated = marketPrice.basePrice * (1 + percent / 100);
+      return calculated.toFixed(2);
+    }
+  })();
+
+  // Предпросмотр цены в зависимости от типа
+  const pricePreview = (() => {
+    if (!marketPrice) return '';
+    
+    if (priceType === 'fixed') {
+      return `1 ${asset} = ${price || '0.00'} ${fiat}`;
+    } else {
+      const percent = parseFloat(pricePercent) || 0;
+      const sign = percent >= 0 ? '+' : '';
+      return `Рынок: ${marketPrice.basePrice} ${fiat} ${sign}${percent}% = ${calculatedPrice} ${fiat}`;
+    }
+  })();
 
   return (
     <div className="fixed inset-0 z-[100] bg-slate-50 overflow-y-auto animate-in slide-in-from-bottom duration-300">
@@ -94,13 +156,73 @@ export default function CreateAdScreen({ onClose }: Props) {
             <button onClick={() => setPriceType('floating')} className={`flex-1 py-2 text-xs font-bold rounded-lg ${priceType === 'floating' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400'}`}>{t(language, 'floating')}</button>
           </div>
 
-          <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t(language, 'price')} 1 {asset}</label>
-            <div className="flex items-center gap-3 mt-1 bg-slate-50 p-3 rounded-2xl ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-emerald-500 transition-all">
-              <input type="number" placeholder="0.00" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full text-xl font-bold text-slate-800 bg-transparent outline-none" />
-              <span className="font-bold text-slate-500">{fiat}</span>
+          {/* Индикатор рыночной цены */}
+          {marketPrice && (
+            <div className={`p-3 rounded-xl flex items-center justify-between ${marketPrice.change24h >= 0 ? 'bg-emerald-50 ring-1 ring-emerald-100' : 'bg-red-50 ring-1 ring-red-100'}`}>
+              <div className="flex items-center gap-2">
+                {marketPrice.change24h >= 0 ? (
+                  <TrendingUp className="w-4 h-4 text-emerald-600" />
+                ) : (
+                  <TrendingDown className="w-4 h-4 text-red-600" />
+                )}
+                <span className="text-xs font-bold text-slate-600">
+                  Рынок: <span className="text-slate-800">{marketPrice.basePrice.toFixed(2)} {fiat}</span>
+                </span>
+              </div>
+              <span className={`text-xs font-bold ${marketPrice.change24h >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                {marketPrice.change24h >= 0 ? '+' : ''}{marketPrice.change24h.toFixed(2)}%
+              </span>
             </div>
+          )}
+
+          {/* Поле ввода цены или процента */}
+          <div>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
+              <Calculator className="w-3 h-3" />
+              {priceType === 'fixed' ? t(language, 'price') : 'Процент от рынка'} 1 {asset}
+            </label>
+            
+            {priceType === 'fixed' ? (
+              <div className="flex items-center gap-3 mt-1 bg-slate-50 p-3 rounded-2xl ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-emerald-500 transition-all">
+                <input type="number" placeholder="0.00" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full text-xl font-bold text-slate-800 bg-transparent outline-none" />
+                <span className="font-bold text-slate-500">{fiat}</span>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-blue-500 transition-all">
+                  <input 
+                    type="number" 
+                    placeholder="0" 
+                    value={pricePercent} 
+                    onChange={(e) => setPricePercent(e.target.value)} 
+                    className="w-full text-xl font-bold text-slate-800 bg-transparent outline-none" 
+                  />
+                  <span className="font-bold text-slate-500">%</span>
+                </div>
+                <div className="text-xs text-slate-500 bg-blue-50 p-3 rounded-xl ring-1 ring-blue-100">
+                  <p className="font-medium">
+                    {parseFloat(pricePercent) || 0} &gt; 0 — цена выше рынка (быстрая сделка)
+                  </p>
+                  <p className="font-medium mt-1">
+                    {parseFloat(pricePercent) || 0} &lt; 0 — цена ниже рынка (выгодная покупка)
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* Предпросмотр итоговой цены */}
+          {priceType === 'floating' && marketPrice && (
+            <div className="bg-gradient-to-r from-blue-50 to-emerald-50 p-4 rounded-2xl ring-1 ring-blue-100">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Итоговая цена</p>
+              <p className="text-2xl font-bold text-slate-800">
+                {calculatedPrice} <span className="text-sm font-medium text-slate-500">{fiat}</span>
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                {marketPrice.basePrice.toFixed(2)} {fiat} × (1 + {parseFloat(pricePercent) || 0}% / 100)
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -218,8 +340,20 @@ export default function CreateAdScreen({ onClose }: Props) {
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-xl border-t border-slate-100 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-20">
         <button
         onClick={async () => {
-            if (!price || !minLimit || !maxLimit) {
-              addToast(t(language, 'error') + ': Заполните все поля', 'error');
+            // Проверка для фиксированной цены
+            if (priceType === 'fixed' && !price) {
+              addToast(t(language, 'error') + ': Введите цену', 'error');
+              return;
+            }
+            
+            // Проверка для плавающей цены
+            if (priceType === 'floating' && !pricePercent) {
+              addToast(t(language, 'error') + ': Введите процент', 'error');
+              return;
+            }
+            
+            if (!minLimit || !maxLimit) {
+              addToast(t(language, 'error') + ': Заполните лимиты', 'error');
               return;
             }
 
@@ -230,6 +364,9 @@ export default function CreateAdScreen({ onClose }: Props) {
               }
             }
 
+            // Определяем итоговую цену
+            const finalPrice = priceType === 'floating' ? parseFloat(pricePercent) : parseFloat(price);
+
             const res = await fetch('/api/p2p', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -239,7 +376,7 @@ export default function CreateAdScreen({ onClose }: Props) {
                 asset,
                 fiat,
                 priceType,
-                price,
+                price: finalPrice, // Для floating - это процент, для fixed - это цена
                 minLimit,
                 maxLimit,
                 city,

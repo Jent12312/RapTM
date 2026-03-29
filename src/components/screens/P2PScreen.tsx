@@ -5,7 +5,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { t } from '@/lib/dictionaries';
 import {
   BadgeCheck, Clock, MapPin, Filter, X,
-  ArrowDownUp, RefreshCw, MessageSquare
+  ArrowDownUp, RefreshCw, MessageSquare, User, TrendingUp
 } from 'lucide-react';
 
 // Импортируем дочерние экраны
@@ -15,6 +15,49 @@ import OrderScreen from './OrderScreen';
 
 export default function P2PScreen() {
   const { language, ads, isLoadingAds, fetchAds, user } = useAppStore();
+
+  // Состояния для рыночных цен
+  const [marketPrices, setMarketPrices] = useState<Record<string, number>>({});
+
+  // Загрузка рыночных цен при загрузке компонента
+  useEffect(() => {
+    const fetchMarketPrices = async () => {
+      try {
+        const pairs = ['USDT/TMT', 'USDT/USD', 'TMT/USDT', 'TMT/USD'];
+        const prices: Record<string, number> = {};
+        
+        for (const pair of pairs) {
+          const [asset, fiat] = pair.split('/');
+          const res = await fetch(`/api/market-price?asset=${asset}&fiat=${fiat}`);
+          const data = await res.json();
+          if (data.basePrice) {
+            prices[pair] = data.basePrice;
+          }
+        }
+        
+        setMarketPrices(prices);
+      } catch (error) {
+        console.error('Failed to fetch market prices:', error);
+      }
+    };
+
+    fetchMarketPrices();
+  }, []);
+
+  // Функция для вычисления цены объявления
+  const getAdPrice = (ad: any) => {
+    const pair = `${ad.asset}/${ad.fiat}`;
+    const basePrice = marketPrices[pair] || 0;
+    
+    if (ad.priceType === 'floating') {
+      // price хранит процент (например, 1.5)
+      const percent = ad.price || 0;
+      return basePrice * (1 + percent / 100);
+    } else {
+      // price хранит фиксированную цену
+      return ad.price || 0;
+    }
+  };
 
   // Хелпер для торговли (buy/sell)
   const tradeTypeLabel = (type: 'buy' | 'sell') => {
@@ -58,10 +101,12 @@ export default function P2PScreen() {
   const calculateReceiveAmount = () => {
     if (!tradeAmount || !selectedAd) return '0.00';
     const amount = Number(tradeAmount);
+    const price = getAdPrice(selectedAd);
+    
     if (selectedAd.type === 'buy') {
-      return (amount / selectedAd.price).toFixed(2);
+      return (amount / price).toFixed(2);
     } else {
-      return (amount * selectedAd.price).toFixed(2);
+      return (amount * price).toFixed(2);
     }
   };
 
@@ -127,7 +172,7 @@ export default function P2PScreen() {
       {/* --- ВЕРХНЯЯ ПАНЕЛЬ (Скрин 1) --- */}
       <div className="bg-white px-4 pt-2 pb-4 shadow-sm sticky top-[72px] z-30 border-b border-slate-100 space-y-4">
         
-        {/* Табы Купить/Продать + Иконка Чата */}
+        {/* Табы Купить/Продать + Иконки Профиль и Чат */}
         <div className="flex justify-between items-center gap-3">
           <div className="flex bg-slate-100 p-1 rounded-2xl flex-1">
             <button
@@ -143,14 +188,22 @@ export default function P2PScreen() {
               {t(language, 'sell')}
             </button>
           </div>
-          
-          <button 
-            onClick={() => setIsViewingChats(true)}
-            className="p-3 bg-white text-blue-500 rounded-2xl ring-1 ring-slate-200 shadow-sm relative active:scale-95 transition-all"
-          >
-            <MessageSquare className="w-5 h-5" />
-            <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-          </button>
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => setIsViewingChats(true)}
+              className="p-3 bg-white text-slate-600 rounded-2xl ring-1 ring-slate-200 shadow-sm active:scale-95 transition-all"
+            >
+              <User className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setIsViewingChats(true)}
+              className="p-3 bg-white text-blue-500 rounded-2xl ring-1 ring-slate-200 shadow-sm relative active:scale-95 transition-all"
+            >
+              <MessageSquare className="w-5 h-5" />
+              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+            </button>
+          </div>
         </div>
 
         {/* Выбор Актива (USDT / TMT) */}
@@ -221,8 +274,15 @@ export default function P2PScreen() {
 
               <div className="flex justify-between items-end mt-4">
                 <div>
-                  <div className="text-2xl font-bold text-slate-800 tracking-tight">
-                    {ad.price.toFixed(2)} <span className="text-sm font-medium text-slate-400">{ad.fiat}</span>
+                  <div className="flex items-center gap-2">
+                    <div className="text-2xl font-bold text-slate-800 tracking-tight">
+                      {getAdPrice(ad).toFixed(2)} <span className="text-sm font-medium text-slate-400">{ad.fiat}</span>
+                    </div>
+                    {ad.priceType === 'floating' && (
+                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md ring-1 ring-blue-100 flex items-center gap-1">
+                        <TrendingUp className="w-3 h-3" /> Float {ad.price > 0 ? '+' : ''}{ad.price}%
+                      </span>
+                    )}
                   </div>
                   <div className="text-[10px] text-slate-500 font-medium mt-1">
                     {t(language, 'limit')}: {ad.minLimit.toLocaleString()} - {ad.maxLimit.toLocaleString()} {ad.fiat}
@@ -273,7 +333,14 @@ export default function P2PScreen() {
             <div className="bg-slate-50 p-4 rounded-2xl mb-4 ring-1 ring-slate-100 flex justify-between items-center">
               <div>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t(language, 'price')}</p>
-                <p className="text-lg font-bold text-slate-800">{selectedAd.price.toFixed(2)} {selectedAd.fiat} / 1 {selectedAd.asset}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-lg font-bold text-slate-800">{getAdPrice(selectedAd).toFixed(2)} {selectedAd.fiat} / 1 {selectedAd.asset}</p>
+                  {selectedAd.priceType === 'floating' && (
+                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md ring-1 ring-blue-100">
+                      Float {selectedAd.price > 0 ? '+' : ''}{selectedAd.price}%
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="text-right">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t(language, 'userLabel')}</p>
