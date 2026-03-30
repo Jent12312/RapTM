@@ -83,10 +83,15 @@ export default function ChatScreen({ orderId, partnerName, onClose }: Props) {
 
     try {
       if (imageToSend) {
-        // Загрузка изображения
+        // Загрузка изображения + текста
         const formData = new FormData();
         formData.append('image', imageToSend);
         formData.append('senderId', user.id);
+        
+        // ДОБАВЛЕНО: Прикрепляем текст, чтобы он сохранился вместе с фото
+        if (textToSend) {
+          formData.append('text', textToSend);
+        }
 
         const res = await fetch(`/api/orders/${orderId}/messages/upload`, {
           method: 'POST',
@@ -95,7 +100,7 @@ export default function ChatScreen({ orderId, partnerName, onClose }: Props) {
 
         if (!res.ok) throw new Error('Image upload failed');
       } else {
-        // Отправка текста
+        // Отправка только текста
         await fetch(`/api/orders/${orderId}/messages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

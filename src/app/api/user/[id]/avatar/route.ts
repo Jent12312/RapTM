@@ -1,7 +1,5 @@
 // src/app/api/user/[id]/avatar/route.ts
 import { NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
 import prisma from '@/lib/prisma';
 
 export async function POST(
@@ -17,35 +15,22 @@ export async function POST(
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    // Проверка типа файла
     if (!file.type.startsWith('image/')) {
       return NextResponse.json({ error: 'File must be an image' }, { status: 400 });
     }
 
-    // Создаем директорию для аватаров если не существует
-    const uploadDir = join(process.cwd(), 'public', 'uploads', 'avatars');
-    await mkdir(uploadDir, { recursive: true });
-
-    // Генерируем уникальное имя файла
-    const fileExtension = file.name.split('.').pop() || 'png';
-    const fileName = `${id}_${Date.now()}.${fileExtension}`;
-    const filePath = join(uploadDir, fileName);
-
-    // Сохраняем файл
+    // Читаем файл и конвертируем его в строку Base64
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
+    const base64Image = `data:${file.type};base64,${buffer.toString('base64')}`;
 
-    // URL для доступа к файлу
-    const avatarUrl = `/uploads/avatars/${fileName}`;
-
-    // Обновляем пользователя в БД
+    // Сохраняем строку Base64 прямо в базу данных
     const user = await prisma.user.update({
       where: { id },
-      data: { avatarUrl }
+      data: { avatarUrl: base64Image }
     });
 
-    return NextResponse.json({ success: true, avatarUrl, user });
+    return NextResponse.json({ success: true, avatarUrl: base64Image, user });
   } catch (error) {
     console.error('Avatar upload error:', error);
     return NextResponse.json({ error: 'Failed to upload avatar' }, { status: 500 });

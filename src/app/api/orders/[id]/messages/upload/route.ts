@@ -1,7 +1,5 @@
 // src/app/api/orders/[id]/messages/upload/route.ts
 import { NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
 import prisma from '@/lib/prisma';
 
 export async function POST(
@@ -11,41 +9,32 @@ export async function POST(
   try {
     const { id: orderId } = await context.params;
     const formData = await req.formData();
+    
     const file = formData.get('image') as File;
     const senderId = formData.get('senderId') as string;
+    // ДОБАВЛЕНО: Теперь мы принимаем и текст, если он был отправлен вместе с фото
+    const text = formData.get('text') as string | null; 
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    // Проверка типа файла
     if (!file.type.startsWith('image/')) {
       return NextResponse.json({ error: 'File must be an image' }, { status: 400 });
     }
 
-    // Создаем директорию для изображений чата если не существует
-    const uploadDir = join(process.cwd(), 'public', 'uploads', 'chat');
-    await mkdir(uploadDir, { recursive: true });
-
-    // Генерируем уникальное имя файла
-    const fileExtension = file.name.split('.').pop() || 'png';
-    const fileName = `${orderId}_${Date.now()}.${fileExtension}`;
-    const filePath = join(uploadDir, fileName);
-
-    // Сохраняем файл
+    // Конвертируем картинку в Base64
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
+    const base64Image = `data:${file.type};base64,${buffer.toString('base64')}`;
 
-    // URL для доступа к файлу
-    const imageUrl = `/uploads/chat/${fileName}`;
-
-    // Создаем сообщение с изображением
+    // Создаем сообщение в БД с картинкой (и текстом, если он есть)
     const message = await prisma.message.create({
       data: {
         orderId,
         senderId,
-        imageUrl
+        imageUrl: base64Image,
+        text: text || null
       },
       include: { sender: true }
     });
