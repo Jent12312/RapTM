@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { t } from '@/lib/dictionaries';
 import {
@@ -19,7 +19,10 @@ import {
   Trash2,
   Bell,
   ShieldCheck,
-  CheckCircle2
+  CheckCircle2,
+  Phone,
+  Mail,
+  X
 } from 'lucide-react';
 import WebApp from '@twa-dev/sdk';
 
@@ -40,13 +43,23 @@ export default function ProfileScreen() {
 
   const [isViewingAdmin, setIsViewingAdmin] = useState(false);
   const [isViewingKyc, setIsViewingKyc] = useState(false);
-  
+
   // Статистика
   const [stats, setStats] = useState({ good: 0, neutral: 0, bad: 0, trades: 0, volume: 0 });
-  
-  // Редактирование
+
+  // Редактирование профиля
   const [isEditing, setIsEditing] = useState(false);
   const [newNick, setNewNick] = useState(user?.nickname || user?.firstName || '');
+
+  // Загрузка аватара
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Редактирование контактов
+  const [isEditingContacts, setIsEditingContacts] = useState(false);
+  const [phone, setPhone] = useState(user?.phone || '');
+  const [email, setEmail] = useState(user?.email || '');
 
   const fetchStats = async () => {
     const res = await fetch(`/api/user/${user.id}/stats`);
@@ -73,6 +86,63 @@ export default function ProfileScreen() {
     }
   };
 
+  // Загрузка аватара
+  const handleAvatarSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Пожалуйста, выберите изображение');
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      setAvatarPreview(reader.result as string);
+
+      const formData = new FormData();
+      formData.append('avatar', file);
+
+      try {
+        const res = await fetch(`/api/user/${user.id}/avatar`, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          initUser(WebApp.initDataUnsafe.user);
+          WebApp.HapticFeedback.notificationOccurred('success');
+        } else {
+          alert('Ошибка загрузки аватара');
+        }
+      } catch (error) {
+        alert('Ошибка загрузки аватара');
+      } finally {
+        setIsUploadingAvatar(false);
+        setAvatarPreview(null);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Сохранение контактов
+  const handleSaveContacts = async () => {
+    const res = await fetch(`/api/user/${user.id}/contact`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, email })
+    });
+    if (res.ok) {
+      setIsEditingContacts(false);
+      WebApp.HapticFeedback.notificationOccurred('success');
+      initUser(WebApp.initDataUnsafe.user);
+    } else {
+      alert('Ошибка сохранения контактов');
+    }
+  };
+
   // ЛОГИКА ПЕРЕКЛЮЧЕНИЯ ЭКРАНОВ
   if (isCreatingAd) return <CreateAdScreen onClose={() => setIsCreatingAd(false)} />;
   if (isViewingMyAds) return <MyAdsScreen onClose={() => setIsViewingMyAds(false)} />;
@@ -88,13 +158,38 @@ export default function ProfileScreen() {
       {/* 1. Карточка Профиля */}
       <div className="bg-white p-6 rounded-[2.5rem] shadow-sm ring-1 ring-slate-100 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-        
+
         <div className="relative flex items-center gap-4 mb-6">
           <div className="relative group">
-            <div className="w-20 h-20 bg-gradient-to-tr from-emerald-500 to-teal-400 rounded-3xl flex items-center justify-center text-white text-3xl font-bold shadow-lg">
-              {displayName.charAt(0)}
-            </div>
-            <button className="absolute -bottom-1 -right-1 p-1.5 bg-white rounded-xl shadow-md ring-1 ring-slate-100 text-slate-400">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleAvatarSelect}
+              accept="image/*"
+              className="hidden"
+            />
+            <button onClick={() => fileInputRef.current?.click()} className="relative">
+              {user?.avatarUrl ? (
+                <img
+                  src={user.avatarUrl}
+                  alt="Avatar"
+                  className="w-20 h-20 rounded-3xl object-cover shadow-lg"
+                />
+              ) : (
+                <div className="w-20 h-20 bg-gradient-to-tr from-emerald-500 to-teal-400 rounded-3xl flex items-center justify-center text-white text-3xl font-bold shadow-lg">
+                  {displayName.charAt(0)}
+                </div>
+              )}
+              {isUploadingAvatar && (
+                <div className="absolute inset-0 bg-black/50 rounded-3xl flex items-center justify-center">
+                  <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="absolute -bottom-1 -right-1 p-1.5 bg-white rounded-xl shadow-md ring-1 ring-slate-100 text-slate-400 hover:text-emerald-500 transition-all"
+            >
               <Camera className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -162,17 +257,37 @@ export default function ProfileScreen() {
       <div className="space-y-3">
         <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-4">{t(language, 'security')}</h3>
         <div className="bg-white rounded-[2.5rem] overflow-hidden shadow-sm ring-1 ring-slate-100">
-          
+
           {/* НОВАЯ КНОПКА АДМИНА */}
           {user?.isAdmin && (
-            <MenuBtn 
-              icon={ShieldAlert} 
-              label="Админ-Панель (Арбитраж)" 
-              color="text-red-500" 
-              bg="bg-red-50" 
-              onClick={() => setIsViewingAdmin(true)} 
+            <MenuBtn
+              icon={ShieldAlert}
+              label="Админ-Панель (Арбитраж)"
+              color="text-red-500"
+              bg="bg-red-50"
+              onClick={() => setIsViewingAdmin(true)}
             />
           )}
+
+          {/* Привязка телефона */}
+          <MenuBtn
+            icon={Phone}
+            label={phone ? `+${phone}` : 'Привязать телефон'}
+            color={phone ? "text-emerald-600" : "text-amber-500"}
+            bg={phone ? "bg-emerald-50" : "bg-amber-50"}
+            badge={phone ? 'Привязан' : undefined}
+            onClick={() => setIsEditingContacts(true)}
+          />
+
+          {/* Привязка почты */}
+          <MenuBtn
+            icon={Mail}
+            label={email || 'Привязать почту'}
+            color={email ? "text-emerald-600" : "text-blue-500"}
+            bg={email ? "bg-emerald-50" : "bg-blue-50"}
+            badge={email ? 'Привязана' : undefined}
+            onClick={() => setIsEditingContacts(true)}
+          />
 
           <MenuBtn icon={Bell} label={t(language, 'notifications')} color="text-purple-500" bg="bg-purple-50" toggle />
           <MenuBtn 
@@ -187,6 +302,59 @@ export default function ProfileScreen() {
           <MenuBtn icon={Trash2} label={t(language, 'deleteAccount')} color="text-red-500" bg="bg-red-50" last />
         </div>
       </div>
+
+      {/* Модальное окно редактирования контактов */}
+      {isEditingContacts && (
+        <div className="fixed inset-0 z-[200] bg-black/50 flex items-end justify-center animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-lg rounded-t-[2.5rem] p-6 animate-in slide-in-from-bottom duration-300">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black text-slate-800">Контакты</h3>
+              <button onClick={() => setIsEditingContacts(false)} className="p-2 bg-slate-100 rounded-full">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">Телефон</label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+99360000000"
+                  className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">Email</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="example@mail.com"
+                  className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setIsEditingContacts(false)}
+                  className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl active:scale-95"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleSaveContacts}
+                  className="flex-[2] py-4 bg-emerald-500 text-white font-bold rounded-2xl shadow-lg shadow-emerald-200 active:scale-95"
+                >
+                  Сохранить
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

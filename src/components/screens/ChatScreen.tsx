@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, Send, ShieldAlert, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, Send, ShieldAlert, AlertTriangle, Image as ImageIcon, X } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { t } from '@/lib/dictionaries';
 
@@ -17,6 +17,9 @@ export default function ChatScreen({ orderId, partnerName, onClose }: Props) {
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [orderStatus, setOrderStatus] = useState<string>('');
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Загружаем статус заказа
   useEffect(() => {
@@ -59,30 +62,74 @@ export default function ChatScreen({ orderId, partnerName, onClose }: Props) {
   // Отправка сообщения
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() && !selectedImage) return;
 
     const textToSend = newMessage;
-    setNewMessage(''); // Сразу очищаем инпут для удобства
+    const imageToSend = selectedImage;
+    setNewMessage('');
+    setSelectedImage(null);
+    setImagePreview(null);
 
-    // Оптимистичное обновление UI (чтобы сообщение появилось моментально)
+    // Оптимистичное обновление UI
     const tempMsg = {
       id: Date.now().toString(),
       senderId: user.id,
-      text: textToSend,
+      text: textToSend || null,
+      imageUrl: imagePreview,
       createdAt: new Date().toISOString(),
       sender: { firstName: user.firstName }
     };
     setMessages(prev => [...prev, tempMsg]);
 
     try {
-      await fetch(`/api/orders/${orderId}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ senderId: user.id, text: textToSend })
-      });
-      // После успешной отправки можно не перегружать весь список, т.к. таймер и так сработает
+      if (imageToSend) {
+        // Загрузка изображения
+        const formData = new FormData();
+        formData.append('image', imageToSend);
+        formData.append('senderId', user.id);
+
+        const res = await fetch(`/api/orders/${orderId}/messages/upload`, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!res.ok) throw new Error('Image upload failed');
+      } else {
+        // Отправка текста
+        await fetch(`/api/orders/${orderId}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ senderId: user.id, text: textToSend })
+        });
+      }
     } catch (error) {
       alert("Ошибка отправки");
+    }
+  };
+
+  // Обработка выбора файла
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        alert('Пожалуйста, выберите изображение');
+        return;
+      }
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Удаление выбранного изображения
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -149,19 +196,23 @@ export default function ChatScreen({ orderId, partnerName, onClose }: Props) {
           messages.map((msg) => {
             const isMe = msg.senderId === user.id;
             const isSystem = msg.isSystem;
-            // Форматируем время (например: 14:30)
             const time = new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
             return (
               <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} ${isSystem ? 'justify-center' : ''}`}>
                 <div className={`max-w-[75%] rounded-2xl p-3 shadow-sm ${
-                  isSystem 
-                    ? 'bg-red-50 text-red-700 ring-1 ring-red-200 border-2 border-red-300' 
-                    : isMe 
-                      ? 'bg-emerald-500 text-white rounded-br-sm' 
+                  isSystem
+                    ? 'bg-red-50 text-red-700 ring-1 ring-red-200 border-2 border-red-300'
+                    : isMe
+                      ? 'bg-emerald-500 text-white rounded-br-sm'
                       : 'bg-white text-slate-800 ring-1 ring-slate-100 rounded-bl-sm'
                 }`}>
-                  <p className="text-sm font-medium leading-relaxed">{msg.text}</p>
+                  {msg.imageUrl && (
+                    <img src={msg.imageUrl} alt="Attachment" className="rounded-lg mb-2 max-w-full" />
+                  )}
+                  {msg.text && (
+                    <p className="text-sm font-medium leading-relaxed">{msg.text}</p>
+                  )}
                   <div className={`text-[10px] font-bold mt-1 text-right ${
                     isSystem ? 'text-red-400' : isMe ? 'text-emerald-100' : 'text-slate-400'
                   }`}>
@@ -176,22 +227,53 @@ export default function ChatScreen({ orderId, partnerName, onClose }: Props) {
       </div>
 
       {/* Поле ввода */}
-      <form onSubmit={handleSendMessage} className="bg-white p-4 shrink-0 border-t border-slate-100 flex gap-2 pb-8">
-        <input
-          type="text"
-          placeholder={t(language, 'chatPlaceholder')}
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          className="flex-1 bg-slate-50 ring-1 ring-slate-200 rounded-full px-5 py-3 text-sm font-bold text-slate-800 placeholder:text-slate-400 placeholder:font-medium outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-        />
-        <button
-          type="submit"
-          disabled={!newMessage.trim()}
-          className="p-3 bg-blue-500 text-white rounded-full disabled:bg-slate-200 disabled:text-slate-400 transition-all active:scale-95"
-        >
-          <Send className="w-5 h-5 -ml-0.5" />
-        </button>
-      </form>
+      <div className="bg-white p-4 shrink-0 border-t border-slate-100 flex flex-col gap-2 pb-8">
+        {/* Превью выбранного изображения */}
+        {imagePreview && (
+          <div className="relative inline-block self-start">
+            <img src={imagePreview} alt="Preview" className="h-20 rounded-lg ring-1 ring-slate-200" />
+            <button
+              type="button"
+              onClick={handleRemoveImage}
+              className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImageSelect}
+            accept="image/*"
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="p-3 bg-slate-100 text-slate-600 rounded-full hover:bg-slate-200 transition-all active:scale-95"
+          >
+            <ImageIcon className="w-5 h-5" />
+          </button>
+          <input
+            type="text"
+            placeholder={t(language, 'chatPlaceholder')}
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            className="flex-1 bg-slate-50 ring-1 ring-slate-200 rounded-full px-5 py-3 text-sm font-bold text-slate-800 placeholder:text-slate-400 placeholder:font-medium outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+          />
+          <button
+            type="submit"
+            disabled={!newMessage.trim() && !selectedImage}
+            onClick={handleSendMessage}
+            className="p-3 bg-blue-500 text-white rounded-full disabled:bg-slate-200 disabled:text-slate-400 transition-all active:scale-95"
+          >
+            <Send className="w-5 h-5 -ml-0.5" />
+          </button>
+        </div>
+      </div>
       
     </div>
   );

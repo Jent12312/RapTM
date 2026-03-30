@@ -30,13 +30,14 @@ export async function POST(
   try {
     const { id } = await context.params;
     const body = await req.json();
-    const { senderId, text } = body;
+    const { senderId, text, imageUrl } = body;
 
     const newMessage = await prisma.message.create({
       data: {
         orderId: id,
         senderId,
-        text
+        text: text || null,
+        imageUrl: imageUrl || null
       },
       include: { sender: true }
     });

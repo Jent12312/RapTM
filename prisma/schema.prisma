@@ -23,6 +23,7 @@ model User {
 
   // Новые поля из PDF
   phone       String?  // Для верификации
+  email       String?  // Для привязки почты
   passcode    String?  // Для 2FA PIN-кода
   isAdmin     Boolean  @default(false) // Для доступа в админку
 
@@ -104,7 +105,8 @@ model Message {
   order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   senderId  String
   sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  text      String
+  text      String?
+  imageUrl  String?  // URL загруженного изображения
   isSystem  Boolean  @default(false) // НОВОЕ: Системные сообщения (например автоответчик)
   createdAt DateTime @default(now())
 }
