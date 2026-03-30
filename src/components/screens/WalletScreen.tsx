@@ -31,9 +31,13 @@ export default function WalletScreen() {
         <div className="relative z-10">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
-              {/* Инициалы на полупрозрачном белом фоне */}
-              <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-sm font-bold shadow-inner">
-                {user?.firstName?.charAt(0) || 'U'}
+              {/* Аватар пользователя */}
+              <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm overflow-hidden shadow-inner">
+                <img
+                  src="/photo_2026-03-30_16-13-41.png"
+                  alt="Avatar"
+                  className="w-full h-full object-cover"
+                />
               </div>
               <p className="text-xs font-medium text-emerald-100 uppercase tracking-wider">{t(language, 'balanceLabel')}</p>
             </div>
