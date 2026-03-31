@@ -40,6 +40,8 @@ model User {
   messages       Message[]
   reviewsGiven   Review[]  @relation("ReviewsGiven")
   reviewsReceived Review[] @relation("ReviewsReceived")
+
+  exchangeRequests ExchangeRequest[]
 }
 
 model Wallet {
@@ -122,4 +124,22 @@ model Review {
   rating    String   
   comment   String?
   createdAt DateTime @default(now())
+}
+
+model ExchangeRequest {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  direction   String   // 'USDT_TO_TMT' или 'TMT_TO_USDT'
+  amountUsdt  Float
+  amountTmt   Float
+  
+  // Для USDT_TO_TMT: номер пользователя, куда админ отправит манаты
+  userPhone   String?  
+  
+  status      String   @default("PENDING") // PENDING, COMPLETED, CANCELLED
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

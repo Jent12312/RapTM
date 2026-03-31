@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { ChevronLeft, AlertTriangle, CheckCircle2, XCircle, MessageCircle, Clock, ShieldCheck, UserCheck, UserX } from 'lucide-react';
 
 export default function AdminScreen({ onClose }: { onClose: () => void }) {
-  const [activeTab, setActiveTab] = useState<'disputes' | 'kyc'>('disputes');
+  const [activeTab, setActiveTab] = useState<'disputes' | 'kyc' | 'exchanges'>('disputes');
   const [disputes, setDisputes] = useState<any[]>([]);
   const [selectedDispute, setSelectedDispute] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
@@ -14,6 +14,9 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
   const [kycRequests, setKycRequests] = useState<any[]>([]);
   const [selectedKyc, setSelectedKyc] = useState<any>(null);
   const [kycLoading, setKycLoading] = useState<{[key: string]: boolean}>({});
+
+  // Обмены
+  const [exchanges, setExchanges] = useState<any[]>([]);
 
   useEffect(() => {
     fetch('/api/admin/disputes')
@@ -38,6 +41,17 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
     if (activeTab === 'kyc') {
       fetchKycRequests();
     }
+  }, [activeTab]);
+
+  // Загрузка обменов
+  const fetchExchanges = async () => {
+    const res = await fetch('/api/admin/exchange');
+    const data = await res.json();
+    setExchanges(data);
+  };
+
+  useEffect(() => {
+    if (activeTab === 'exchanges') fetchExchanges();
   }, [activeTab]);
 
   const loadMessages = async (orderId: string) => {
@@ -98,6 +112,28 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
 
   const handleBackToKycList = () => {
     setSelectedKyc(null);
+  };
+
+  // Обработка обмена
+  const processExchange = async (id: string, action: 'approve' | 'reject') => {
+    if (!confirm(action === 'approve' ? 'Подтвердить заявку?' : 'Отклонить заявку?')) return;
+    
+    setLoading(prev => ({ ...prev, [id]: true }));
+    try {
+      const res = await fetch('/api/admin/exchange', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action })
+      });
+      if (res.ok) {
+        setExchanges(exchanges.filter(e => e.id !== id));
+        alert('Заявка обработана');
+      }
+    } catch (e) {
+      alert('Ошибка');
+    } finally {
+      setLoading(prev => ({ ...prev, [id]: false }));
+    }
   };
 
   const resolveDispute = async (orderId: string, resolution: 'COMPLETED' | 'CANCELLED') => {
@@ -304,6 +340,15 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                   </span>
                 )}
               </button>
+              <button
+                onClick={() => setActiveTab('exchanges')}
+                className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${
+                  activeTab === 'exchanges' ? 'bg-blue-50 text-blue-600 ring-1 ring-blue-200' : 'bg-slate-50 text-slate-500'
+                }`}
+              >
+                Обмены
+                {exchanges.length > 0 && <span className="ml-2 bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full">{exchanges.length}</span>}
+              </button>
             </div>
           </div>
 
@@ -421,6 +466,38 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                       </span>
                       <button className="text-xs font-bold text-emerald-600 flex items-center gap-1">
                         Просмотр <ShieldCheck className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )
+            ) : activeTab === 'exchanges' ? (
+              exchanges.length === 0 ? (
+                <div className="text-center text-slate-400 py-10 font-bold">Нет заявок на обмен 🎉</div>
+              ) : (
+                exchanges.map(req => (
+                  <div key={req.id} className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-blue-100 border-t-4 border-blue-500 mb-4">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className={`text-xs font-bold px-2 py-1 rounded-lg ${req.direction === 'USDT_TO_TMT' ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                        {req.direction === 'USDT_TO_TMT' ? 'Отправить манаты' : 'Начислить USDT'}
+                      </span>
+                    </div>
+                    
+                    <div className="bg-slate-50 p-3 rounded-xl text-sm space-y-2 mb-4">
+                      <div className="flex justify-between"><span className="text-slate-500">Пользователь:</span> <span className="font-bold">@{req.user.username}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Отдает:</span> <span className="font-bold text-slate-800">{req.direction === 'USDT_TO_TMT' ? `${req.amountUsdt} USDT` : `${req.amountTmt} TMT`}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Получает:</span> <span className="font-bold text-slate-800">{req.direction === 'USDT_TO_TMT' ? `${req.amountTmt} TMT` : `${req.amountUsdt} USDT`}</span></div>
+                      {req.direction === 'USDT_TO_TMT' && (
+                        <div className="flex justify-between pt-2 border-t border-slate-200"><span className="text-red-500 font-bold">Отправить на номер:</span> <span className="font-bold text-red-600">{req.userPhone}</span></div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <button onClick={() => processExchange(req.id, 'reject')} disabled={loading[req.id]} className="p-3 bg-red-50 text-red-600 font-bold rounded-xl text-xs active:scale-95">
+                        Отклонить (Возврат)
+                      </button>
+                      <button onClick={() => processExchange(req.id, 'approve')} disabled={loading[req.id]} className="p-3 bg-emerald-50 text-emerald-600 font-bold rounded-xl text-xs active:scale-95">
+                        {req.direction === 'USDT_TO_TMT' ? 'Я отправил Манаты' : 'Поступила оплата'}
                       </button>
                     </div>
                   </div>

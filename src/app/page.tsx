@@ -8,6 +8,7 @@ import ProfileScreen from '@/components/screens/ProfileScreen';
 import MerchantProfileModal from '@/components/screens/MerchantProfileModal';
 import OrderScreen from '@/components/screens/OrderScreen';
 import { useEffect, useState } from 'react';
+import ExchangeScreen from '@/components/screens/ExchangeScreen';
 
 export default function Home() {
   const { activeTab, initUser, user } = useAppStore();
@@ -94,11 +95,7 @@ export default function Home() {
       <div className="w-full max-w-md mx-auto">
         {activeTab === 'wallet' && <WalletScreen />}
         {activeTab === 'p2p' && <P2PScreen />}
-        {activeTab === 'exchange' && (
-          <div className="flex flex-col items-center justify-center pt-32 px-6 text-center">
-            <h2 className="text-xl font-bold text-slate-800">Обмен в разработке</h2>
-          </div>
-        )}
+        {activeTab === 'exchange' && <ExchangeScreen />}
         {activeTab === 'profile' && <ProfileScreen />}
       </div>
       <BottomNav />
