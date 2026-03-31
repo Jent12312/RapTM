@@ -690,6 +690,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                           <div className="font-bold text-slate-800">{u.firstName || u.username || t(language, 'userLabel')}</div>
                           <div className="text-[10px] text-slate-400">@{u.username || 'no_username'} • ID: {u.telegramId}</div>
                         </div>
+                        
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div className="bg-slate-50 p-2 rounded-lg">
