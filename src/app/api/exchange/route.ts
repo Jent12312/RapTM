@@ -1,6 +1,7 @@
 // src/app/api/exchange/route.ts
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { sendAdminNotification } from '@/lib/telegram';
 
 // Получить историю обменов пользователя
 export async function GET(req: Request) {
@@ -55,8 +56,8 @@ export async function POST(req: Request) {
         })
       ]);
       exchange = transactionResult[1];
-    } 
-    
+    }
+
     // СЦЕНАРИЙ 2: TMT -> USDT (Просто создаем заявку, баланс пополним при подтверждении админом)
     else if (direction === 'TMT_TO_USDT') {
       exchange = await prisma.exchangeRequest.create({
@@ -64,22 +65,15 @@ export async function POST(req: Request) {
       });
     }
 
-    // Уведомление в ТГ админу
-    try {
-      const typeLabel = direction === 'USDT_TO_TMT' ? 'Продажа USDT (надо отправить Манаты)' : 'Покупка USDT (надо начислить USDT)';
-      const msg = `🚨 Новая заявка на обмен!\nТип: ${typeLabel}\nСумма: ${amountUsdt} USDT <-> ${amountTmt} TMT\nПользователь: @${user.username || user.firstName}\nТелефон: ${userPhone || 'Перевод на карту админа'}`;
-      
-      await fetch(`${process.env.TELEGRAM_BOT_API}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: process.env.TELEGRAM_ADMIN_CHAT_ID,
-          text: msg
-        })
-      });
-    } catch (e) {
-      console.log('Admin notification failed');
-    }
+    // Уведомление админам
+    const typeLabel = direction === 'USDT_TO_TMT' ? 'Продажа USDT (надо отправить Манаты)' : 'Покупка USDT (надо начислить USDT)';
+    await sendAdminNotification(
+      `🚨 <b>Новая заявка на обмен!</b>\n\n` +
+      `💱 <b>Тип:</b> ${typeLabel}\n` +
+      `💰 <b>Сумма:</b> ${amountUsdt} USDT ↔ ${amountTmt} TMT\n` +
+      `👤 <b>Пользователь:</b> @${user.username || user.firstName}\n` +
+      `📱 <b>Телефон:</b> ${userPhone || 'Перевод на карту админа'}`
+    );
 
     return NextResponse.json({ success: true, exchange });
   } catch (error) {

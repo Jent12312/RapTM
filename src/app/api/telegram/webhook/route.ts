@@ -1,7 +1,7 @@
 // src/app/api/telegram/webhook/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { sendNotification, sendAdminNotification, forwardMessageToAdmins } from '@/lib/telegram';
+import { sendNotification, sendAdminNotification } from '@/lib/telegram';
 import { t, Language } from '@/lib/dictionaries';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -26,9 +26,6 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     console.log('Telegram webhook received:', JSON.stringify(body, null, 2));
-
-    // Отправляем уведомление админу о всех входящих запросах
-    await notifyAdminAboutRequest(body);
 
     // 1. Обработка Inline Query (поиск профиля)
     if (body.inline_query) {
@@ -104,15 +101,6 @@ export async function POST(req: NextRequest) {
           await sendMessage(chatId, '✅ Аккаунт успешно привязан!\n\nТеперь вы будете получать уведомления о сделках.');
         }
       }
-
-      // Форвард обычных сообщений админу (не команды)
-      if (text && !text.startsWith('/start')) {
-        await forwardMessageToAdmins(
-          { telegramId, username: message.from.username, firstName: message.from.first_name },
-          text,
-          chatId.toString()
-        );
-      }
     }
 
     // 3. Обработка callback query (кнопки)
@@ -129,45 +117,6 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Telegram webhook error:', error);
     return NextResponse.json({ ok: false, error: 'Webhook error' });
-  }
-}
-
-/**
- * Уведомление админа о входящем запросе
- */
-async function notifyAdminAboutRequest(body: any) {
-  try {
-    const admins = await prisma.user.findMany({
-      where: { isAdmin: true, tgChatId: { not: null } },
-      select: { tgChatId: true },
-    });
-
-    if (admins.length === 0) return;
-
-    let summary = '📨 <b>Входящий запрос Telegram</b>\n\n';
-
-    if (body.message) {
-      const msg = body.message;
-      summary += `👤 <b>От:</b> ${msg.from.first_name || ''} ${msg.from.last_name || ''} (@${msg.from.username || 'no_username'})\n`;
-      summary += `🆔 <b>ID:</b> <code>${msg.from.id}</code>\n`;
-      summary += `💬 <b>Чат:</b> <code>${msg.chat.id}</code>\n`;
-      if (msg.text) {
-        summary += `📝 <b>Текст:</b> <code>${msg.text.substring(0, 100)}${msg.text.length > 100 ? '...' : ''}</code>\n`;
-      }
-    } else if (body.callback_query) {
-      const cb = body.callback_query;
-      summary += `👤 <b>От:</b> ${cb.from.first_name || ''} (@${cb.from.username || 'no_username'})\n`;
-      summary += `🆔 <b>ID:</b> <code>${cb.from.id}</code>\n`;
-      summary += `🔘 <b>Callback:</b> <code>${cb.data}</code>\n`;
-    } else if (body.inline_query) {
-      const iq = body.inline_query;
-      summary += `👤 <b>От:</b> ${iq.from.first_name || ''} (@${iq.from.username || 'no_username'})\n`;
-      summary += `🔍 <b>Query:</b> <code>${iq.query}</code>\n`;
-    }
-
-    await sendAdminNotification(summary);
-  } catch (error) {
-    console.error('Failed to notify admin about request:', error);
   }
 }
 

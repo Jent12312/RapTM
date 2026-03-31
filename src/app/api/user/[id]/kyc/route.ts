@@ -1,6 +1,7 @@
 // src/app/api/user/[id]/kyc/route.ts
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { sendAdminNotification } from '@/lib/telegram';
 
 // POST /api/user/[id]/kyc - Отправка заявки на KYC
 export async function POST(req: Request, context: { params: Promise<{ id: string }> }) {
@@ -34,21 +35,13 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
       }
     });
 
-    // Уведомление админу в ЛС
-    try {
-      const msg = `📋 Новая заявка на KYC!\n\nПользователь: ${user.firstName || user.username} (@${user.username || 'unknown'})\nTelegram ID: ${user.telegramId}\n\nТребуется проверка документов.`;
-      
-      await fetch(`${process.env.TELEGRAM_BOT_API}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: process.env.TELEGRAM_ADMIN_CHAT_ID,
-          text: msg
-        })
-      });
-    } catch (e) {
-      console.log('Admin KYC notification failed');
-    }
+    // Уведомление админам
+    await sendAdminNotification(
+      `📋 <b>Новая заявка на KYC!</b>\n\n` +
+      `👤 <b>Пользователь:</b> ${user.firstName || user.username} (@${user.username || 'unknown'})\n` +
+      `🆔 <b>Telegram ID:</b> <code>${user.telegramId}</code>\n\n` +
+      `Требуется проверка документов.`
+    );
 
     return NextResponse.json({ success: true, user: updatedUser });
   } catch (error) {

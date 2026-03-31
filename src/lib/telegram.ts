@@ -148,28 +148,6 @@ export async function sendAdminNotification(
 }
 
 /**
- * Форвард сообщения от пользователя администраторам
- */
-export async function forwardMessageToAdmins(
-  fromUser: { telegramId: string; username?: string | null; firstName?: string | null },
-  messageText: string,
-  chatId: string
-): Promise<void> {
-  const adminMessage = `
-📨 <b>Новое сообщение от пользователя</b>
-
-👤 <b>От:</b> ${fromUser.firstName || fromUser.username || fromUser.telegramId}
-🆔 <b>Telegram ID:</b> <code>${fromUser.telegramId}</code>
-💬 <b>Чат:</b> <code>${chatId}</code>
-
-📝 <b>Сообщение:</b>
-${messageText}
-  `.trim();
-
-  await sendAdminNotification(adminMessage);
-}
-
-/**
  * Форматирование сообщения в зависимости от типа уведомления с локализацией
  */
 function formatNotification(

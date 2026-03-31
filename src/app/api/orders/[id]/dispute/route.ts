@@ -1,17 +1,18 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { sendAdminNotification } from '@/lib/telegram';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: orderId } = await params;
-    
+
     // Находим заказ
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      include: { 
-        buyer: true, 
+      include: {
+        buyer: true,
         seller: true,
-        ad: true 
+        ad: true
       }
     });
 
@@ -41,37 +42,25 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const updatedOrder = await prisma.order.update({
       where: { id: orderId },
       data: { isDisputed: true },
-      include: { 
-        buyer: true, 
+      include: {
+        buyer: true,
         seller: true,
-        ad: true 
+        ad: true
       }
     });
 
-    // Отправляем уведомление в Telegram админу
-    try {
-      const telegramMessage = `🚨 Апелляция по сделке #${orderId.slice(0, 8)}
-Покупатель: ${order.buyer.firstName || order.buyer.username} (@${order.buyer.username || 'unknown'})
-Продавец: ${order.seller.firstName || order.seller.username} (@${order.seller.username || 'unknown'})
-Сумма: ${order.amountAsset} ${order.ad.asset}
-Статус: ${order.status}`;
+    // Уведомление админам
+    await sendAdminNotification(
+      `🚨 <b>Апелляция по сделке!</b>\n\n` +
+      `🛒 <b>Сделка:</b> <code>${orderId}</code>\n` +
+      `👤 <b>Покупатель:</b> ${order.buyer.firstName || order.buyer.username} (@${order.buyer.username || 'unknown'})\n` +
+      `👤 <b>Продавец:</b> ${order.seller.firstName || order.seller.username} (@${order.seller.username || 'unknown'})\n` +
+      `💰 <b>Сумма:</b> ${order.amountAsset} ${order.ad.asset}\n` +
+      `📊 <b>Статус:</b> ${order.status}`
+    );
 
-      await fetch(`${process.env.TELEGRAM_BOT_API}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: process.env.TELEGRAM_ADMIN_CHAT_ID,
-          text: telegramMessage,
-          parse_mode: 'HTML'
-        })
-      });
-    } catch (telegramError) {
-      console.error('Failed to send Telegram notification:', telegramError);
-      // Не прерываем выполнение, даже если уведомление не отправилось
-    }
-
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       order: updatedOrder,
       message: 'Dispute created successfully'
     });

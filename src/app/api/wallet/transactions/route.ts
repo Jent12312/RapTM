@@ -1,6 +1,7 @@
 // src/app/api/wallet/transactions/route.ts
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { sendAdminNotification } from '@/lib/telegram';
 
 // Получить историю транзакций
 export async function GET(req: Request) {
@@ -38,7 +39,7 @@ export async function POST(req: Request) {
       if (user.wallet.usdtBalance < amount) {
         return NextResponse.json({ error: 'Недостаточно средств' }, { status: 400 });
       }
-      
+
       // Списываем средства сразу и создаем заявку
       const result = await prisma.$transaction([
         prisma.wallet.update({
@@ -65,18 +66,24 @@ export async function POST(req: Request) {
       });
     }
 
-    // Уведомление в Телеграм админу
-    try {
-      const msg = type === 'DEPOSIT' 
-        ? `📥 Новое пополнение USDT!\nСеть: ${network}\nСумма: ${amount} USDT\nTxID: ${txId}\nЮзер: @${user.username || user.firstName}`
-        : `📤 Заявка на вывод USDT!\nСеть: ${network}\nСумма: ${amount} USDT\nАдрес: ${address}\nЮзер: @${user.username || user.firstName}`;
-
-      await fetch(`${process.env.TELEGRAM_BOT_API}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: process.env.TELEGRAM_ADMIN_CHAT_ID, text: msg })
-      });
-    } catch (e) { console.log('Admin notification failed'); }
+    // Уведомление админам
+    if (type === 'DEPOSIT') {
+      await sendAdminNotification(
+        `📥 <b>Новое пополнение USDT!</b>\n\n` +
+        `💰 <b>Сумма:</b> ${amount} USDT\n` +
+        `🔗 <b>Сеть:</b> ${network}\n` +
+        `📝 <b>TxID:</b> <code>${txId}</code>\n` +
+        `👤 <b>Юзер:</b> @${user.username || user.firstName}`
+      );
+    } else {
+      await sendAdminNotification(
+        `📤 <b>Заявка на вывод USDT!</b>\n\n` +
+        `💰 <b>Сумма:</b> ${amount} USDT\n` +
+        `🔗 <b>Сеть:</b> ${network}\n` +
+        `📍 <b>Адрес:</b> <code>${address}</code>\n` +
+        `👤 <b>Юзер:</b> @${user.username || user.firstName}`
+      );
+    }
 
     return NextResponse.json({ success: true, transaction });
   } catch (error) {
