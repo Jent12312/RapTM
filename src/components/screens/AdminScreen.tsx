@@ -966,7 +966,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                 <div>
                   <h3 className="text-xl font-bold text-slate-800">{selectedUser.firstName || selectedUser.nickname || t(language, 'userLabel')}</h3>
                   <p className="text-sm text-slate-500">ID: {selectedUser.telegramId}</p>
-                  {selectedUser.isAdmin && <span className="text-[10px] font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-lg">ADMIN</span>}
+                  
                 </div>
               </div>
 
