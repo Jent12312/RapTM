@@ -42,6 +42,7 @@ model User {
   reviewsReceived Review[] @relation("ReviewsReceived")
 
   exchangeRequests ExchangeRequest[]
+  cryptoTransactions CryptoTransaction[]
 }
 
 model Wallet {
@@ -142,4 +143,23 @@ model ExchangeRequest {
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model CryptoTransaction {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type      String   // 'DEPOSIT' (Пополнение) или 'WITHDRAWAL' (Вывод)
+  asset     String   @default("USDT")
+  network   String   // 'TRC20', 'BEP20' или 'APTOS'
+  
+  amount    Float
+  address   String?  // Куда выводить (для WITHDRAWAL)
+  txId      String?  // Хэш транзакции (для DEPOSIT)
+  
+  status    String   @default("PENDING") // PENDING, COMPLETED, CANCELLED
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

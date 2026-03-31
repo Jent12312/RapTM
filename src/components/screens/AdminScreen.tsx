@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { ChevronLeft, AlertTriangle, CheckCircle2, XCircle, MessageCircle, Clock, ShieldCheck, UserCheck, UserX } from 'lucide-react';
 
 export default function AdminScreen({ onClose }: { onClose: () => void }) {
-  const [activeTab, setActiveTab] = useState<'disputes' | 'kyc' | 'exchanges'>('disputes');
+  const [activeTab, setActiveTab] = useState<'disputes' | 'kyc' | 'exchanges' | 'crypto'>('disputes');
   const [disputes, setDisputes] = useState<any[]>([]);
   const [selectedDispute, setSelectedDispute] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
@@ -17,6 +17,9 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
 
   // Обмены
   const [exchanges, setExchanges] = useState<any[]>([]);
+
+  // Криптовалютные транзакции
+  const [cryptoTxs, setCryptoTxs] = useState<any[]>([]);
 
   useEffect(() => {
     fetch('/api/admin/disputes')
@@ -52,6 +55,16 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     if (activeTab === 'exchanges') fetchExchanges();
+  }, [activeTab]);
+
+  // Загрузка крипто-транзакций
+  const fetchCryptoTxs = async () => {
+    const res = await fetch('/api/admin/transactions');
+    setCryptoTxs(await res.json());
+  };
+
+  useEffect(() => {
+    if (activeTab === 'crypto') fetchCryptoTxs();
   }, [activeTab]);
 
   const loadMessages = async (orderId: string) => {
@@ -117,7 +130,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
   // Обработка обмена
   const processExchange = async (id: string, action: 'approve' | 'reject') => {
     if (!confirm(action === 'approve' ? 'Подтвердить заявку?' : 'Отклонить заявку?')) return;
-    
+
     setLoading(prev => ({ ...prev, [id]: true }));
     try {
       const res = await fetch('/api/admin/exchange', {
@@ -131,6 +144,24 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
       }
     } catch (e) {
       alert('Ошибка');
+    } finally {
+      setLoading(prev => ({ ...prev, [id]: false }));
+    }
+  };
+
+  // Обработка крипто-транзакции
+  const processCrypto = async (id: string, action: 'approve' | 'reject') => {
+    if (!confirm('Продолжить?')) return;
+    setLoading(prev => ({ ...prev, [id]: true }));
+    try {
+      const res = await fetch('/api/admin/transactions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action })
+      });
+      if (res.ok) {
+        setCryptoTxs(cryptoTxs.filter(t => t.id !== id));
+      }
     } finally {
       setLoading(prev => ({ ...prev, [id]: false }));
     }
@@ -349,6 +380,15 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                 Обмены
                 {exchanges.length > 0 && <span className="ml-2 bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full">{exchanges.length}</span>}
               </button>
+              <button
+                onClick={() => setActiveTab('crypto')}
+                className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${
+                  activeTab === 'crypto' ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200' : 'bg-slate-50 text-slate-500'
+                }`}
+              >
+                Ввод/Вывод
+                {cryptoTxs.length > 0 && <span className="ml-2 bg-amber-500 text-white text-[10px] px-2 py-0.5 rounded-full">{cryptoTxs.length}</span>}
+              </button>
             </div>
           </div>
 
@@ -498,6 +538,39 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                       </button>
                       <button onClick={() => processExchange(req.id, 'approve')} disabled={loading[req.id]} className="p-3 bg-emerald-50 text-emerald-600 font-bold rounded-xl text-xs active:scale-95">
                         {req.direction === 'USDT_TO_TMT' ? 'Я отправил Манаты' : 'Поступила оплата'}
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )
+            ) : activeTab === 'crypto' ? (
+              cryptoTxs.length === 0 ? (
+                <div className="text-center text-slate-400 py-10 font-bold">Нет транзакций 🎉</div>
+              ) : (
+                cryptoTxs.map(tx => (
+                  <div key={tx.id} className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-amber-100 border-t-4 border-amber-500 mb-4">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className={`text-xs font-bold px-2 py-1 rounded-lg ${tx.type === 'DEPOSIT' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+                        {tx.type === 'DEPOSIT' ? 'Пополнение' : 'Вывод'} {tx.network}
+                      </span>
+                      <span className="font-black text-slate-800">{tx.amount} USDT</span>
+                    </div>
+                    
+                    <div className="bg-slate-50 p-3 rounded-xl text-xs space-y-2 mb-4 font-medium break-all">
+                      <div className="flex justify-between"><span className="text-slate-500">Юзер:</span> <span className="font-bold text-blue-500">@{tx.user.username}</span></div>
+                      {tx.type === 'DEPOSIT' ? (
+                        <div><span className="text-slate-500 block mb-1">Проверьте TxID:</span> <span className="font-mono bg-white p-1 rounded border border-slate-200 block">{tx.txId}</span></div>
+                      ) : (
+                        <div><span className="text-red-500 font-bold block mb-1">Отправить на адрес:</span> <span className="font-mono bg-white p-1 rounded border border-slate-200 block">{tx.address}</span></div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <button onClick={() => processCrypto(tx.id, 'reject')} disabled={loading[tx.id]} className="p-3 bg-red-50 text-red-600 font-bold rounded-xl text-xs active:scale-95">
+                        Отклонить {tx.type === 'WITHDRAWAL' ? '(Возврат)' : ''}
+                      </button>
+                      <button onClick={() => processCrypto(tx.id, 'approve')} disabled={loading[tx.id]} className="p-3 bg-emerald-50 text-emerald-600 font-bold rounded-xl text-xs active:scale-95">
+                        Подтвердить
                       </button>
                     </div>
                   </div>
