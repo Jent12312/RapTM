@@ -45,9 +45,9 @@ export default function MyAdsScreen({ onClose }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isActive: !currentStatus })
       });
-      addToast("Статус обновлен", "info");
+      addToast(t(language, 'success'), "info");
     } catch (error) {
-      addToast("Ошибка при обновлении статуса", "error");
+      addToast(t(language, 'error'), "error");
       loadMyAds();
     }
   };
@@ -55,14 +55,14 @@ export default function MyAdsScreen({ onClose }: Props) {
   // Функция удаления
   const deleteAd = async (adId: string) => {
     const { addToast } = useAppStore.getState();
-    if (!confirm('Вы уверены, что хотите удалить объявление?')) return;
-    
+    if (!confirm(t(language, 'deleteAccount'))) return;
+
     try {
       await fetch(`/api/p2p/${adId}`, { method: 'DELETE' });
       setMyAds(myAds.filter(ad => ad.id !== adId));
-      addToast("Объявление удалено", "success");
+      addToast(t(language, 'success'), "success");
     } catch (error) {
-      addToast("Ошибка при удалении", "error");
+      addToast(t(language, 'error'), "error");
     }
   };
 
@@ -121,7 +121,7 @@ export default function MyAdsScreen({ onClose }: Props) {
                     {ad.price.toFixed(2)} <span className="text-xs font-medium text-slate-400">{ad.fiat}</span>
                   </div>
                   <div className="text-[10px] text-slate-500 font-medium mt-1">
-                    Лимит: {ad.minLimit} - {ad.maxLimit} {ad.fiat}
+                    {t(language, 'p2pLimit')}: {ad.minLimit} - {ad.maxLimit} {ad.fiat}
                   </div>
                 </div>
 

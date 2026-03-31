@@ -214,7 +214,7 @@ export default function CreateAdScreen({ onClose }: Props) {
           {/* Предпросмотр итоговой цены */}
           {priceType === 'floating' && marketPrice && (
             <div className="bg-gradient-to-r from-blue-50 to-emerald-50 p-4 rounded-2xl ring-1 ring-blue-100">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Итоговая цена</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t(language, 'adFinalPrice')}</p>
               <p className="text-2xl font-bold text-slate-800">
                 {calculatedPrice} <span className="text-sm font-medium text-slate-500">{fiat}</span>
               </p>
@@ -242,12 +242,12 @@ export default function CreateAdScreen({ onClose }: Props) {
 
         {/* 4. Детали сделки */}
         <div className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-slate-100 space-y-4">
-          
+
           <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t(language, 'cash')} / Метод</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t(language, 'adCashMethod').replace('{cash}', t(language, 'adCash'))}</label>
             <div className="flex items-center justify-between mt-2 bg-emerald-50 ring-1 ring-emerald-100 p-3 rounded-2xl">
               <span className="text-sm font-bold text-emerald-700 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4" /> Наличные
+                <CheckCircle2 className="w-4 h-4" /> {t(language, 'adCash')}
               </span>
               <select value={city} onChange={(e) => setCity(e.target.value)} className="bg-white text-xs font-bold text-slate-700 px-3 py-1.5 rounded-lg outline-none ring-1 ring-slate-200 appearance-none text-center">
                 <option value="Ашхабад">Ашхабад</option>
@@ -259,25 +259,25 @@ export default function CreateAdScreen({ onClose }: Props) {
           </div>
 
           <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Условия сделки (Описание)</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t(language, 'adTerms')}</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Например: Передаю наличные только в центре города. Третьих лиц не принимаю."
+              placeholder={t(language, 'adTerms')}
               className="w-full mt-1 bg-slate-50 p-4 rounded-2xl ring-1 ring-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium text-slate-700 min-h-[80px] resize-none"
             ></textarea>
           </div>
 
           <div className="flex justify-between items-center pt-2">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Время на оплату</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t(language, 'adPaymentTime')}</label>
             <div className="flex bg-slate-100 p-1 rounded-lg">
               {['15', '30', '45'].map(time => (
-                <button 
+                <button
                   key={time}
-                  onClick={() => setPaymentTime(time)} 
+                  onClick={() => setPaymentTime(time)}
                   className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${paymentTime === time ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400'}`}
                 >
-                  {time} мин
+                  {time} {t(language, 'time')}
                 </button>
               ))}
             </div>
@@ -286,28 +286,28 @@ export default function CreateAdScreen({ onClose }: Props) {
 
         {/* 5. Защита Мерчанта (Продвинутые настройки) */}
         <div className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-slate-100 space-y-4">
-          <button 
+          <button
             onClick={() => setShowAdvanced(!showAdvanced)}
             className="w-full flex justify-between items-center"
           >
             <span className="text-sm font-bold text-slate-700 flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-blue-500" /> Защита контрагента
+              <ShieldCheck className="w-5 h-5 text-blue-500" /> {t(language, 'adCounterpartyProtection')}
             </span>
             <span className="text-[10px] font-bold text-blue-500 uppercase bg-blue-50 px-2 py-1 rounded-lg">
-              {showAdvanced ? 'Скрыть' : 'Настроить'}
+              {showAdvanced ? t(language, 'cancel') : t(language, 'adminSearch')}
             </span>
           </button>
 
           {showAdvanced && (
             <div className="pt-4 border-t border-slate-50 space-y-4 animate-in fade-in slide-in-from-top-2">
-              
+
               {/* Требовать KYC */}
               <div className="flex justify-between items-center">
                 <div>
-                  <p className="text-sm font-bold text-slate-800">Только верифицированные</p>
-                  <p className="text-[10px] font-medium text-slate-400 mt-0.5">Покупатель должен пройти KYC</p>
+                  <p className="text-sm font-bold text-slate-800">{t(language, 'adOnlyVerified')}</p>
+                  <p className="text-[10px] font-medium text-slate-400 mt-0.5">{t(language, 'adBuyerMustPassKYC')}</p>
                 </div>
-                <button 
+                <button
                   onClick={() => setReqKyc(!reqKyc)}
                   className={`w-12 h-7 rounded-full relative transition-all duration-300 ${reqKyc ? 'bg-blue-500 shadow-inner' : 'bg-slate-200 shadow-inner'}`}
                 >
@@ -317,16 +317,16 @@ export default function CreateAdScreen({ onClose }: Props) {
 
               {/* Минимум сделок */}
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Минимум успешных сделок</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t(language, 'adMinTrades')}</label>
                 <div className="flex items-center gap-3 mt-1 bg-slate-50 p-3 rounded-2xl ring-1 ring-slate-200">
-                  <input 
-                    type="number" 
-                    placeholder="0" 
-                    value={reqMinTrades} 
-                    onChange={(e) => setReqMinTrades(e.target.value)} 
-                    className="w-full font-bold text-slate-800 bg-transparent outline-none" 
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={reqMinTrades}
+                    onChange={(e) => setReqMinTrades(e.target.value)}
+                    className="w-full font-bold text-slate-800 bg-transparent outline-none"
                   />
-                  <span className="text-xs font-bold text-slate-400">сделок</span>
+                  <span className="text-xs font-bold text-slate-400">{t(language, 'adTrades')}</span>
                 </div>
               </div>
 

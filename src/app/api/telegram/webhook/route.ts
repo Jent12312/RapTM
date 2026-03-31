@@ -62,6 +62,23 @@ export async function POST(req: NextRequest) {
       // Обработка start_param (привязка аккаунта)
       if (text === '/start' && message.from) {
         const startParam = message.start_parameter;
+        
+        // Проверка выбора языка
+        if (startParam && startParam.startsWith('lang_')) {
+          const lang = startParam.replace('lang_', '');
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { language: lang as 'ru' | 'tm' | 'en' },
+          });
+          const langNames: Record<string, string> = {
+            ru: '🇷🇺 Русский',
+            tm: '🇹🇲 Türkmençe',
+            en: '🇬🇧 English',
+          };
+          await sendMessage(chatId, `✅ Язык выбран: ${langNames[lang] || lang}\n\nТеперь вы будете получать уведомления на этом языке.`);
+          return NextResponse.json({ ok: true });
+        }
+        
         if (startParam && startParam.startsWith('USER_')) {
           const userId = startParam.replace('USER_', '');
           await prisma.user.update({
@@ -78,8 +95,9 @@ export async function POST(req: NextRequest) {
       const callback = body.callback_query;
       const chatId = callback.message.chat.id;
       const data = callback.data;
+      const fromId = callback.from.id.toString();
 
-      await handleCallback(chatId, data);
+      await handleCallback(chatId, data, fromId);
     }
 
     return NextResponse.json({ ok: true });
@@ -157,7 +175,9 @@ async function handleCommand(chatId: number, command: string, user: any) {
 
   switch (cmd) {
     case '/start':
-      await sendMessage(chatId, `
+      // Проверяем, выбран ли уже язык
+      if (user.language) {
+        await sendMessage(chatId, `
 👋 <b>Добро пожаловать, ${user.firstName || 'Пользователь'}!</b>
 
 Я ваш персональный P2P ассистент.
@@ -171,7 +191,20 @@ async function handleCommand(chatId: number, command: string, user: any) {
 /unlink - Отвязать аккаунт
 
 🔗 Для привязки аккаунта используйте кнопку в приложении.
-      `.trim());
+        `.trim());
+      } else {
+        // Показываем выбор языка
+        const keyboard = [[
+          { text: '🇷🇺 Русский', callback_data: 'lang:ru' },
+          { text: '🇹🇲 Türkmençe', callback_data: 'lang:tm' },
+          { text: '🇬🇧 English', callback_data: 'lang:en' }
+        ]];
+        await sendMessageWithKeyboard(
+          chatId,
+          `👋 <b>Добро пожаловать в P2P Market!</b>\n\n🌍 Выберите язык / Dil saýlaň / Select language:`,
+          keyboard
+        );
+      }
       break;
 
     case '/status':
@@ -259,11 +292,33 @@ async function handleCommand(chatId: number, command: string, user: any) {
 /**
  * Обработка callback query (кнопки под сообщениями)
  */
-async function handleCallback(chatId: number, data: string) {
+async function handleCallback(chatId: number, data: string, fromId: string) {
   // Парсим данные callback
   const [action, ...args] = data.split(':');
 
   switch (action) {
+    case 'lang':
+      const lang = args[0];
+      const user = await prisma.user.findUnique({
+        where: { telegramId: fromId },
+      });
+      
+      if (user) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { language: lang as 'ru' | 'tm' | 'en' },
+        });
+        
+        const langNames: Record<string, string> = {
+          ru: '🇷🇺 Русский',
+          tm: '🇹🇲 Türkmençe',
+          en: '🇬🇧 English',
+        };
+        
+        await sendMessage(chatId, `✅ Язык выбран: ${langNames[lang] || lang}\n\nТеперь вы будете получать уведомления на этом языке.`);
+      }
+      break;
+    
     case 'confirm_payment':
       const orderId = args[0];
       await sendMessage(chatId, `✅ Оплата по сделке ${orderId} подтверждена!`);
@@ -306,7 +361,7 @@ async function sendMessage(chatId: number, text: string): Promise<void> {
 async function sendMessageWithKeyboard(
   chatId: number,
   text: string,
-  keyboard: Array<Array<{ text: string; url: string }>>
+  keyboard: Array<Array<{ text: string; url?: string; callback_data?: string }>>
 ): Promise<void> {
   if (!TELEGRAM_BOT_TOKEN) return;
 

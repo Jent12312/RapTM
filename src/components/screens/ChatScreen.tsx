@@ -214,10 +214,10 @@ export default function ChatScreen({ orderId, partnerName, onClose }: Props) {
       {/* Кнопка АПЕЛЛЯЦИИ */}
       {orderStatus === 'paid' && (
         <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-          <span className="text-[10px] font-bold text-slate-400 uppercase">Возникли проблемы?</span>
-          <button 
+          <span className="text-[10px] font-bold text-slate-400 uppercase">{t(language, 'chatProblems')}</span>
+          <button
             onClick={async () => {
-              if(confirm("Вы уверены, что хотите позвать Администратора? Сделка будет заморожена.")) {
+              if(confirm(t(language, 'adminDisputes'))) {
                  await fetch(`/api/orders/${orderId}`, {
                    method: 'PATCH',
                    headers: { 'Content-Type': 'application/json' },
@@ -233,7 +233,7 @@ export default function ChatScreen({ orderId, partnerName, onClose }: Props) {
             }}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-bold active:scale-95"
           >
-            <AlertTriangle className="w-3.5 h-3.5" /> Спор / Арбитраж
+            <AlertTriangle className="w-3.5 h-3.5" /> {t(language, 'chatDispute')}
           </button>
         </div>
       )}

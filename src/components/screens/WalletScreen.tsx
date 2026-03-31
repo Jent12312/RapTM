@@ -124,21 +124,21 @@ export default function WalletScreen() {
       {/* История крипто-транзакций */}
       {history.length > 0 && (
         <div className="space-y-3">
-          <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-2">История USDT</h3>
+          <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-2">{t(language, 'codesHistory')}</h3>
           {history.map(tx => (
             <div key={tx.id} className="bg-white p-4 rounded-2xl shadow-sm ring-1 ring-slate-100 flex justify-between items-center">
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${tx.type === 'DEPOSIT' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
-                    {tx.type === 'DEPOSIT' ? 'Ввод' : 'Вывод'} {tx.network}
+                    {tx.type === 'DEPOSIT' ? t(language, 'salmak') : t(language, 'cykarmak')} {tx.network}
                   </span>
                 </div>
                 <div className="font-bold text-slate-800 text-sm">{tx.amount} USDT</div>
               </div>
               <div className="text-right">
-                {tx.status === 'PENDING' && <span className="flex items-center gap-1 text-xs font-bold text-amber-500"><Clock className="w-3 h-3" /> Ожидание</span>}
-                {tx.status === 'COMPLETED' && <span className="flex items-center gap-1 text-xs font-bold text-emerald-500"><CheckCircle2 className="w-3 h-3" /> Успешно</span>}
-                {tx.status === 'CANCELLED' && <span className="text-xs font-bold text-red-500">Отменено</span>}
+                {tx.status === 'PENDING' && <span className="flex items-center gap-1 text-xs font-bold text-amber-500"><Clock className="w-3 h-3" /> {t(language, 'adminPending')}</span>}
+                {tx.status === 'COMPLETED' && <span className="flex items-center gap-1 text-xs font-bold text-emerald-500"><CheckCircle2 className="w-3 h-3" /> {t(language, 'statusCompleted')}</span>}
+                {tx.status === 'CANCELLED' && <span className="text-xs font-bold text-red-500">{t(language, 'statusCancelled')}</span>}
               </div>
             </div>
           ))}
@@ -159,7 +159,7 @@ export default function WalletScreen() {
             <div className="space-y-5">
               {/* Выбор сети */}
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Выберите сеть</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">{t(language, 'walyutalar')}</label>
                 <div className="flex bg-slate-100 p-1 rounded-xl">
                   {['TRC20', 'BEP20', 'APTOS'].map((net: any) => (
                     <button key={net} onClick={() => setNetwork(net)} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${network === net ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500'}`}>
@@ -173,19 +173,19 @@ export default function WalletScreen() {
               {modalType === 'deposit' && (
                 <>
                   <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
-                    <p className="text-xs font-medium text-slate-500 mb-1">Переведите USDT ({network}) на этот адрес:</p>
+                    <p className="text-xs font-medium text-slate-500 mb-1">{t(language, 'adminSendToAddress')} USDT ({network}):</p>
                     <div className="flex items-center justify-between bg-white p-3 rounded-lg ring-1 ring-blue-200 mt-2">
                       <span className="text-xs font-bold truncate text-slate-800">{ESCROW_WALLETS[network]}</span>
                       <button onClick={() => copyToClipboard(ESCROW_WALLETS[network])} className="text-blue-500 p-1"><Copy className="w-4 h-4" /></button>
                     </div>
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Сумма перевода</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">{t(language, 'amount')}</label>
                     <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 font-bold outline-none focus:ring-emerald-500" />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">TxID (Хэш транзакции) - необязательно</label>
-                    <input type="text" value={txId} onChange={e => setTxId(e.target.value)} placeholder="Вставьте хэш транзакции..." className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 font-bold outline-none text-xs focus:ring-emerald-500" />
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">TxID ({t(language, 'adminTxId')}) - {t(language, 'adminReturn')}</label>
+                    <input type="text" value={txId} onChange={e => setTxId(e.target.value)} placeholder={t(language, 'adminTxId')} className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 font-bold outline-none text-xs focus:ring-emerald-500" />
                   </div>
                 </>
               )}
@@ -194,21 +194,21 @@ export default function WalletScreen() {
               {modalType === 'withdraw' && (
                 <>
                   <div className="bg-amber-50 p-3 rounded-xl border border-amber-100">
-                    <p className="text-[10px] font-bold text-amber-700 uppercase">Комиссия сети будет вычтена из суммы перевода.</p>
+                    <p className="text-[10px] font-bold text-amber-700 uppercase">{t(language, 'adminReturn')} {t(language, 'navAlys')}</p>
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Сумма вывода (Доступно: {balances.usdt.toFixed(2)} USDT)</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">{t(language, 'amount')} ({t(language, 'adminPending')}: {balances.usdt.toFixed(2)} USDT)</label>
                     <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 font-bold outline-none focus:ring-emerald-500" />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Ваш адрес ({network})</label>
-                    <input type="text" value={address} onChange={e => setAddress(e.target.value)} placeholder="Вставьте адрес кошелька..." className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 font-bold outline-none text-xs focus:ring-emerald-500" />
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">{t(language, 'adminSendToAddress')} ({network})</label>
+                    <input type="text" value={address} onChange={e => setAddress(e.target.value)} placeholder={t(language, 'adminSendToAddress')} className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 font-bold outline-none text-xs focus:ring-emerald-500" />
                   </div>
                 </>
               )}
 
               <button onClick={handleTransaction} disabled={isSubmitting} className="w-full bg-emerald-500 text-white font-bold py-4 rounded-2xl shadow-lg mt-4 active:scale-95 transition-all">
-                {isSubmitting ? 'Обработка...' : modalType === 'deposit' ? 'Я перевел USDT' : 'Запросить вывод'}
+                {isSubmitting ? t(language, 'processing') : modalType === 'deposit' ? t(language, 'adminConfirm') : t(language, 'cykarmak')}
               </button>
             </div>
           </div>

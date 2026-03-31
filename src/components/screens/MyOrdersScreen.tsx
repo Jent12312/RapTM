@@ -60,7 +60,7 @@ export default function MyOrdersScreen({ onClose }: { onClose: () => void }) {
       {showFilter && (
         <div className="bg-white border-b border-slate-100 p-4 space-y-3 animate-in slide-in-from-top duration-300">
           <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">Статус</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">{t(language, 'statusPaid')}</label>
             <div className="flex gap-2 flex-wrap">
               {['all', 'PENDING', 'PAID', 'COMPLETED', 'CANCELLED'].map(status => (
                 <button
@@ -72,13 +72,13 @@ export default function MyOrdersScreen({ onClose }: { onClose: () => void }) {
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
-                  {status === 'all' ? 'Все' : status}
+                  {status === 'all' ? t(language, 'adminAllOps') : status}
                 </button>
               ))}
             </div>
           </div>
           <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">Тип</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">{t(language, 'navAlys')}</label>
             <div className="flex gap-2">
               <button
                 onClick={() => setFilterType('all')}
@@ -86,7 +86,7 @@ export default function MyOrdersScreen({ onClose }: { onClose: () => void }) {
                   filterType === 'all' ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
-                Все
+                {t(language, 'adminAllOps')}
               </button>
               <button
                 onClick={() => setFilterType('buy')}
@@ -94,7 +94,7 @@ export default function MyOrdersScreen({ onClose }: { onClose: () => void }) {
                   filterType === 'buy' ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
-                Покупка
+                {t(language, 'buy')}
               </button>
               <button
                 onClick={() => setFilterType('sell')}
@@ -102,7 +102,7 @@ export default function MyOrdersScreen({ onClose }: { onClose: () => void }) {
                   filterType === 'sell' ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
-                Продажа
+                {t(language, 'sell')}
               </button>
             </div>
           </div>
@@ -126,7 +126,7 @@ export default function MyOrdersScreen({ onClose }: { onClose: () => void }) {
                   <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${
                     order.buyerId === user.id ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'
                   }`}>
-                    {order.buyerId === user.id ? 'Покупка' : 'Продажа'}
+                    {order.buyerId === user.id ? t(language, 'buy') : t(language, 'sell')}
                   </span>
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                     {order.status}
@@ -136,7 +136,7 @@ export default function MyOrdersScreen({ onClose }: { onClose: () => void }) {
                   {order.amountAsset} <span className="text-sm font-bold text-slate-500">{order.ad.asset}</span>
                 </div>
                 <div className="text-xs font-bold text-slate-500 mt-1">
-                  За {order.amountFiat} {order.ad.fiat}
+                  {t(language, 'p2pReceiveAmount')} {order.amountFiat} {order.ad.fiat}
                 </div>
               </div>
               <ArrowRightLeft className="w-6 h-6 text-slate-300" />

@@ -21,6 +21,7 @@ model User {
   nickname    String?
   avatarUrl   String?
   lastSeen    DateTime @default(now())
+  language    String   @default("ru") // ru, tm, en
 
   // Новые поля из PDF
   phone       String?  // Для верификации
@@ -44,6 +45,10 @@ model User {
 
   exchangeRequests ExchangeRequest[]
   cryptoTransactions CryptoTransaction[]
+  
+  // Коды (ваучеры)
+  createdCodes  Code[] @relation("CreatedCodes")
+  redeemedCodes Code[] @relation("RedeemedCodes")
 }
 
 model Wallet {
@@ -150,17 +155,45 @@ model CryptoTransaction {
   id        String   @id @default(uuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   type      String   // 'DEPOSIT' (Пополнение) или 'WITHDRAWAL' (Вывод)
   asset     String   @default("USDT")
   network   String   // 'TRC20', 'BEP20' или 'APTOS'
-  
+
   amount    Float
   address   String?  // Куда выводить (для WITHDRAWAL)
   txId      String?  // Хэш транзакции (для DEPOSIT)
-  
+
   status    String   @default("PENDING") // PENDING, COMPLETED, CANCELLED
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Коды для наличных расчетов (ваучеры)
+model Code {
+  id          String   @id @default(uuid())
+  code        String   @unique // Сам код (например, TM-USDT-500-A7B8-C9D1-E2F3)
+  codeHash    String   @unique // Хешированный код для безопасности
+  
+  amount      Float    // Номинал кода
+  currency    String   @default("USDT") // Валюта кода
+  
+  fee         Float    @default(0) // Комиссия за создание
+  status      String   @default("ACTIVE") // ACTIVE, USED, EXPIRED, CANCELLED
+  
+  creatorId   String   // Кто создал код
+  creator     User     @relation("CreatedCodes", fields: [creatorId], references: [id], onDelete: Cascade)
+  
+  redeemerId  String?  // Кто активировал код
+  redeemer    User?    @relation("RedeemedCodes", fields: [redeemerId], references: [id], onDelete: SetNull)
+  
+  expiresAt   DateTime // Срок действия кода
+  
+  createdAt   DateTime @default(now())
+  usedAt      DateTime? // Когда был использован
+  
+  @@index([code])
+  @@index([codeHash])
+  @@index([status])
 }

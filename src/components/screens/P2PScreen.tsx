@@ -407,13 +407,13 @@ export default function P2PScreen() {
             {/* ВЫВОДИМ ОПИСАНИЕ И УСЛОВИЯ ИЗ БД */}
             <div className="bg-amber-50 p-4 rounded-2xl mb-6 ring-1 ring-amber-100 border-l-4 border-amber-400">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-[10px] font-bold text-amber-700 uppercase tracking-widest">Условия сделки</span>
+                <span className="text-[10px] font-bold text-amber-700 uppercase tracking-widest">{t(language, 'p2pTradeConditions')}</span>
                 <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-md flex items-center gap-1">
-                  <Clock className="w-3 h-3" /> {selectedAd.paymentTime || 15} мин
+                  <Clock className="w-3 h-3" /> {selectedAd.paymentTime || 15} {t(language, 'time')}
                 </span>
               </div>
               <p className="text-xs font-medium text-amber-900 leading-relaxed">
-                {selectedAd.description || "Мерчант не указал дополнительных условий. Стандартная сделка."}
+                {selectedAd.description || t(language, 'adminNoOps')}
               </p>
             </div>
 
@@ -457,18 +457,18 @@ export default function P2PScreen() {
             {(() => {
               // Допустим, мы берем статусы пользователя из стейта user (пока мокаем успешные сделки как 0, если не подтянули)
               const userTrades = user.ordersAsBuyer?.length || 0; // В реале нужно подтягивать количество сделок юзера
-              
+
               if (selectedAd.reqKyc && !user.isVerified) {
                 return (
                   <div className="w-full py-4 text-center rounded-[2rem] font-bold text-sm bg-slate-100 text-slate-400 border border-slate-200">
-                    ❌ Требуется KYC (Верификация)
+                    ❌ {t(language, 'p2pVerifyCode')}
                   </div>
                 );
               }
               if (selectedAd.reqMinTrades > userTrades) {
                 return (
                   <div className="w-full py-4 text-center rounded-[2rem] font-bold text-sm bg-slate-100 text-slate-400 border border-slate-200">
-                    ❌ Минимум сделок: {selectedAd.reqMinTrades}
+                    ❌ {t(language, 'p2pMinTrades')}: {selectedAd.reqMinTrades}
                   </div>
                 );
               }

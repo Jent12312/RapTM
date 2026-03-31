@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
+import { t } from '@/lib/dictionaries';
 import { ArrowDownUp, CheckCircle2, Phone, Clock, Info } from 'lucide-react';
 import WebApp from '@twa-dev/sdk';
 
@@ -11,7 +12,7 @@ const ADMIN_PHONE_NUMBER = "+993 65 XX-XX-XX (Админ)";
 const EXCHANGE_RATE = 19.5; // Пример: 1 USDT = 19.5 TMT. Можно заменить на запрос к /api/market-price
 
 export default function ExchangeScreen() {
-  const { user, balances, addToast, initUser } = useAppStore();
+  const { user, language, balances, addToast, initUser } = useAppStore();
   const [direction, setDirection] = useState<'USDT_TO_TMT' | 'TMT_TO_USDT'>('USDT_TO_TMT');
   
   const [amount, setAmount] = useState('');
@@ -144,7 +145,7 @@ export default function ExchangeScreen() {
             </span>
           </div>
           {direction === 'USDT_TO_TMT' && (
-            <p className="text-xs text-slate-400 mt-2 font-medium">Доступно: {balances.usdt.toFixed(2)} USDT</p>
+            <p className="text-xs text-slate-400 mt-2 font-medium">{t(language, 'exAvailable')}: {balances.usdt.toFixed(2)} USDT</p>
           )}
         </div>
 
@@ -159,7 +160,7 @@ export default function ExchangeScreen() {
         {/* Поле получаю */}
         <div>
           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">
-            Вы получаете
+            {t(language, 'p2pReceiveAmount')}
           </label>
           <div className="flex items-center justify-between bg-slate-50 p-4 rounded-2xl ring-1 ring-slate-200">
             <span className={`text-2xl font-black ${direction === 'USDT_TO_TMT' ? 'text-blue-600' : 'text-emerald-600'}`}>
@@ -179,12 +180,12 @@ export default function ExchangeScreen() {
             <div className="bg-amber-50 p-3 rounded-xl border border-amber-100 flex items-start gap-2">
               <Info className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
               <p className="text-[10px] font-bold text-amber-700 uppercase">
-                USDT спишутся сразу. Оператор отправит манаты на ваш номер в течение 5-10 минут.
+                {t(language, 'exNetworkFee')}
               </p>
             </div>
             <div>
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">
-                Номер телефона (ТМ) для пополнения
+                {t(language, 'phone')} (ТМ) {t(language, 'p2pReceiveAmount')}
               </label>
               <div className="flex items-center gap-3 bg-slate-50 p-4 rounded-2xl ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-emerald-500">
                 <Phone className="w-5 h-5 text-slate-400" />
@@ -209,10 +210,10 @@ export default function ExchangeScreen() {
           <div className="space-y-4">
              <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
               <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-2">
-                Инструкция
+                {t(language, 'step1')}
               </p>
               <p className="text-sm font-medium text-slate-700 mb-4">
-                Переведите <strong className="text-blue-600">{amount || '0'} TMT</strong> на номер администратора. После этого нажмите кнопку ниже.
+                {t(language, 'exSendTMT').replace('{amount}', amount || '0')} {t(language, 'exSendToAdmin')}
               </p>
               <div className="bg-white p-3 rounded-lg flex justify-between items-center ring-1 ring-blue-200">
                 <span className="font-bold text-slate-800 text-lg">{ADMIN_PHONE_NUMBER}</span>
@@ -223,7 +224,7 @@ export default function ExchangeScreen() {
               disabled={isSubmitting || !amount}
               className="w-full bg-emerald-500 text-white font-bold py-4 rounded-2xl shadow-lg shadow-emerald-200 active:scale-95 transition-all"
             >
-              {isSubmitting ? 'Создаем заявку...' : 'Я перевел Манаты'}
+              {isSubmitting ? t(language, 'processing') : t(language, 'adminConfirm')}
             </button>
           </div>
         )}
@@ -232,7 +233,7 @@ export default function ExchangeScreen() {
       {/* История заявок */}
       {history.length > 0 && (
         <div className="space-y-3">
-          <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-2">История обменов</h3>
+          <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-2">{t(language, 'exHistory')}</h3>
           {history.map(req => (
             <div key={req.id} className="bg-white p-4 rounded-2xl shadow-sm ring-1 ring-slate-100 flex justify-between items-center">
               <div>
@@ -240,7 +241,7 @@ export default function ExchangeScreen() {
                   <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
                     req.direction === 'USDT_TO_TMT' ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'
                   }`}>
-                    {req.direction === 'USDT_TO_TMT' ? 'Продажа' : 'Покупка'} USDT
+                    {req.direction === 'USDT_TO_TMT' ? t(language, 'sell') : t(language, 'buy')} USDT
                   </span>
                 </div>
                 <div className="font-bold text-slate-800 text-sm">
@@ -250,17 +251,17 @@ export default function ExchangeScreen() {
               <div className="text-right">
                 {req.status === 'PENDING' && (
                   <span className="flex items-center gap-1 text-xs font-bold text-amber-500 bg-amber-50 px-2 py-1 rounded-lg">
-                    <Clock className="w-3 h-3" /> Ожидание
+                    <Clock className="w-3 h-3" /> {t(language, 'exPending')}
                   </span>
                 )}
                 {req.status === 'COMPLETED' && (
                   <span className="flex items-center gap-1 text-xs font-bold text-emerald-500 bg-emerald-50 px-2 py-1 rounded-lg">
-                    <CheckCircle2 className="w-3 h-3" /> Успешно
+                    <CheckCircle2 className="w-3 h-3" /> {t(language, 'exSuccess')}
                   </span>
                 )}
                 {req.status === 'CANCELLED' && (
                   <span className="flex items-center gap-1 text-xs font-bold text-red-500 bg-red-50 px-2 py-1 rounded-lg">
-                    Отменено
+                    {t(language, 'exCancelled')}
                   </span>
                 )}
               </div>

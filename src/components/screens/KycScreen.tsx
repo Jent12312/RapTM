@@ -3,10 +3,11 @@
 import { useState, useRef } from 'react';
 import { ChevronLeft, ShieldCheck, UploadCloud, CheckCircle2, X, Camera, Image } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
+import { t } from '@/lib/dictionaries';
 import WebApp from '@twa-dev/sdk';
 
 export default function KycScreen({ onClose }: { onClose: () => void }) {
-  const { user, addToast, initUser } = useAppStore();
+  const { user, language, addToast, initUser } = useAppStore();
   const [kycPhoto, setKycPhoto] = useState<File | null>(null);
   const [kycPreview, setKycPreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -105,16 +106,16 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
             <ChevronLeft className="w-6 h-6" />
           </button>
           <div>
-            <h2 className="text-lg font-bold text-slate-800">Верификация (KYC)</h2>
-            <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Безопасность платформы</p>
+            <h2 className="text-lg font-bold text-slate-800">{t(language, 'kycTitle')}</h2>
+            <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">{t(language, 'kycSecurity')}</p>
           </div>
         </div>
 
         <div className="p-5 space-y-6">
           <div className="bg-emerald-50 border border-emerald-200 p-6 rounded-[2rem] text-center">
             <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
-            <h3 className="text-xl font-bold text-emerald-800">Аккаунт подтвержден</h3>
-            <p className="text-sm text-emerald-600 mt-2 font-medium">Вам доступны все лимиты и торговля с проверенными мерчантами.</p>
+            <h3 className="text-xl font-bold text-emerald-800">{t(language, 'kycVerifiedTitle')}</h3>
+            <p className="text-sm text-emerald-600 mt-2 font-medium">{t(language, 'kycVerifiedDesc')}</p>
           </div>
         </div>
       </div>
@@ -130,23 +131,23 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
             <ChevronLeft className="w-6 h-6" />
           </button>
           <div>
-            <h2 className="text-lg font-bold text-slate-800">Верификация (KYC)</h2>
-            <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">На проверке</p>
+            <h2 className="text-lg font-bold text-slate-800">{t(language, 'kycTitle')}</h2>
+            <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">{t(language, 'kycPending')}</p>
           </div>
         </div>
 
         <div className="p-5 space-y-6">
           <div className="bg-blue-50 border border-blue-200 p-6 rounded-[2rem] text-center">
             <ShieldCheck className="w-12 h-12 text-blue-500 mx-auto mb-3 animate-pulse" />
-            <h3 className="text-xl font-bold text-blue-800">Заявка на проверке</h3>
-            <p className="text-sm text-blue-600 mt-2 font-medium">Администратор проверяет ваши документы. Обычно это занимает 10-15 минут.</p>
+            <h3 className="text-xl font-bold text-blue-800">{t(language, 'kycPendingTitle2')}</h3>
+            <p className="text-sm text-blue-600 mt-2 font-medium">{t(language, 'kycPendingDesc2')}</p>
           </div>
 
           <div className="bg-white p-6 rounded-[2rem] shadow-sm ring-1 ring-slate-100">
-            <h4 className="text-sm font-bold text-slate-700 mb-2">Что дальше?</h4>
+            <h4 className="text-sm font-bold text-slate-700 mb-2">{t(language, 'kycWhatNext')}</h4>
             <ul className="text-sm font-medium text-slate-500 space-y-2">
-              <li>⏳ Ожидайте уведомления о проверке</li>
-              <li>📩 Администратор свяжется с вами в случае вопросов</li>
+              <li>⏳ {t(language, 'kycStep1Wait')}</li>
+              <li>📩 {t(language, 'kycStep2Check')}</li>
               <li>✅ После одобрения вы получите галочку верификации</li>
             </ul>
           </div>
@@ -164,24 +165,24 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
             <ChevronLeft className="w-6 h-6" />
           </button>
           <div>
-            <h2 className="text-lg font-bold text-slate-800">Верификация (KYC)</h2>
-            <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest">Отклонено</p>
+            <h2 className="text-lg font-bold text-slate-800">{t(language, 'kycTitle')}</h2>
+            <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest">{t(language, 'kycRejected')}</p>
           </div>
         </div>
 
         <div className="p-5 space-y-6">
           <div className="bg-red-50 border border-red-200 p-6 rounded-[2rem] text-center">
             <X className="w-12 h-12 text-red-500 mx-auto mb-3" />
-            <h3 className="text-xl font-bold text-red-800">Заявка отклонена</h3>
-            <p className="text-sm text-red-600 mt-2 font-medium">Администратор не смог подтвердить ваши данные.</p>
+            <h3 className="text-xl font-bold text-red-800">{t(language, 'kycRejectedTitle2')}</h3>
+            <p className="text-sm text-red-600 mt-2 font-medium">{t(language, 'kycRejectedDesc2')}</p>
           </div>
 
           <div className="bg-white p-6 rounded-[2rem] shadow-sm ring-1 ring-slate-100">
-            <h4 className="text-sm font-bold text-slate-700 mb-2">Возможные причины:</h4>
+            <h4 className="text-sm font-bold text-slate-700 mb-2">{t(language, 'kycPossibleReasons2')}</h4>
             <ul className="text-sm font-medium text-slate-500 space-y-2">
-              <li>❌ Фото нечеткое или не читается</li>
-              <li>❌ Документ просрочен</li>
-              <li>❌ Данные не совпадают с профилем</li>
+              <li>❌ {t(language, 'kycReasonBlurry')}</li>
+              <li>❌ {t(language, 'kycReasonExpired')}</li>
+              <li>❌ {t(language, 'kycReasonMismatch')}</li>
             </ul>
           </div>
 
@@ -189,7 +190,7 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
             onClick={handleRemovePhoto}
             className="w-full bg-emerald-500 text-white font-bold py-4 rounded-2xl shadow-lg active:scale-95 transition-all"
           >
-            Подать заявку повторно
+            {t(language, 'kycStep2Title')}
           </button>
         </div>
       </div>
@@ -210,30 +211,30 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
       </div>
 
       <div className="p-5 space-y-6">
-        
+
         <div className="bg-white p-6 rounded-[2rem] shadow-sm ring-1 ring-slate-100">
           <ShieldCheck className="w-10 h-10 text-emerald-500 mb-4" />
-          <h3 className="text-lg font-bold text-slate-800 mb-2">Зачем нужен KYC?</h3>
+          <h3 className="text-lg font-bold text-slate-800 mb-2">{t(language, 'kycWhy')}</h3>
           <ul className="text-sm font-medium text-slate-500 space-y-2">
-            <li>✅ Торговля без ограничений</li>
-            <li>✅ Доступ к объявлениям топовых мерчантов</li>
-            <li>✅ Защита от мошенников (Ваш аккаунт сложнее украсть)</li>
+            <li>✅ {t(language, 'kycVerifiedDesc')}</li>
+            <li>✅ {t(language, 'adOnlyVerified')}</li>
+            <li>✅ {t(language, 'kycWhyDesc2')}</li>
           </ul>
         </div>
 
         <div className="bg-white p-6 rounded-[2rem] shadow-sm ring-1 ring-slate-100">
-          <h4 className="text-sm font-bold text-slate-700 mb-4">Шаг 1: Загрузите фото документа</h4>
-          
+          <h4 className="text-sm font-bold text-slate-700 mb-4">{t(language, 'kycStep1Title')}</h4>
+
           {kycPreview ? (
             <div className="relative">
               <div className="rounded-2xl overflow-hidden border-2 border-emerald-200">
-                <img 
-                  src={kycPreview} 
-                  alt="KYC Photo" 
+                <img
+                  src={kycPreview}
+                  alt="KYC Photo"
                   className="w-full h-64 object-cover"
                 />
               </div>
-              <button 
+              <button
                 onClick={handleRemovePhoto}
                 className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur rounded-full text-red-500 shadow-lg hover:bg-white transition-all"
               >
@@ -247,24 +248,24 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
                 className="w-full border-2 border-dashed border-slate-200 p-8 rounded-2xl flex flex-col items-center justify-center gap-2 hover:border-emerald-400 transition-all"
               >
                 <Camera className="w-10 h-10 text-slate-400" />
-                <p className="text-sm font-bold text-slate-600">Открыть камеру / Галерею</p>
+                <p className="text-sm font-bold text-slate-600">{t(language, 'kycOpenCam')}</p>
                 <p className="text-xs text-slate-400">Telegram MediaPicker</p>
               </button>
-              
+
               <div className="flex items-center gap-3">
                 <div className="flex-1 h-px bg-slate-200"></div>
-                <span className="text-xs text-slate-400 font-medium">или</span>
+                <span className="text-xs text-slate-400 font-medium">{t(language, 'kycOr')}</span>
                 <div className="flex-1 h-px bg-slate-200"></div>
               </div>
-              
+
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="w-full border-2 border-dashed border-slate-200 p-4 rounded-2xl flex items-center justify-center gap-3 hover:border-blue-400 transition-all"
               >
                 <Image className="w-6 h-6 text-slate-400" />
-                <p className="text-sm font-bold text-slate-600">Выбрать файл</p>
+                <p className="text-sm font-bold text-slate-600">{t(language, 'kycSelectFile')}</p>
               </button>
-              
+
               <input
                 ref={fileInputRef}
                 type="file"
@@ -274,14 +275,14 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
               />
             </div>
           )}
-          
+
           <p className="text-xs text-slate-400 mt-3 text-center">
-            📸 Сделайте четкое фото паспорта или другого документа
+            📸 {t(language, 'kycStep1Title')}
           </p>
         </div>
 
         <div className="bg-white p-6 rounded-[2rem] shadow-sm ring-1 ring-slate-100">
-          <h4 className="text-sm font-bold text-slate-700 mb-4">Шаг 2: Отправьте на проверку</h4>
+          <h4 className="text-sm font-bold text-slate-700 mb-4">{t(language, 'kycStep2Title')}</h4>
           <button
             onClick={handleSubmitKyc}
             disabled={!kycPhoto || isSubmitting}

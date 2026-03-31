@@ -202,8 +202,8 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
           {order.isDisputed && !['COMPLETED', 'CANCELLED'].includes(status) && (
             <div className="bg-red-50 p-4 rounded-2xl border border-red-200 text-center mb-6">
               <AlertTriangle className="w-8 h-8 text-red-500 mx-auto mb-2" />
-              <p className="font-bold text-red-600">Сделка заморожена админом</p>
-              <p className="text-xs text-red-400 mt-1">Ожидайте решения арбитража</p>
+              <p className="font-bold text-red-600">{t(language, 'adminDisputeOpen')}</p>
+              <p className="text-xs text-red-400 mt-1">{t(language, 'adminPending')}</p>
             </div>
           )}
 
@@ -213,23 +213,23 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
             {status === 'PENDING' && (
               <>
                 <div className="inline-flex items-center gap-2 bg-amber-50 text-amber-600 px-4 py-1.5 rounded-full text-xs font-bold mb-4">
-                  <Clock className="w-4 h-4" /> {isBuyer ? 'Оплатите продавцу' : 'Ожидайте оплату'}
+                  <Clock className="w-4 h-4" /> {isBuyer ? t(language, 'iPay') : t(language, 'statusPending')}
                 </div>
                 <h3 className="text-2xl font-black text-slate-800 mb-2">
-                  {isBuyer ? `Переведите ${order.amountFiat} ${order.ad.fiat}` : `Вам переведут ${order.amountFiat} ${order.ad.fiat}`}
+                  {isBuyer ? `${t(language, 'adminSendAmount')} ${order.amountFiat} ${order.ad.fiat}` : `${t(language, 'adminReceiveAmount')} ${order.amountFiat} ${order.ad.fiat}`}
                 </h3>
-                <p className="text-sm text-slate-500 font-medium">Свяжитесь в чате для передачи наличных</p>
+                <p className="text-sm text-slate-500 font-medium">{t(language, 'step1')}</p>
               </>
             )}
 
             {status === 'PAID' && (
               <>
                 <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-xs font-bold mb-4 animate-pulse">
-                  Оплата подтверждена
+                  {t(language, 'statusPaid')}
                 </div>
-                <h3 className="text-2xl font-black text-slate-800 mb-2">Ожидание перевода крипты</h3>
+                <h3 className="text-2xl font-black text-slate-800 mb-2">{t(language, 'adminPending')}</h3>
                 <p className="text-sm text-slate-500 font-medium">
-                  {isBuyer ? 'Продавец проверяет получение средств...' : 'Подтвердите получение денег, чтобы отправить крипту.'}
+                  {isBuyer ? t(language, 'confirmRec') : t(language, 'iPay')}
                 </p>
               </>
             )}
@@ -301,11 +301,11 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
                 <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
                   <XCircle className="w-8 h-8" />
                 </div>
-                <h3 className="text-2xl font-black text-slate-800 mb-2">Сделка отменена</h3>
-                
+                <h3 className="text-2xl font-black text-slate-800 mb-2">{t(language, 'statusCancelled')}</h3>
+
                 {/* Отображение информации о том, что произошло с криптой */}
                 <p className={`text-sm font-bold mb-6 ${isBuyer ? 'text-red-500' : 'text-emerald-600'}`}>
-                  {isBuyer ? '-' : '+'}{order.amountAsset} {order.ad.asset} {isBuyer ? 'не зачислено' : 'возвращено'}
+                  {isBuyer ? '-' : '+'}{order.amountAsset} {order.ad.asset} {isBuyer ? t(language, 'adminNoOps') : t(language, 'adminReturn')}
                 </p>
                 
                 <div className="border-t border-slate-100 pt-6">
@@ -364,18 +364,18 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
             <div className="bg-white p-6 rounded-[2rem] shadow-sm ring-1 ring-slate-100 space-y-4">
               <div className="flex justify-between items-center pb-4 border-b border-slate-50">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  {isBuyer ? 'Вы платите' : 'Вам заплатят'}
+                  {isBuyer ? t(language, 'adminSendAmount') : t(language, 'adminReceiveAmount')}
                 </span>
                 <span className="text-lg font-black text-slate-800">{order.amountFiat} {order.ad.fiat}</span>
               </div>
               <div className="flex justify-between items-center pb-4 border-b border-slate-50">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  {isBuyer ? 'Вы получаете' : 'Вы отдаете'}
+                  {isBuyer ? t(language, 'adminReceiveAmount') : t(language, 'adminSendAmount')}
                 </span>
                 <span className="text-lg font-black text-emerald-600">{order.amountAsset} {order.ad.asset}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Город встречи</span>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t(language, 'meetingCity')}</span>
                 <span className="text-sm font-bold text-slate-700 flex items-center gap-1">
                   <MapPin className="w-4 h-4 text-emerald-500" /> {order.ad.city}
                 </span>
@@ -414,7 +414,7 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
               {t(language, 'returnToWallet')}
             </button>
           )}
-          
+
           {status === 'CANCELLED' && (
             <button onClick={onClose} className="w-full bg-slate-100 text-slate-600 font-bold py-4 rounded-2xl active:scale-95 transition-all uppercase tracking-wide">
               {t(language, 'returnToWallet')}
@@ -428,7 +428,7 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
               className="w-full bg-amber-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-amber-200 active:scale-95 transition-all uppercase tracking-wide mb-3"
             >
               <Gavel className="w-5 h-5 inline mr-2" />
-              Вызвать арбитра
+              {t(language, 'adminDisputes')}
             </button>
           )}
 

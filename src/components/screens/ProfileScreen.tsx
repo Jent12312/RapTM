@@ -22,7 +22,8 @@ import {
   CheckCircle2,
   Phone,
   Mail,
-  X
+  X,
+  Gift
 } from 'lucide-react';
 import WebApp from '@twa-dev/sdk';
 
@@ -32,6 +33,7 @@ import MyAdsScreen from './MyAdsScreen';
 import MyOrdersScreen from './MyOrdersScreen';
 import AdminScreen from './AdminScreen';
 import KycScreen from './KycScreen';
+import CodeScreen from './CodeScreen';
 
 export default function ProfileScreen() {
   const { user, language, initUser } = useAppStore();
@@ -43,6 +45,7 @@ export default function ProfileScreen() {
 
   const [isViewingAdmin, setIsViewingAdmin] = useState(false);
   const [isViewingKyc, setIsViewingKyc] = useState(false);
+  const [isViewingCodes, setIsViewingCodes] = useState(false);
 
   // Статистика
   const [stats, setStats] = useState({ good: 0, neutral: 0, bad: 0, trades: 0, volume: 0 });
@@ -112,7 +115,10 @@ export default function ProfileScreen() {
 
         if (res.ok) {
           const data = await res.json();
-          initUser(WebApp.initDataUnsafe.user);
+          // Обновляем стейт напрямую через zustand
+          useAppStore.setState({
+            user: { ...user, avatarUrl: data.avatarUrl }
+          });
           WebApp.HapticFeedback.notificationOccurred('success');
         } else {
           alert('Ошибка загрузки аватара');
@@ -149,8 +155,13 @@ export default function ProfileScreen() {
   if (isViewingMyOrders) return <MyOrdersScreen onClose={() => setIsViewingMyOrders(false)} />;
   if (isViewingAdmin) return <AdminScreen onClose={() => setIsViewingAdmin(false)} />;
   if (isViewingKyc) return <KycScreen onClose={() => setIsViewingKyc(false)} />;
+  if (isViewingCodes) return <CodeScreen onClose={() => setIsViewingCodes(false)} />;
 
   const displayName = user?.nickname || user?.firstName || 'User';
+
+  function addToast(arg0: string, arg1: string) {
+    throw new Error('Function not implemented.');
+  }
 
   return (
     <div className="px-5 py-4 space-y-6 animate-in fade-in duration-500 pb-32 overflow-x-hidden">
@@ -226,7 +237,7 @@ export default function ProfileScreen() {
           </div>
           <div className="text-center">
             <div className="text-lg font-black text-slate-800">{stats.volume.toFixed(0)}</div>
-            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">USDT Объем</div>
+            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{t(language, 'profileUSDTVolume')}</div>
           </div>
         </div>
 
@@ -249,7 +260,8 @@ export default function ProfileScreen() {
         <div className="bg-white rounded-[2.5rem] overflow-hidden shadow-sm ring-1 ring-slate-100">
           <MenuBtn icon={Store} label={t(language, 'myAds')} color="text-blue-500" bg="bg-blue-50" onClick={() => setIsViewingMyAds(true)} />
           <MenuBtn icon={PlusCircle} label={t(language, 'createAd')} color="text-emerald-500" bg="bg-emerald-50" onClick={() => setIsCreatingAd(true)} />
-          <MenuBtn icon={ListOrdered} label={t(language, 'myOrders')} color="text-amber-500" bg="bg-amber-50" onClick={() => setIsViewingMyOrders(true)} last />
+          <MenuBtn icon={ListOrdered} label={t(language, 'myOrders')} color="text-amber-500" bg="bg-amber-50" onClick={() => setIsViewingMyOrders(true)} />
+          <MenuBtn icon={Gift} label={t(language, 'codesTitle')} color="text-purple-500" bg="bg-purple-50" onClick={() => setIsViewingCodes(true)} last />
         </div>
       </div>
 
@@ -289,17 +301,38 @@ export default function ProfileScreen() {
             onClick={() => setIsEditingContacts(true)}
           />
 
-          <MenuBtn icon={Bell} label={t(language, 'notifications')} color="text-purple-500" bg="bg-purple-50" toggle />
-          <MenuBtn 
-            icon={ShieldCheck} 
-            label={t(language, 'kycLabel')} 
-            color={user?.isVerified || user?.kycStatus === 'verified' ? "text-emerald-600" : user?.kycStatus === 'pending' ? "text-blue-500" : user?.kycStatus === 'rejected' ? "text-red-500" : "text-amber-500"} 
-            bg={user?.isVerified || user?.kycStatus === 'verified' ? "bg-emerald-50" : user?.kycStatus === 'pending' ? "bg-blue-50" : user?.kycStatus === 'rejected' ? "bg-red-50" : "bg-amber-50"} 
+          <MenuBtn
+            icon={Bell}
+            label={t(language, 'notifications')}
+            color="text-purple-500"
+            bg="bg-purple-50"
+            toggle
+            onClick={async () => {
+              const newStatus = user?.tgNotifications !== false;
+              try {
+                const res = await fetch(`/api/user/${user.id}/notifications`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ tgNotifications: !newStatus })
+                });
+                if (res.ok) {
+                  initUser(WebApp.initDataUnsafe.user);
+                  addToast(newStatus ? 'Уведомления отключены' : 'Уведомления включены', 'info');
+                }
+              } catch (e) {
+                addToast('Ошибка при обновлении', 'error');
+              }
+            }}
+          />
+          <MenuBtn
+            icon={ShieldCheck}
+            label={t(language, 'kycLabel')}
+            color={user?.isVerified || user?.kycStatus === 'verified' ? "text-emerald-600" : user?.kycStatus === 'pending' ? "text-blue-500" : user?.kycStatus === 'rejected' ? "text-red-500" : "text-amber-500"}
+            bg={user?.isVerified || user?.kycStatus === 'verified' ? "bg-emerald-50" : user?.kycStatus === 'pending' ? "bg-blue-50" : user?.kycStatus === 'rejected' ? "bg-red-50" : "bg-amber-50"}
             badge={user?.isVerified || user?.kycStatus === 'verified' ? t(language, 'verified') : user?.kycStatus === 'pending' ? 'На проверке' : user?.kycStatus === 'rejected' ? 'Отклонено' : 'Пройти'}
             onClick={() => setIsViewingKyc(true)}
           />
-          <MenuBtn icon={HelpCircle} label={t(language, 'help')} color="text-slate-500" bg="bg-slate-100" />
-          <MenuBtn icon={Trash2} label={t(language, 'deleteAccount')} color="text-red-500" bg="bg-red-50" last />
+          <MenuBtn icon={HelpCircle} label={t(language, 'help')} color="text-slate-500" bg="bg-slate-100" last />
         </div>
       </div>
 
@@ -308,7 +341,7 @@ export default function ProfileScreen() {
         <div className="fixed inset-0 z-[200] bg-black/50 flex items-end justify-center animate-in fade-in duration-300">
           <div className="bg-white w-full max-w-lg rounded-t-[2.5rem] p-6 animate-in slide-in-from-bottom duration-300">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-black text-slate-800">Контакты</h3>
+              <h3 className="text-xl font-black text-slate-800">{t(language, 'phone')}</h3>
               <button onClick={() => setIsEditingContacts(false)} className="p-2 bg-slate-100 rounded-full">
                 <X className="w-5 h-5" />
               </button>
@@ -316,7 +349,7 @@ export default function ProfileScreen() {
 
             <div className="space-y-4">
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">Телефон</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">{t(language, 'phone')}</label>
                 <input
                   type="tel"
                   value={phone}
@@ -327,7 +360,7 @@ export default function ProfileScreen() {
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">Email</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">{t(language, 'email')}</label>
                 <input
                   type="email"
                   value={email}
@@ -342,13 +375,13 @@ export default function ProfileScreen() {
                   onClick={() => setIsEditingContacts(false)}
                   className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl active:scale-95"
                 >
-                  Отмена
+                  {t(language, 'cancel')}
                 </button>
                 <button
                   onClick={handleSaveContacts}
                   className="flex-[2] py-4 bg-emerald-500 text-white font-bold rounded-2xl shadow-lg shadow-emerald-200 active:scale-95"
                 >
-                  Сохранить
+                  {t(language, 'save')}
                 </button>
               </div>
             </div>
