@@ -34,9 +34,10 @@ import MyOrdersScreen from './MyOrdersScreen';
 import AdminScreen from './AdminScreen';
 import KycScreen from './KycScreen';
 import CodeScreen from './CodeScreen';
+import HelpScreen from './HelpScreen';
 
 export default function ProfileScreen() {
-  const { user, language, initUser } = useAppStore();
+  const { user, language, initUser, addToast } = useAppStore();
 
   // Состояния для открытия вложенных экранов
   const [isCreatingAd, setIsCreatingAd] = useState(false);
@@ -46,6 +47,7 @@ export default function ProfileScreen() {
   const [isViewingAdmin, setIsViewingAdmin] = useState(false);
   const [isViewingKyc, setIsViewingKyc] = useState(false);
   const [isViewingCodes, setIsViewingCodes] = useState(false);
+  const [isViewingHelp, setIsViewingHelp] = useState(false);
 
   // Статистика
   const [stats, setStats] = useState({ good: 0, neutral: 0, bad: 0, trades: 0, volume: 0 });
@@ -156,12 +158,11 @@ export default function ProfileScreen() {
   if (isViewingAdmin) return <AdminScreen onClose={() => setIsViewingAdmin(false)} />;
   if (isViewingKyc) return <KycScreen onClose={() => setIsViewingKyc(false)} />;
   if (isViewingCodes) return <CodeScreen onClose={() => setIsViewingCodes(false)} />;
+  if (isViewingHelp) return <HelpScreen onClose={() => setIsViewingHelp(false)} />;
 
   const displayName = user?.nickname || user?.firstName || 'User';
 
-  function addToast(arg0: string, arg1: string) {
-    throw new Error('Function not implemented.');
-  }
+
 
   return (
     <div className="px-5 py-4 space-y-6 animate-in fade-in duration-500 pb-32 overflow-x-hidden">
@@ -211,7 +212,7 @@ export default function ProfileScreen() {
                 <input 
                   value={newNick} 
                   onChange={(e) => setNewNick(e.target.value)}
-                  className="bg-slate-50 ring-1 ring-slate-200 rounded-lg px-3 py-1 text-sm font-bold w-full outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="bg-slate-50 ring-1 ring-slate-200 rounded-lg px-3 py-1 text-sm font-bold w-full outline-none focus:ring-2 focus:ring-emerald-500 placeholder-slate-500"
                 />
                 <button onClick={handleUpdateProfile} className="bg-emerald-500 text-white p-2 rounded-lg"><CheckCircle2 className="w-4 h-4" /></button>
               </div>
@@ -307,6 +308,7 @@ export default function ProfileScreen() {
             color="text-purple-500"
             bg="bg-purple-50"
             toggle
+            isOn={user?.tgNotifications !== false}
             onClick={async () => {
               const newStatus = user?.tgNotifications !== false;
               try {
@@ -332,7 +334,7 @@ export default function ProfileScreen() {
             badge={user?.isVerified || user?.kycStatus === 'verified' ? t(language, 'verified') : user?.kycStatus === 'pending' ? 'На проверке' : user?.kycStatus === 'rejected' ? 'Отклонено' : 'Пройти'}
             onClick={() => setIsViewingKyc(true)}
           />
-          <MenuBtn icon={HelpCircle} label={t(language, 'help')} color="text-slate-500" bg="bg-slate-100" last />
+          <MenuBtn icon={HelpCircle} label={t(language, 'help')} color="text-slate-500" bg="bg-slate-100" onClick={() => setIsViewingHelp(true)} last />
         </div>
       </div>
 
@@ -355,7 +357,7 @@ export default function ProfileScreen() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="+99360000000"
-                  className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 placeholder-slate-500"
                 />
               </div>
 
@@ -366,7 +368,7 @@ export default function ProfileScreen() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="example@mail.com"
-                  className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 placeholder-slate-500"
                 />
               </div>
 
@@ -394,7 +396,7 @@ export default function ProfileScreen() {
 }
 
 // Компонент красивой кнопки меню
-function MenuBtn({ icon: Icon, label, color, bg, onClick, last, toggle, badge }: any) {
+function MenuBtn({ icon: Icon, label, color, bg, onClick, last, toggle, badge, isOn }: any) {
   return (
     <button onClick={onClick} className={`w-full p-5 flex justify-between items-center transition-all active:bg-slate-50 ${!last ? 'border-b border-slate-50' : ''}`}>
       <div className="flex items-center gap-4">
@@ -404,7 +406,9 @@ function MenuBtn({ icon: Icon, label, color, bg, onClick, last, toggle, badge }:
       <div className="flex items-center gap-2">
         {badge && <span className="text-[9px] font-black uppercase bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg">{badge}</span>}
         {toggle ? (
-          <div className="w-10 h-6 bg-emerald-500 rounded-full relative"><div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full shadow-sm"></div></div>
+          <div className={`w-10 h-6 rounded-full relative transition-colors duration-200 ${isOn ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-200 ${isOn ? 'right-1' : 'left-1'}`}></div>
+          </div>
         ) : <ChevronRight className="w-4 h-4 text-slate-300" />}
       </div>
     </button>

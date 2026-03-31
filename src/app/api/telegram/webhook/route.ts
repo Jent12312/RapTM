@@ -1,9 +1,22 @@
 // src/app/api/telegram/webhook/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { sendNotification } from '@/lib/telegram';
+import { sendNotification, sendAdminNotification, forwardMessageToAdmins } from '@/lib/telegram';
+import { t, Language } from '@/lib/dictionaries';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const APP_URL = process.env.APP_URL || 'https://rap-tm.vercel.app';
+
+// Helper function for localization
+function getLocalizedText(user: any, key: Parameters<typeof t>[1], replacements?: { [key: string]: string | number }) {
+  let text = t(user.language as Language || 'ru', key);
+  if (replacements) {
+    for (const placeholder in replacements) {
+      text = text.replace(new RegExp(`\\{${placeholder}\\}`, 'g'), String(replacements[placeholder]));
+    }
+  }
+  return text;
+}
 
 /**
  * Webhook для получения обновлений от Telegram Bot
@@ -13,6 +26,9 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     console.log('Telegram webhook received:', JSON.stringify(body, null, 2));
+
+    // Отправляем уведомление админу о всех входящих запросах
+    await notifyAdminAboutRequest(body);
 
     // 1. Обработка Inline Query (поиск профиля)
     if (body.inline_query) {
@@ -62,7 +78,7 @@ export async function POST(req: NextRequest) {
       // Обработка start_param (привязка аккаунта)
       if (text === '/start' && message.from) {
         const startParam = message.start_parameter;
-        
+
         // Проверка выбора языка
         if (startParam && startParam.startsWith('lang_')) {
           const lang = startParam.replace('lang_', '');
@@ -78,7 +94,7 @@ export async function POST(req: NextRequest) {
           await sendMessage(chatId, `✅ Язык выбран: ${langNames[lang] || lang}\n\nТеперь вы будете получать уведомления на этом языке.`);
           return NextResponse.json({ ok: true });
         }
-        
+
         if (startParam && startParam.startsWith('USER_')) {
           const userId = startParam.replace('USER_', '');
           await prisma.user.update({
@@ -87,6 +103,15 @@ export async function POST(req: NextRequest) {
           });
           await sendMessage(chatId, '✅ Аккаунт успешно привязан!\n\nТеперь вы будете получать уведомления о сделках.');
         }
+      }
+
+      // Форвард обычных сообщений админу (не команды)
+      if (text && !text.startsWith('/start')) {
+        await forwardMessageToAdmins(
+          { telegramId, username: message.from.username, firstName: message.from.first_name },
+          text,
+          chatId.toString()
+        );
       }
     }
 
@@ -104,6 +129,45 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Telegram webhook error:', error);
     return NextResponse.json({ ok: false, error: 'Webhook error' });
+  }
+}
+
+/**
+ * Уведомление админа о входящем запросе
+ */
+async function notifyAdminAboutRequest(body: any) {
+  try {
+    const admins = await prisma.user.findMany({
+      where: { isAdmin: true, tgChatId: { not: null } },
+      select: { tgChatId: true },
+    });
+
+    if (admins.length === 0) return;
+
+    let summary = '📨 <b>Входящий запрос Telegram</b>\n\n';
+
+    if (body.message) {
+      const msg = body.message;
+      summary += `👤 <b>От:</b> ${msg.from.first_name || ''} ${msg.from.last_name || ''} (@${msg.from.username || 'no_username'})\n`;
+      summary += `🆔 <b>ID:</b> <code>${msg.from.id}</code>\n`;
+      summary += `💬 <b>Чат:</b> <code>${msg.chat.id}</code>\n`;
+      if (msg.text) {
+        summary += `📝 <b>Текст:</b> <code>${msg.text.substring(0, 100)}${msg.text.length > 100 ? '...' : ''}</code>\n`;
+      }
+    } else if (body.callback_query) {
+      const cb = body.callback_query;
+      summary += `👤 <b>От:</b> ${cb.from.first_name || ''} (@${cb.from.username || 'no_username'})\n`;
+      summary += `🆔 <b>ID:</b> <code>${cb.from.id}</code>\n`;
+      summary += `🔘 <b>Callback:</b> <code>${cb.data}</code>\n`;
+    } else if (body.inline_query) {
+      const iq = body.inline_query;
+      summary += `👤 <b>От:</b> ${iq.from.first_name || ''} (@${iq.from.username || 'no_username'})\n`;
+      summary += `🔍 <b>Query:</b> <code>${iq.query}</code>\n`;
+    }
+
+    await sendAdminNotification(summary);
+  } catch (error) {
+    console.error('Failed to notify admin about request:', error);
   }
 }
 
@@ -151,7 +215,7 @@ async function handleInlineQuery(inlineQuery: any) {
         },
         reply_markup: {
           inline_keyboard: [[
-            { text: '📋 Посмотреть профиль', url: `https://t.me/rapira_tm_bot/app?startapp=user_${userId}` }
+            { text: '📋 Посмотреть профиль', url: `${APP_URL}?startapp=user_${userId}` }
           ]]
         }
       }],
@@ -177,31 +241,26 @@ async function handleCommand(chatId: number, command: string, user: any) {
     case '/start':
       // Проверяем, выбран ли уже язык
       if (user.language) {
-        await sendMessage(chatId, `
-👋 <b>Добро пожаловать, ${user.firstName || 'Пользователь'}!</b>
-
-Я ваш персональный P2P ассистент.
-
-📋 <b>Мои команды:</b>
-/status - Проверить статус сделок
-/help - Помощь
-/notifications - Управление уведомлениями
-/enable - Включить уведомления
-/disable - Отключить уведомления
-/unlink - Отвязать аккаунт
-
-🔗 Для привязки аккаунта используйте кнопку в приложении.
-        `.trim());
+        await sendMessage(chatId, getLocalizedText(user, 'botWelcomeUser', { username: user.firstName || getLocalizedText(user, 'userLabel') }) + '\n\n' +
+                                  getLocalizedText(user, 'botP2PAssistant') + '\n\n' +
+                                  getLocalizedText(user, 'botMyCommands') + '\n' +
+                                  getLocalizedText(user, 'botCheckTrades') + '\n' +
+                                  getLocalizedText(user, 'botHelpCommand') + '\n' +
+                                  getLocalizedText(user, 'botNotificationsCommand') + '\n' +
+                                  getLocalizedText(user, 'botEnableNotifications') + '\n' +
+                                  getLocalizedText(user, 'botDisableNotifications') + '\n' +
+                                  getLocalizedText(user, 'botUnlinkAccount') + '\n\n' +
+                                  getLocalizedText(user, 'botConnectAccountTip'));
       } else {
         // Показываем выбор языка
         const keyboard = [[
-          { text: '🇷🇺 Русский', callback_data: 'lang:ru' },
-          { text: '🇹🇲 Türkmençe', callback_data: 'lang:tm' },
-          { text: '🇬🇧 English', callback_data: 'lang:en' }
+          { text: getLocalizedText(user, 'botRussian'), callback_data: 'lang:ru' },
+          { text: getLocalizedText(user, 'botTurkmen'), callback_data: 'lang:tm' },
+          { text: getLocalizedText(user, 'botEnglish'), callback_data: 'lang:en' }
         ]];
         await sendMessageWithKeyboard(
           chatId,
-          `👋 <b>Добро пожаловать в P2P Market!</b>\n\n🌍 Выберите язык / Dil saýlaň / Select language:`,
+          getLocalizedText(user, 'botWelcome') + '\n\n' + getLocalizedText(user, 'botSelectLanguage'),
           keyboard
         );
       }
@@ -221,42 +280,34 @@ async function handleCommand(chatId: number, command: string, user: any) {
       });
 
       if (orders.length === 0) {
-        await sendMessage(chatId, 'У вас нет активных сделок.');
+        await sendMessage(chatId, getLocalizedText(user, 'botNoActiveDeals'));
       } else {
         // Формируем сообщение с кнопками для каждой сделки
         const keyboard = orders.map(order => [{
           text: ` ${order.amountFiat} ${order.status === 'PENDING' ? '⏳' : '✅'}`,
-          url: `https://t.me/rapira_tm_bot/app?startapp=order_${order.id}`
+          url: `${APP_URL}?startapp=order_${order.id}`
         }]);
 
-        await sendMessageWithKeyboard(chatId, '📊 <b>Ваши активные сделки:</b>\n\nНажмите на сделку чтобы открыть:', keyboard);
+        await sendMessageWithKeyboard(chatId, getLocalizedText(user, 'botYourActiveDeals'), keyboard);
       }
       break;
 
     case '/help':
-      await sendMessage(chatId, `
-❓ <b>Помощь</b>
-
-🤖 Я P2P бот для уведомлений о сделках.
-
-📱 <b>Как это работает:</b>
-1. Привяжите аккаунт в приложении
-2. Получайте уведомления о сделках
-3. Управляйте настройками
-
-⚙️ <b>Команды:</b>
-/start - Начать общение
-/status - Статус сделок
-/notifications - Настройки
-/unlink - Отвязать аккаунт
-      `.trim());
+      await sendMessage(chatId, getLocalizedText(user, 'botHelpTitle') + '\n\n' +
+                                getLocalizedText(user, 'botHelpDesc1') + '\n\n' +
+                                getLocalizedText(user, 'botHelpDesc2') + '\n\n' +
+                                getLocalizedText(user, 'botHelpCommands') + '\n' +
+                                getLocalizedText(user, 'botCheckTrades') + '\n' +
+                                getLocalizedText(user, 'botHelpCommand') + '\n' +
+                                getLocalizedText(user, 'botNotificationsCommand') + '\n' +
+                                getLocalizedText(user, 'botUnlinkAccount'));
       break;
 
     case '/notifications':
       const notificationsEnabled = user.tgNotifications !== false;
       await sendMessage(
         chatId,
-        `🔔 <b>Уведомления:</b> ${notificationsEnabled ? '✅ Включены' : '❌ Отключены'}\n\nИспользуйте /enable или /disable для управления.`
+        getLocalizedText(user, 'botNotificationsStatus', { status: notificationsEnabled ? getLocalizedText(user, 'botEnabled') : getLocalizedText(user, 'botDisabled') })
       );
       break;
 
@@ -265,7 +316,7 @@ async function handleCommand(chatId: number, command: string, user: any) {
         where: { id: user.id },
         data: { tgNotifications: true },
       });
-      await sendMessage(chatId, '✅ Уведомления включены!');
+      await sendMessage(chatId, getLocalizedText(user, 'botNotificationsEnabled'));
       break;
 
     case '/disable':
@@ -273,7 +324,7 @@ async function handleCommand(chatId: number, command: string, user: any) {
         where: { id: user.id },
         data: { tgNotifications: false },
       });
-      await sendMessage(chatId, '❌ Уведомления отключены!');
+      await sendMessage(chatId, getLocalizedText(user, 'botNotificationsDisabled'));
       break;
 
     case '/unlink':
@@ -281,11 +332,11 @@ async function handleCommand(chatId: number, command: string, user: any) {
         where: { id: user.id },
         data: { tgChatId: null },
       });
-      await sendMessage(chatId, '🔗 Аккаунт отвязан. Используйте /start для повторной привязки.');
+      await sendMessage(chatId, getLocalizedText(user, 'botAccountUnlinked'));
       break;
 
     default:
-      await sendMessage(chatId, '❓ Неизвестная команда. Используйте /help для списка команд.');
+      await sendMessage(chatId, getLocalizedText(user, 'botUnknownCommand'));
   }
 }
 
@@ -296,37 +347,39 @@ async function handleCallback(chatId: number, data: string, fromId: string) {
   // Парсим данные callback
   const [action, ...args] = data.split(':');
 
+  // Получаем пользователя для локализации
+  const user = await prisma.user.findUnique({
+    where: { telegramId: fromId },
+  });
+
   switch (action) {
     case 'lang':
       const lang = args[0];
-      const user = await prisma.user.findUnique({
-        where: { telegramId: fromId },
-      });
-      
+
       if (user) {
         await prisma.user.update({
           where: { id: user.id },
           data: { language: lang as 'ru' | 'tm' | 'en' },
         });
-        
+
         const langNames: Record<string, string> = {
-          ru: '🇷🇺 Русский',
-          tm: '🇹🇲 Türkmençe',
-          en: '🇬🇧 English',
+          ru: getLocalizedText(user, 'botRussian'),
+          tm: getLocalizedText(user, 'botTurkmen'),
+          en: getLocalizedText(user, 'botEnglish'),
         };
-        
-        await sendMessage(chatId, `✅ Язык выбран: ${langNames[lang] || lang}\n\nТеперь вы будете получать уведомления на этом языке.`);
+
+        await sendMessage(chatId, getLocalizedText(user, 'botLanguageSelected') + ` ${langNames[lang] || lang}` + '\n\n' + getLocalizedText(user, 'botConnectAccountTip'));
       }
       break;
-    
+
     case 'confirm_payment':
       const orderId = args[0];
-      await sendMessage(chatId, `✅ Оплата по сделке ${orderId} подтверждена!`);
+      await sendMessage(chatId, getLocalizedText(user || { language: 'ru' }, 'botPaymentConfirmed', { orderId }));
       break;
 
     case 'dispute':
       const disputeOrderId = args[0];
-      await sendMessage(chatId, `⚠️ Спор по сделке ${disputeOrderId} открыт. Ожидайте администратора.`);
+      await sendMessage(chatId, getLocalizedText(user || { language: 'ru' }, 'botDisputeOpened', { orderId: disputeOrderId }));
       break;
 
     default:

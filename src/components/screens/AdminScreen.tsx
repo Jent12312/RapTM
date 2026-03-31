@@ -28,6 +28,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
   const [users, setUsers] = useState<any[]>([]);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [userOperations, setUserOperations] = useState<any[]>([]);
+  const [selectedOpType, setSelectedOpType] = useState('all');
   const [usersPage, setUsersPage] = useState(1);
   const [usersTotal, setUsersTotal] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
@@ -396,10 +397,10 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
 
           {/* Табы */}
           <div className="bg-white px-4 py-3 sticky top-[60px] z-20 border-b border-slate-100">
-            <div className="flex gap-2">
+            <div className="flex gap-2 overflow-x-auto pb-2">
               <button
                 onClick={() => setActiveTab('disputes')}
-                className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${
                   activeTab === 'disputes'
                     ? 'bg-red-50 text-red-600 ring-1 ring-red-200'
                     : 'bg-slate-50 text-slate-500'
@@ -414,7 +415,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
               </button>
               <button
                 onClick={() => setActiveTab('kyc')}
-                className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${
                   activeTab === 'kyc'
                     ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200'
                     : 'bg-slate-50 text-slate-500'
@@ -429,7 +430,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
               </button>
               <button
                 onClick={() => setActiveTab('exchanges')}
-                className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${
                   activeTab === 'exchanges' ? 'bg-blue-50 text-blue-600 ring-1 ring-blue-200' : 'bg-slate-50 text-slate-500'
                 }`}
               >
@@ -438,7 +439,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
               </button>
               <button
                 onClick={() => setActiveTab('crypto')}
-                className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${
                   activeTab === 'crypto' ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200' : 'bg-slate-50 text-slate-500'
                 }`}
               >
@@ -447,7 +448,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
               </button>
               <button
                 onClick={() => setActiveTab('users')}
-                className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${
                   activeTab === 'users' ? 'bg-purple-50 text-purple-600 ring-1 ring-purple-200' : 'bg-slate-50 text-slate-500'
                 }`}
               >
@@ -455,7 +456,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
               </button>
               <button
                 onClick={() => setActiveTab('stats')}
-                className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${
                   activeTab === 'stats' ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200' : 'bg-slate-50 text-slate-500'
                 }`}
               >
@@ -657,7 +658,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                     placeholder={t(language, 'adminSearchPlaceholder')}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="flex-1 bg-white ring-1 ring-slate-200 rounded-xl px-4 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-purple-500"
+                    className="flex-1 bg-white ring-1 ring-slate-200 rounded-xl px-4 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-purple-500 placeholder-slate-500"
                   />
                   <button
                     onClick={() => { setUsersPage(1); fetchUsers(1, searchQuery); }}
@@ -1011,9 +1012,12 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                 {['all', 'crypto', 'exchange', 'codes'].map(type => (
                   <button
                     key={type}
-                    onClick={() => fetchUserOperations(selectedUser.id, type)}
+                    onClick={() => {
+                      fetchUserOperations(selectedUser.id, type);
+                      setSelectedOpType(type);
+                    }}
                     className={`px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap ${
-                      type === 'all' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'
+                      type === selectedOpType ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'
                     }`}
                   >
                     {type === 'all' ? t(language, 'adminAllOps') : type === 'crypto' ? t(language, 'adminCryptoOps') : type === 'exchange' ? t(language, 'adminExchangeOps') : t(language, 'adminCodesOps')}

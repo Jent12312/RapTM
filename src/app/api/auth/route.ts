@@ -5,7 +5,7 @@ import prisma from '@/lib/prisma';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { telegramId, username, firstName, photo_url } = body;
+    const { telegramId, username, firstName } = body;
 
     if (!telegramId) {
       return NextResponse.json({ error: 'Telegram ID is required' }, { status: 400 });
@@ -24,7 +24,7 @@ export async function POST(req: Request) {
           telegramId: String(telegramId),
           username: username || '',
           firstName: firstName || '',
-          avatarUrl: photo_url || null,
+
           wallet: {
             create: {
               usdtBalance: 0.0,
@@ -41,7 +41,6 @@ export async function POST(req: Request) {
         data: {
           username: username || user.username,
           firstName: firstName || user.firstName,
-          avatarUrl: photo_url || user.avatarUrl
         },
         include: { wallet: true }
       });

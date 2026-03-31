@@ -181,11 +181,11 @@ export default function WalletScreen() {
                   </div>
                   <div>
                     <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">{t(language, 'amount')}</label>
-                    <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 font-bold outline-none focus:ring-emerald-500" />
+                    <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 font-bold outline-none focus:ring-emerald-500 placeholder-slate-500" />
                   </div>
                   <div>
                     <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">TxID ({t(language, 'adminTxId')}) - {t(language, 'adminReturn')}</label>
-                    <input type="text" value={txId} onChange={e => setTxId(e.target.value)} placeholder={t(language, 'adminTxId')} className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 font-bold outline-none text-xs focus:ring-emerald-500" />
+                    <input type="text" value={txId} onChange={e => setTxId(e.target.value)} placeholder={t(language, 'adminTxId')} className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 font-bold outline-none text-xs focus:ring-emerald-500 placeholder-slate-500" />
                   </div>
                 </>
               )}
@@ -198,11 +198,11 @@ export default function WalletScreen() {
                   </div>
                   <div>
                     <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">{t(language, 'amount')} ({t(language, 'adminPending')}: {balances.usdt.toFixed(2)} USDT)</label>
-                    <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 font-bold outline-none focus:ring-emerald-500" />
+                    <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 font-bold outline-none focus:ring-emerald-500 placeholder-slate-500" />
                   </div>
                   <div>
                     <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">{t(language, 'adminSendToAddress')} ({network})</label>
-                    <input type="text" value={address} onChange={e => setAddress(e.target.value)} placeholder={t(language, 'adminSendToAddress')} className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 font-bold outline-none text-xs focus:ring-emerald-500" />
+                    <input type="text" value={address} onChange={e => setAddress(e.target.value)} placeholder={t(language, 'adminSendToAddress')} className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 font-bold outline-none text-xs focus:ring-emerald-500 placeholder-slate-500" />
                   </div>
                 </>
               )}

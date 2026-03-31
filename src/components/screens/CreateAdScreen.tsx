@@ -184,7 +184,7 @@ export default function CreateAdScreen({ onClose }: Props) {
             
             {priceType === 'fixed' ? (
               <div className="flex items-center gap-3 mt-1 bg-slate-50 p-3 rounded-2xl ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-emerald-500 transition-all">
-                <input type="number" placeholder="0.00" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full text-xl font-bold text-slate-800 bg-transparent outline-none" />
+                <input type="number" placeholder="0.00" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full text-xl font-bold text-slate-800 bg-transparent outline-none placeholder-slate-500" />
                 <span className="font-bold text-slate-500">{fiat}</span>
               </div>
             ) : (
@@ -195,7 +195,7 @@ export default function CreateAdScreen({ onClose }: Props) {
                     placeholder="0" 
                     value={pricePercent} 
                     onChange={(e) => setPricePercent(e.target.value)} 
-                    className="w-full text-xl font-bold text-slate-800 bg-transparent outline-none" 
+                    className="w-full text-xl font-bold text-slate-800 bg-transparent outline-none placeholder-slate-500" 
                   />
                   <span className="font-bold text-slate-500">%</span>
                 </div>
@@ -228,13 +228,13 @@ export default function CreateAdScreen({ onClose }: Props) {
             <div>
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t(language, 'minLimit')}</label>
               <div className="flex items-center gap-2 mt-1 bg-slate-50 p-3 rounded-2xl ring-1 ring-slate-200">
-                <input type="number" placeholder="100" value={minLimit} onChange={(e) => setMinLimit(e.target.value)} className="w-full font-bold text-slate-800 bg-transparent outline-none" />
+                <input type="number" placeholder="100" value={minLimit} onChange={(e) => setMinLimit(e.target.value)} className="w-full font-bold text-slate-800 bg-transparent outline-none placeholder-slate-500" />
               </div>
             </div>
             <div>
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t(language, 'maxLimit')}</label>
               <div className="flex items-center gap-2 mt-1 bg-slate-50 p-3 rounded-2xl ring-1 ring-slate-200">
-                <input type="number" placeholder="10000" value={maxLimit} onChange={(e) => setMaxLimit(e.target.value)} className="w-full font-bold text-slate-800 bg-transparent outline-none" />
+                <input type="number" placeholder="10000" value={maxLimit} onChange={(e) => setMaxLimit(e.target.value)} className="w-full font-bold text-slate-800 bg-transparent outline-none placeholder-slate-500" />
               </div>
             </div>
           </div>
@@ -264,7 +264,7 @@ export default function CreateAdScreen({ onClose }: Props) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder={t(language, 'adTerms')}
-              className="w-full mt-1 bg-slate-50 p-4 rounded-2xl ring-1 ring-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium text-slate-700 min-h-[80px] resize-none"
+              className="w-full mt-1 bg-slate-50 p-4 rounded-2xl ring-1 ring-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium text-slate-700 min-h-[80px] resize-none placeholder-slate-500"
             ></textarea>
           </div>
 
@@ -324,7 +324,7 @@ export default function CreateAdScreen({ onClose }: Props) {
                     placeholder="0"
                     value={reqMinTrades}
                     onChange={(e) => setReqMinTrades(e.target.value)}
-                    className="w-full font-bold text-slate-800 bg-transparent outline-none"
+                    className="w-full font-bold text-slate-800 bg-transparent outline-none placeholder-slate-500"
                   />
                   <span className="text-xs font-bold text-slate-400">{t(language, 'adTrades')}</span>
                 </div>

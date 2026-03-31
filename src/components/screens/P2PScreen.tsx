@@ -288,7 +288,7 @@ export default function P2PScreen() {
                 placeholder={t(language, 'amount')}
                 value={filterAmount}
                 onChange={(e) => setFilterAmount(e.target.value)}
-                className="bg-transparent outline-none text-xs font-bold w-16 text-slate-800"
+                className="bg-transparent outline-none text-xs font-bold w-16 text-slate-800 placeholder-slate-500"
               />
               <Filter className="w-3 h-3 text-slate-400" />
             </div>
@@ -321,7 +321,7 @@ export default function P2PScreen() {
                   <div className="text-[10px] text-slate-400 font-medium mt-0.5">{t(language, 'trades')}</div>
                 </div>
                 <div className="flex items-center gap-1 text-[10px] font-semibold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">
-                  <Clock className="w-3 h-3" /> 15 min
+                  <Clock className="w-3 h-3" /> {ad.paymentTime || 15} {t(language, 'time')}
                 </div>
               </div>
 
@@ -428,7 +428,7 @@ export default function P2PScreen() {
                     placeholder="0.00"
                     value={tradeAmount}
                     onChange={(e) => setTradeAmount(e.target.value)}
-                    className="w-full text-2xl font-bold text-slate-800 outline-none bg-transparent mt-1"
+                    className="w-full text-2xl font-bold text-slate-800 outline-none bg-transparent mt-1 placeholder-slate-500"
                   />
                 </div>
                 <div className="font-bold text-slate-800 bg-slate-100 px-3 py-1 rounded-lg">

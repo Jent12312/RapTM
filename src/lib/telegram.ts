@@ -1,7 +1,8 @@
 // src/lib/telegram.ts
 
+import { t, Language } from './dictionaries';
+
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const TELEGRAM_WEBHOOK_URL = process.env.TELEGRAM_WEBHOOK_URL;
 const APP_URL = process.env.APP_URL || 'https://rap-tm.vercel.app';
 
 // Типы уведомлений
@@ -37,19 +38,33 @@ interface TelegramMessage {
 }
 
 /**
- * Отправка уведомления пользователю
+ * Получение локализованного текста
+ */
+function getLocalizedText(lang: Language, key: keyof typeof import('./dictionaries')['dict']['ru'], replacements?: Record<string, string | number>): string {
+  let text = t(lang, key);
+  if (replacements) {
+    for (const [placeholder, value] of Object.entries(replacements)) {
+      text = text.replace(new RegExp(`\\{${placeholder}\\}`, 'g'), String(value));
+    }
+  }
+  return text;
+}
+
+/**
+ * Отправка уведомления пользователю с локализацией
  */
 export async function sendNotification(
   chatId: string | null | undefined,
   type: NotificationType,
-  data: Record<string, any> = {}
+  data: Record<string, any> = {},
+  language: Language = 'ru'
 ): Promise<boolean> {
   if (!chatId || !TELEGRAM_BOT_TOKEN) {
     console.log('Telegram notifications disabled:', { chatId, hasToken: !!TELEGRAM_BOT_TOKEN });
     return false;
   }
 
-  const messageObj = formatNotification(type, data);
+  const messageObj = formatNotification(type, data, language);
 
   try {
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
@@ -79,31 +94,111 @@ export async function sendNotification(
 }
 
 /**
- * Форматирование сообщения в зависимости от типа уведомления
+ * Отправка уведомления администратору
  */
-function formatNotification(type: NotificationType, data: Record<string, any>): TelegramMessage {
+export async function sendAdminNotification(
+  message: string,
+  extraData?: Record<string, any>
+): Promise<boolean> {
+  if (!TELEGRAM_BOT_TOKEN) {
+    return false;
+  }
+
+  try {
+    // Получаем всех администраторов из БД
+    const { default: prisma } = await import('@/lib/prisma');
+    const admins = await prisma.user.findMany({
+      where: { isAdmin: true, tgChatId: { not: null } },
+      select: { tgChatId: true },
+    });
+
+    if (admins.length === 0) {
+      console.log('No admin chat IDs found');
+      return false;
+    }
+
+    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+
+    // Отправляем всем админам
+    const promises = admins.map(async (admin) => {
+      if (!admin.tgChatId) return;
+
+      try {
+        await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: admin.tgChatId,
+            text: message,
+            parse_mode: 'HTML',
+            ...(extraData?.reply_markup && { reply_markup: extraData.reply_markup }),
+          }),
+        });
+      } catch (error) {
+        console.error(`Failed to send admin notification to ${admin.tgChatId}:`, error);
+      }
+    });
+
+    await Promise.all(promises);
+    return true;
+  } catch (error) {
+    console.error('Failed to send admin notification:', error);
+    return false;
+  }
+}
+
+/**
+ * Форвард сообщения от пользователя администраторам
+ */
+export async function forwardMessageToAdmins(
+  fromUser: { telegramId: string; username?: string | null; firstName?: string | null },
+  messageText: string,
+  chatId: string
+): Promise<void> {
+  const adminMessage = `
+📨 <b>Новое сообщение от пользователя</b>
+
+👤 <b>От:</b> ${fromUser.firstName || fromUser.username || fromUser.telegramId}
+🆔 <b>Telegram ID:</b> <code>${fromUser.telegramId}</code>
+💬 <b>Чат:</b> <code>${chatId}</code>
+
+📝 <b>Сообщение:</b>
+${messageText}
+  `.trim();
+
+  await sendAdminNotification(adminMessage);
+}
+
+/**
+ * Форматирование сообщения в зависимости от типа уведомления с локализацией
+ */
+function formatNotification(
+  type: NotificationType,
+  data: Record<string, any>,
+  language: Language = 'ru'
+): TelegramMessage {
   const appUrl = APP_URL.replace('https://', '').replace('http://', '');
-  
+
   switch (type) {
     case 'order_created': {
       const orderId = data.orderId;
       return {
         text: `
-🛒 <b>Новая сделка создана!</b>
+${getLocalizedText(language, 'botNewOrder')}
 
-💰 Сумма: <b>${data.amountFiat} ${data.fiat}</b>
-🪙 Криптовалюта: <b>${data.amountAsset} ${data.asset}</b>
+${getLocalizedText(language, 'botOrderAmount')}: <b>${data.amountFiat} ${data.fiat}</b>
+${getLocalizedText(language, 'botCryptoAmount')}: <b>${data.amountAsset} ${data.asset}</b>
 
-👤 Покупатель: ${data.buyerName}
-👤 Продавец: ${data.sellerName}
+${getLocalizedText(language, 'botBuyer')}: ${data.buyerName}
+${getLocalizedText(language, 'botSeller')}: ${data.sellerName}
 
-Статус: <b>Ожидание оплаты</b>
-⏱ Время на оплату: ${data.paymentTime} мин
+${getLocalizedText(language, 'botStatus')}: <b>${getLocalizedText(language, 'botPendingPayment')}</b>
+${getLocalizedText(language, 'botPaymentTime')}: ${data.paymentTime} ${getLocalizedText(language, 'time')}
         `.trim(),
         reply_markup: {
           inline_keyboard: [[
             {
-              text: '📋 Открыть сделку',
+              text: getLocalizedText(language, 'botOpenOrder'),
               url: `https://t.me/rapira_tm_bot/app?startapp=order_${orderId}`
             }
           ]]
@@ -115,19 +210,17 @@ function formatNotification(type: NotificationType, data: Record<string, any>): 
       const orderId = data.orderId;
       return {
         text: `
-✅ <b>Покупатель подтвердил оплату!</b>
+${getLocalizedText(language, 'botOrderPaid')}
 
-🛒 Сделка: <code>${orderId}</code>
-💰 Сумма: <b>${data.amountFiat} ${data.fiat}</b>
+${getLocalizedText(language, 'orderId')}: <code>${orderId}</code>
+${getLocalizedText(language, 'botOrderAmount')}: <b>${data.amountFiat} ${data.fiat}</b>
 
-Продавец, пожалуйста:
-1️⃣ Проверьте получение средств
-2️⃣ Подтвердите сделку в приложении
+${getLocalizedText(language, 'orderPaidSellerMessage', { seller: getLocalizedText(language, 'botSeller') })}
         `.trim(),
         reply_markup: {
           inline_keyboard: [[
             {
-              text: '📋 Открыть сделку',
+              text: getLocalizedText(language, 'botOpenOrder'),
               url: `https://t.me/rapira_tm_bot/app?startapp=order_${orderId}`
             }
           ]]
@@ -139,18 +232,18 @@ function formatNotification(type: NotificationType, data: Record<string, any>): 
       const orderId = data.orderId;
       return {
         text: `
-🎉 <b>Сделка завершена!</b>
+${getLocalizedText(language, 'botOrderCompleted')}
 
-🛒 Сделка: <code>${orderId}</code>
-💰 Сумма: <b>${data.amountFiat} ${data.fiat}</b>
-🪙 Получено: <b>${data.amountAsset} ${data.asset}</b>
+${getLocalizedText(language, 'orderId')}: <code>${orderId}</code>
+${getLocalizedText(language, 'botOrderAmount')}: <b>${data.amountFiat} ${data.fiat}</b>
+${getLocalizedText(language, 'botReceived')}: <b>${data.amountAsset} ${data.asset}</b>
 
-Спасибо за использование P2P Market! 🙏
+${getLocalizedText(language, 'botThankYou')}
         `.trim(),
         reply_markup: {
           inline_keyboard: [[
             {
-              text: '👛 Вернуться в кошелек',
+              text: getLocalizedText(language, 'botBackToWallet'),
               url: `https://t.me/rapira_tm_bot/app?startapp=wallet`
             }
           ]]
@@ -162,17 +255,17 @@ function formatNotification(type: NotificationType, data: Record<string, any>): 
       const orderId = data.orderId;
       return {
         text: `
-❌ <b>Сделка отменена</b>
+${getLocalizedText(language, 'botOrderCancelled')}
 
-🛒 Сделка: <code>${orderId}</code>
-💰 Сумма: <b>${data.amountFiat} ${data.fiat}</b>
+${getLocalizedText(language, 'orderId')}: <code>${orderId}</code>
+${getLocalizedText(language, 'botOrderAmount')}: <b>${data.amountFiat} ${data.fiat}</b>
 
-Причина: ${data.reason || 'Отменена пользователем'}
+${getLocalizedText(language, 'botReason')}: ${data.reason || getLocalizedText(language, 'botCancelledByUser')}
         `.trim(),
         reply_markup: {
           inline_keyboard: [[
             {
-              text: '📋 Мои сделки',
+              text: getLocalizedText(language, 'botMyOrders'),
               url: `https://t.me/rapira_tm_bot/app?startapp=my_orders`
             }
           ]]
@@ -184,19 +277,19 @@ function formatNotification(type: NotificationType, data: Record<string, any>): 
       const orderId = data.orderId;
       return {
         text: `
-⚠️ <b>ОТКРЫТ СПОР!</b>
+${getLocalizedText(language, 'botDisputeOpened')}
 
-🛒 Сделка: <code>${orderId}</code>
-💰 Сумма: <b>${data.amountFiat} ${data.fiat}</b>
+${getLocalizedText(language, 'orderId')}: <code>${orderId}</code>
+${getLocalizedText(language, 'botOrderAmount')}: <b>${data.amountFiat} ${data.fiat}</b>
 
-👤 Инициатор: ${data.initiatorName}
+${getLocalizedText(language, 'botInitiator')}: ${data.initiatorName}
 
-Администратор рассмотрит спор в ближайшее время.
+${getLocalizedText(language, 'botAdminWillReview')}
         `.trim(),
         reply_markup: {
           inline_keyboard: [[
             {
-              text: '📋 Открыть сделку',
+              text: getLocalizedText(language, 'botOpenOrder'),
               url: `https://t.me/rapira_tm_bot/app?startapp=order_${orderId}`
             }
           ]]
@@ -207,21 +300,21 @@ function formatNotification(type: NotificationType, data: Record<string, any>): 
     case 'kyc_approved':
       return {
         text: `
-✅ <b>KYC одобрен!</b>
+${getLocalizedText(language, 'botKYCApproved')}
 
-Ваш аккаунт успешно верифицирован 🎉
+${getLocalizedText(language, 'botAccountVerified')}
 
-Теперь вам доступны:
-✅ Создание объявлений без лимитов
-✅ Участие в эксклюзивных сделках
-✅ Повышенный уровень доверия
+${getLocalizedText(language, 'botNowAvailable')}
+✅ ${getLocalizedText(language, 'botUnlimitedAds')}
+✅ ${getLocalizedText(language, 'botExclusiveDeals')}
+✅ ${getLocalizedText(language, 'botTrustedLevel')}
 
-Спасибо за верификацию!
+${getLocalizedText(language, 'botThankForVerify')}
         `.trim(),
         reply_markup: {
           inline_keyboard: [[
             {
-              text: '📋 Перейти в P2P',
+              text: getLocalizedText(language, 'botGoToP2P'),
               url: `https://t.me/rapira_tm_bot/app?startapp=p2p`
             }
           ]]
@@ -231,18 +324,16 @@ function formatNotification(type: NotificationType, data: Record<string, any>): 
     case 'kyc_rejected':
       return {
         text: `
-❌ <b>KYC отклонён</b>
+${getLocalizedText(language, 'botKYCRejected')}
 
-К сожалению, ваши документы не прошли проверку.
+${getLocalizedText(language, 'botTryAgain')}
 
-Причина: ${data.reason}
-
-Вы можете загрузить документы повторно.
+${getLocalizedText(language, 'botReason')}: ${data.reason}
         `.trim(),
         reply_markup: {
           inline_keyboard: [[
             {
-              text: '📤 Повторить KYC',
+              text: getLocalizedText(language, 'botRetryKYC'),
               url: `https://t.me/rapira_tm_bot/app?startapp=kyc`
             }
           ]]
@@ -253,17 +344,17 @@ function formatNotification(type: NotificationType, data: Record<string, any>): 
       const orderId = data.orderId;
       return {
         text: `
-💬 <b>Новое сообщение</b>
+${getLocalizedText(language, 'botNewMessage')}
 
-👤 От: ${data.senderName}
-🛒 Сделка: <code>${orderId}</code>
+${getLocalizedText(language, 'botFrom')}: ${data.senderName}
+${getLocalizedText(language, 'orderId')}: <code>${orderId}</code>
 
 "${data.preview}"
         `.trim(),
         reply_markup: {
           inline_keyboard: [[
             {
-              text: '💬 Открыть чат',
+              text: getLocalizedText(language, 'botOpenChat'),
               url: `https://t.me/rapira_tm_bot/app?startapp=order_${orderId}`
             }
           ]]
@@ -274,19 +365,19 @@ function formatNotification(type: NotificationType, data: Record<string, any>): 
     case 'review_received':
       return {
         text: `
-⭐ <b>Новый отзыв!</b>
+${getLocalizedText(language, 'botNewReview')}
 
-👤 От: ${data.authorName}
-⭐ Оценка: ${data.rating}
+${getLocalizedText(language, 'botFromUser')}: ${data.authorName}
+⭐ ${getLocalizedText(language, 'rating') || 'Оценка'}: ${data.rating}
 
-"${data.comment || 'Без комментария'}"
+"${data.comment || getLocalizedText(language, 'noComment') || 'Без комментария'}"
 
-Продолжайте в том же духе! 🙌
+${getLocalizedText(language, 'botKeepItUp')}
         `.trim(),
         reply_markup: {
           inline_keyboard: [[
             {
-              text: '👤 Мой профиль',
+              text: getLocalizedText(language, 'botMyProfile'),
               url: `https://t.me/rapira_tm_bot/app?startapp=profile`
             }
           ]]
@@ -296,18 +387,18 @@ function formatNotification(type: NotificationType, data: Record<string, any>): 
     case 'ad_published':
       return {
         text: `
-📢 <b>Объявление опубликовано!</b>
+${getLocalizedText(language, 'botAdPublished')}
 
-${data.type === 'buy' ? '🟢 Покупка' : '🔴 Продажа'} ${data.asset}
-💰 Цена: ${data.price} ${data.fiat}
-📊 Лимиты: ${data.minLimit} - ${data.maxLimit} ${data.fiat}
+${data.type === 'buy' ? getLocalizedText(language, 'buy') : getLocalizedText(language, 'sell')} ${data.asset}
+${getLocalizedText(language, 'botOrderAmount')}: ${data.price} ${data.fiat}
+📊 ${getLocalizedText(language, 'limit')}: ${data.minLimit} - ${data.maxLimit} ${data.fiat}
 
-Ваше объявление теперь видно в маркете!
+${getLocalizedText(language, 'botYourAd')}
         `.trim(),
         reply_markup: {
           inline_keyboard: [[
             {
-              text: '📋 Мои объявления',
+              text: getLocalizedText(language, 'botMyAds'),
               url: `https://t.me/rapira_tm_bot/app?startapp=my_ads`
             }
           ]]
@@ -317,16 +408,16 @@ ${data.type === 'buy' ? '🟢 Покупка' : '🔴 Продажа'} ${data.as
     case 'ad_expired':
       return {
         text: `
-⏰ <b>Объявление истекло</b>
+${getLocalizedText(language, 'botAdExpired')}
 
-Ваше объявление было деактивировано.
+${getLocalizedText(language, 'botAdDeactivated')}
 
-Вы можете создать новое объявление в любое время.
+${getLocalizedText(language, 'botCreateNewAd')}
         `.trim(),
         reply_markup: {
           inline_keyboard: [[
             {
-              text: '➕ Создать объявление',
+              text: getLocalizedText(language, 'botCreateAd'),
               url: `https://t.me/rapira_tm_bot/app?startapp=create_ad`
             }
           ]]
@@ -336,22 +427,22 @@ ${data.type === 'buy' ? '🟢 Покупка' : '🔴 Продажа'} ${data.as
     case 'welcome':
       return {
         text: `
-👋 <b>Добро пожаловать в P2P Market!</b>
+${getLocalizedText(language, 'botWelcome')}
 
-Спасибо за подключение к уведомлениям.
+${getLocalizedText(language, 'botThanksForConnect')}
 
-Теперь вы будете получать:
-🔔 Уведомления о новых сделках
-🔔 Статусы оплаты и подтверждения
-🔔 Сообщения от контрагентов
-🔔 Важные обновления безопасности
+${getLocalizedText(language, 'botNowYouWillReceive')}
+${getLocalizedText(language, 'botOrderNotifications')}
+${getLocalizedText(language, 'botPaymentStatus')}
+${getLocalizedText(language, 'botMessages')}
+${getLocalizedText(language, 'botSecurityUpdates')}
 
-💡 <b>Совет:</b> Включите уведомления, чтобы не пропустить важные события!
+${getLocalizedText(language, 'botTip')}
         `.trim(),
         reply_markup: {
           inline_keyboard: [[
             {
-              text: '🚀 Открыть приложение',
+              text: getLocalizedText(language, 'botOpenApp'),
               url: `https://t.me/rapira_tm_bot/app`
             }
           ]]
@@ -376,23 +467,30 @@ export async function notifyUser(
 ): Promise<boolean> {
   // Динамический импорт prisma для избежания циклических зависимостей
   const { default: prisma } = await import('@/lib/prisma');
-  
+
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { tgChatId: true, tgNotifications: true },
+    select: { tgChatId: true, tgNotifications: true, language: true },
   });
 
   if (!user?.tgChatId || user.tgNotifications === false) {
     return false;
   }
 
-  return sendNotification(user.tgChatId, type, data);
+  return sendNotification(
+    user.tgChatId,
+    type,
+    data,
+    (user.language as Language) || 'ru'
+  );
 }
 
 /**
  * Установка webhook для Telegram Bot
  */
 export async function setWebhook(): Promise<boolean> {
+  const TELEGRAM_WEBHOOK_URL = process.env.TELEGRAM_WEBHOOK_URL;
+
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_WEBHOOK_URL) {
     console.warn('Telegram webhook not configured');
     return false;
@@ -400,7 +498,7 @@ export async function setWebhook(): Promise<boolean> {
 
   try {
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook`;
-    
+
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -412,7 +510,7 @@ export async function setWebhook(): Promise<boolean> {
 
     const result = await response.json();
     console.log('Telegram webhook result:', result);
-    
+
     return result.ok;
   } catch (error) {
     console.error('Failed to set Telegram webhook:', error);
@@ -432,7 +530,7 @@ export async function deleteWebhook(): Promise<boolean> {
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/deleteWebhook`;
     const response = await fetch(url);
     const result = await response.json();
-    
+
     return result.ok;
   } catch (error) {
     console.error('Failed to delete Telegram webhook:', error);

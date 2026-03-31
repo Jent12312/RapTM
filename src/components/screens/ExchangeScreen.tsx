@@ -138,7 +138,7 @@ export default function ExchangeScreen() {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
-              className="w-full text-2xl font-black text-slate-800 bg-transparent outline-none" 
+              className="w-full text-2xl font-black text-slate-800 bg-transparent outline-none placeholder-slate-500" 
             />
             <span className="font-bold text-slate-500 bg-white px-3 py-1 rounded-lg ring-1 ring-slate-200">
               {direction === 'USDT_TO_TMT' ? 'USDT' : 'TMT'}
@@ -194,7 +194,7 @@ export default function ExchangeScreen() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="+993 6X XX XX XX"
-                  className="w-full text-sm font-bold text-slate-800 bg-transparent outline-none" 
+                  className="w-full text-sm font-bold text-slate-800 bg-transparent outline-none placeholder-slate-500" 
                 />
               </div>
             </div>

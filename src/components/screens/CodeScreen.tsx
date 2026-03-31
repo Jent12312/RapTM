@@ -221,7 +221,7 @@ export default function CodeScreen({ onClose }: { onClose: () => void }) {
                         value={amount}
                         onChange={(e) => setAmount(e.target.value)}
                         placeholder="0.00"
-                        className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-2xl px-4 py-3 text-lg font-bold outline-none focus:ring-2 focus:ring-emerald-500"
+                        className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-2xl px-4 py-3 text-lg font-bold outline-none focus:ring-2 focus:ring-emerald-500 placeholder-slate-500"
                       />
                     </div>
 
@@ -343,7 +343,7 @@ export default function CodeScreen({ onClose }: { onClose: () => void }) {
                   value={redeemCode}
                   onChange={(e) => setRedeemCode(e.target.value.toUpperCase())}
                   placeholder={t(language, 'codeEnterPlaceholder')}
-                  className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-2xl px-4 py-3 text-lg font-bold outline-none focus:ring-2 focus:ring-blue-500 uppercase tracking-wider"
+                  className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-2xl px-4 py-3 text-lg font-bold outline-none focus:ring-2 focus:ring-blue-500 uppercase tracking-wider placeholder-slate-500"
                 />
               </div>
 
