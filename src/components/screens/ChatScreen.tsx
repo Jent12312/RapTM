@@ -19,6 +19,7 @@ export default function ChatScreen({ orderId, partnerName, onClose }: Props) {
   const [orderStatus, setOrderStatus] = useState<string>('');
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [partnerOnline, setPartnerOnline] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Загружаем статус заказа
@@ -28,6 +29,53 @@ export default function ChatScreen({ orderId, partnerName, onClose }: Props) {
       .then(data => setOrderStatus(data.status))
       .catch(console.error);
   }, [orderId]);
+
+  // Получаем партнера по сделке
+  const [partnerId, setPartnerId] = useState<string>('');
+  
+  useEffect(() => {
+    fetch(`/api/orders/${orderId}`)
+      .then(res => res.json())
+      .then(data => {
+        const pid = data.buyerId === user.id ? data.sellerId : data.buyerId;
+        setPartnerId(pid);
+      })
+      .catch(console.error);
+  }, [orderId, user.id]);
+
+  // Обновляем lastSeen при активности в чате
+  useEffect(() => {
+    if (!user.id) return;
+    
+    const updateLastSeen = () => {
+      fetch('/api/user/last-seen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id })
+      }).catch(console.error);
+    };
+
+    // Обновляем при монтировании и каждые 30 секунд
+    updateLastSeen();
+    const interval = setInterval(updateLastSeen, 30000);
+    return () => clearInterval(interval);
+  }, [user.id]);
+
+  // Проверяем онлайн-статус партнера
+  useEffect(() => {
+    if (!partnerId) return;
+
+    const checkPartnerOnline = () => {
+      fetch(`/api/user/last-seen?userId=${partnerId}`)
+        .then(res => res.json())
+        .then(data => setPartnerOnline(data.isOnline))
+        .catch(console.error);
+    };
+
+    checkPartnerOnline();
+    const interval = setInterval(checkPartnerOnline, 5000); // Проверяем каждые 5 секунд
+    return () => clearInterval(interval);
+  }, [partnerId]);
   
   // Реф для автоматического скролла вниз
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -148,8 +196,9 @@ export default function ChatScreen({ orderId, partnerName, onClose }: Props) {
         </button>
         <div>
           <h2 className="text-lg font-bold text-slate-800 tracking-tight">{partnerName}</h2>
-          <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> {t(language, 'online')}
+          <p className={`text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 ${partnerOnline ? 'text-emerald-500' : 'text-slate-400'}`}>
+            <span className={`w-2 h-2 rounded-full ${partnerOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
+            {partnerOnline ? 'В сети' : 'Был(а) недавно'}
           </p>
         </div>
       </div>

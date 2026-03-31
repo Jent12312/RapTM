@@ -5,7 +5,7 @@ import prisma from '@/lib/prisma';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { telegramId, username, firstName } = body;
+    const { telegramId, username, firstName, photo_url } = body;
 
     if (!telegramId) {
       return NextResponse.json({ error: 'Telegram ID is required' }, { status: 400 });
@@ -24,12 +24,24 @@ export async function POST(req: Request) {
           telegramId: String(telegramId),
           username: username || '',
           firstName: firstName || '',
+          avatarUrl: photo_url || null,
           wallet: {
             create: {
               usdtBalance: 0.0,
               tmtBalance: 0.0
             }
           }
+        },
+        include: { wallet: true }
+      });
+    } else {
+      // Обновляем данные пользователя (username, firstName, avatar) если они изменились
+      user = await prisma.user.update({
+        where: { telegramId: String(telegramId) },
+        data: {
+          username: username || user.username,
+          firstName: firstName || user.firstName,
+          avatarUrl: photo_url || user.avatarUrl
         },
         include: { wallet: true }
       });

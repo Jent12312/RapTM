@@ -46,9 +46,6 @@ export default function WalletScreen() {
     if (!amount || Number(amount) <= 0) {
       addToast('Введите сумму', 'error'); return;
     }
-    if (modalType === 'deposit' && (!txId || txId.length < 10)) {
-      addToast('Введите корректный TxID', 'error'); return;
-    }
     if (modalType === 'withdraw' && (!address || address.length < 10)) {
       addToast('Введите корректный адрес', 'error'); return;
     }
@@ -91,8 +88,11 @@ export default function WalletScreen() {
       <div className="bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 rounded-[2rem] p-7 text-white shadow-xl shadow-emerald-200/50 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
         <div className="relative z-10">
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-xs font-medium text-emerald-100 uppercase tracking-wider">{t(language, 'balanceLabel')}</span>
+          <div className="flex justify-between items-start mb-3">
+            <div className="flex items-center gap-3">
+              <img src="/init.png" alt="Logo" className="w-12 h-12 rounded-full object-cover border-2 border-white/30" />
+              <span className="text-xs font-medium text-emerald-100 uppercase tracking-wider">{t(language, 'balanceLabel')}</span>
+            </div>
             <button onClick={toggleBalance} className="p-2 bg-white/10 rounded-full active:scale-95">
               {isBalanceVisible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
             </button>
@@ -184,7 +184,7 @@ export default function WalletScreen() {
                     <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 font-bold outline-none focus:ring-emerald-500" />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">TxID (Хэш транзакции)</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">TxID (Хэш транзакции) - необязательно</label>
                     <input type="text" value={txId} onChange={e => setTxId(e.target.value)} placeholder="Вставьте хэш транзакции..." className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 font-bold outline-none text-xs focus:ring-emerald-500" />
                   </div>
                 </>

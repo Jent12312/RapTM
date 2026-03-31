@@ -5,20 +5,23 @@ import { t, Language } from '@/lib/dictionaries';
 import { Wallet, ArrowRightLeft, Users } from 'lucide-react';
 
 export function Header() {
-  const { language, setLanguage, setActiveTab } = useAppStore();
+  const { language, setLanguage, setActiveTab, user } = useAppStore();
 
   const LangBtn = ({ lang, label }: { lang: Language, label: string }) => (
-    <button 
+    <button
       onClick={() => setLanguage(lang)}
       className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${
-        language === lang 
-          ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' 
+        language === lang
+          ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200'
           : 'text-slate-500 hover:text-slate-700'
       }`}
     >
       {label}
     </button>
   );
+
+  const displayName = user?.nickname || user?.firstName || user?.username || 'Пользователь';
+  const avatarSrc = user?.avatarUrl || null;
 
   return (
     <div className="px-5 py-4 flex justify-between items-center bg-white/80 backdrop-blur-md sticky top-0 z-50">
@@ -27,14 +30,18 @@ export function Header() {
         <LangBtn lang="tm" label="TM" />
         <LangBtn lang="en" label="EN" />
       </div>
-      <button 
-        onClick={() => setActiveTab('profile')} 
+      <button
+        onClick={() => setActiveTab('profile')}
         className="flex items-center gap-2.5 bg-white px-3 py-1.5 rounded-full active:scale-95 transition-all shadow-sm ring-1 ring-slate-100"
       >
-        <span className="text-xs font-medium text-slate-600">{t(language, 'userLabel')}</span>
-        <div className="w-7 h-7 bg-gradient-to-tr from-emerald-500 to-emerald-400 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-inner">
-          A
-        </div>
+        <span className="text-xs font-medium text-slate-600 max-w-[100px] truncate">{displayName}</span>
+        {avatarSrc ? (
+          <img src={avatarSrc} alt="Avatar" className="w-7 h-7 rounded-full object-cover" />
+        ) : (
+          <div className="w-7 h-7 bg-gradient-to-tr from-emerald-500 to-emerald-400 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-inner">
+            {displayName.charAt(0).toUpperCase()}
+          </div>
+        )}
       </button>
     </div>
   );

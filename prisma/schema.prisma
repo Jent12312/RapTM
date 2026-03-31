@@ -20,6 +20,7 @@ model User {
   createdAt   DateTime @default(now())
   nickname    String?
   avatarUrl   String?
+  lastSeen    DateTime @default(now())
 
   // Новые поля из PDF
   phone       String?  // Для верификации

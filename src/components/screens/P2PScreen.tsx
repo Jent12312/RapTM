@@ -98,6 +98,37 @@ export default function P2PScreen() {
     setTradeAmount('');
   };
 
+  // Проверка баланса продавца при открытии модалки
+  useEffect(() => {
+    if (selectedAd && user) {
+      const { addToast } = useAppStore.getState();
+      
+      // Если мы покупаем (selectedAd.type === 'sell'), проверяем баланс продавца (selectedAd.userId)
+      // Если мы продаем (selectedAd.type === 'buy'), проверяем наш баланс
+      const sellerId = selectedAd.type === 'sell' ? selectedAd.userId : user.id;
+      
+      // Для USDT сделок проверяем баланс продавца
+      if (selectedAd.asset === 'USDT' && selectedAd.type === 'sell') {
+        fetch(`/api/wallet/balance?userId=${sellerId}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.usdtBalance < selectedAd.minLimit) {
+              addToast('У мерчанта недостаточно USDT для сделки', 'error');
+              setSelectedAd(null);
+            }
+          });
+      }
+      
+      // Для TMT сделок (покупка TMT за USDT) - проверяем баланс покупателя (наш)
+      if (selectedAd.asset === 'TMT' && selectedAd.type === 'buy') {
+        // Мы продаем TMT, значить покупатель должен иметь USDT
+        // Но TMT это фиат, проверяем что у нас есть TMT для продажи
+        // Это сложнее, так как TMT может быть на карте, не в системе
+        // Пока оставляем без проверки
+      }
+    }
+  }, [selectedAd, user]);
+
   const calculateReceiveAmount = () => {
     if (!tradeAmount || !selectedAd) return '0.00';
     const amount = Number(tradeAmount);
@@ -114,12 +145,12 @@ export default function P2PScreen() {
   const handleStartOrder = async () => {
     const { addToast } = useAppStore.getState(); // Достаем функцию тостов
     const inputAmount = Number(tradeAmount);
-    
+
     if (!inputAmount) {
       addToast("Введите сумму", "error");
       return;
     }
-    
+
     if (inputAmount < selectedAd.minLimit || inputAmount > selectedAd.maxLimit) {
       addToast(`Лимит: от ${selectedAd.minLimit} до ${selectedAd.maxLimit}`, "error");
       return;
@@ -133,25 +164,47 @@ export default function P2PScreen() {
       amountAsset = inputAmount;
       amountFiat = Number(calculateReceiveAmount());
     }
-    
+
+    // ПРОВЕРКА БАЛАНСА ПРОДАВЦА USDT
+    // Если мы покупаем USDT (tradeType === 'buy' и selectedAd.type === 'sell')
+    // или мы продаем USDT (tradeType === 'sell' и selectedAd.type === 'buy')
+    // В любом случае продавец должен иметь USDT
+    if (selectedAd.asset === 'USDT') {
+      // Определяем кто продавец
+      const sellerId = selectedAd.type === 'buy' ? user.id : selectedAd.userId;
+      
+      try {
+        const res = await fetch(`/api/wallet/balance?userId=${sellerId}`);
+        const data = await res.json();
+        
+        if (data.usdtBalance < amountAsset) {
+          addToast('Недостаточно USDT на балансе', 'error');
+          return;
+        }
+      } catch (e) {
+        addToast('Ошибка проверки баланса', 'error');
+        return;
+      }
+    }
+
     const res = await fetch('/api/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         adId: selectedAd.id,
         takerId: user.id,
-        amountAsset, 
+        amountAsset,
         amountFiat
       })
     });
-    
+
     const data = await res.json();
     if (data.success) {
       addToast("Сделка успешно создана!", "success");
       setActiveOrder(data.order);
       setSelectedAd(null);
     } else {
-      addToast("Ошибка при создании сделки", "error");
+      addToast(data.error || "Ошибка при создании сделки", "error");
     }
   };
 

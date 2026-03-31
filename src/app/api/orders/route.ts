@@ -25,6 +25,20 @@ export async function POST(req: Request) {
       sellerId = ad.userId;
     }
 
+    // ПРОВЕРКА БАЛАНСА ПРОДАВЦА (если продаем USDT)
+    if (ad.asset === 'USDT') {
+      const sellerWallet = await prisma.wallet.findUnique({
+        where: { userId: sellerId }
+      });
+
+      if (!sellerWallet || sellerWallet.usdtBalance < Number(amountAsset)) {
+        return NextResponse.json(
+          { error: 'Недостаточно USDT на балансе для совершения сделки' },
+          { status: 400 }
+        );
+      }
+    }
+
     const order = await prisma.order.create({
       data: {
         adId,

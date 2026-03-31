@@ -59,16 +59,17 @@ export const useAppStore = create<AppState>((set) => ({
           telegramId: tgData.id,
           username: tgData.username,
           firstName: tgData.first_name,
+          photo_url: tgData.photo_url,
         }),
       });
       const data = await res.json();
       if (data.success) {
-        set({ 
-          user: data.user, 
-          balances: { 
-            tmt: data.user.wallet.tmtBalance, 
-            usdt: data.user.wallet.usdtBalance 
-          } 
+        set({
+          user: data.user,
+          balances: {
+            tmt: data.user.wallet.tmtBalance,
+            usdt: data.user.wallet.usdtBalance
+          }
         });
       }
     } catch (err) {

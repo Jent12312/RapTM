@@ -52,14 +52,16 @@ export async function POST(req: Request) {
       transaction = result[1];
 
     } else if (type === 'DEPOSIT') {
-      // Проверка на дубликат TxID, чтобы не пополнили 2 раза по одному хэшу
-      const existingTx = await prisma.cryptoTransaction.findFirst({ where: { txId } });
-      if (existingTx) {
-        return NextResponse.json({ error: 'Этот TxID уже был использован' }, { status: 400 });
+      // Проверка на дубликат TxID только если он предоставлен
+      if (txId) {
+        const existingTx = await prisma.cryptoTransaction.findFirst({ where: { txId } });
+        if (existingTx) {
+          return NextResponse.json({ error: 'Этот TxID уже был использован' }, { status: 400 });
+        }
       }
 
       transaction = await prisma.cryptoTransaction.create({
-        data: { userId, type, network, amount, txId, status: 'PENDING' }
+        data: { userId, type, network, amount, txId: txId || null, status: 'PENDING' }
       });
     }
 
