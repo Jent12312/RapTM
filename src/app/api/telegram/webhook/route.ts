@@ -5,7 +5,7 @@ import { sendNotification, sendAdminNotification } from '@/lib/telegram';
 import { t, Language } from '@/lib/dictionaries';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const APP_URL = process.env.APP_URL || 'https://rap-tm.vercel.app';
+const APP_URL = process.env.APP_URL || 'https://raptm.jents.online';
 
 // Helper function for localization
 function getLocalizedText(user: any, key: Parameters<typeof t>[1], replacements?: { [key: string]: string | number }) {
