@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { t } from '@/lib/dictionaries';
-import { Eye, EyeOff, Plus, ArrowDownToLine, RefreshCcw, X, Copy, CheckCircle2, Clock } from 'lucide-react';
+import { Eye, EyeOff, Plus, ArrowDownToLine, RefreshCcw, X, Copy, CheckCircle2, Clock, TrendingUp, TrendingDown } from 'lucide-react';
 import WebApp from '@twa-dev/sdk';
 
 // АДРЕСА ВАШИХ ЭСКРОУ КОШЕЛЬКОВ (Замените на свои реальные)
@@ -24,6 +24,15 @@ export default function WalletScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
 
+  // Состояние курсов валют
+  const [rates, setRates] = useState({
+    usdToTmt: 0,
+    usdtToTmt: 0,
+    change24h: 0,
+    lastUpdated: 0
+  });
+  const [isLoadingRates, setIsLoadingRates] = useState(false);
+
   const loadHistory = async () => {
     try {
       const res = await fetch(`/api/wallet/transactions?userId=${user.id}`);
@@ -31,10 +40,42 @@ export default function WalletScreen() {
     } catch (e) {}
   };
 
+  // Загрузка курсов валют
+  const fetchRates = async () => {
+    setIsLoadingRates(true);
+    try {
+      const [usdRes, usdtRes] = await Promise.all([
+        fetch('/api/market-price?asset=USD&fiat=TMT'),
+        fetch('/api/market-price?asset=USDT&fiat=TMT')
+      ]);
+      
+      const usdData = await usdRes.json();
+      const usdtData = await usdtRes.json();
+      
+      setRates({
+        usdToTmt: usdData.basePrice || 3.50,
+        usdtToTmt: usdtData.basePrice || 3.50,
+        change24h: usdtData.change24h || 0,
+        lastUpdated: usdtData.timestamp || Date.now()
+      });
+    } catch (error) {
+      console.error('Failed to fetch rates:', error);
+    } finally {
+      setIsLoadingRates(false);
+    }
+  };
+
   useEffect(() => {
     loadHistory();
+    fetchRates(); // Первоначальная загрузка курсов
+    
     const interval = setInterval(loadHistory, 10000);
-    return () => clearInterval(interval);
+    const ratesInterval = setInterval(fetchRates, 5 * 60 * 1000); // Обновление каждые 5 минут
+    
+    return () => {
+      clearInterval(interval);
+      clearInterval(ratesInterval);
+    };
   }, []);
 
   const copyToClipboard = (text: string) => {
@@ -82,6 +123,13 @@ export default function WalletScreen() {
     }
   };
 
+  // Форматирование времени последнего обновления
+  const formatLastUpdated = (timestamp: number) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  };
+
   return (
     <div className="px-5 py-2 space-y-8 animate-in fade-in duration-500 pb-32">
       {/* Главная карточка баланса */}
@@ -118,6 +166,53 @@ export default function WalletScreen() {
             <div className="w-12 h-12 bg-white text-emerald-600 shadow-lg rounded-2xl flex items-center justify-center transition-all active:scale-95"><RefreshCcw className="w-5 h-5" /></div>
             <span className="text-[10px] font-medium text-emerald-50">{t(language, 'alyCaly')}</span>
           </button>
+        </div>
+      </div>
+
+      {/* Виджет курсов валют */}
+      <div className="bg-white p-4 rounded-2xl shadow-sm ring-1 ring-slate-100">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+            Курсы валют
+          </h3>
+          <button 
+            onClick={fetchRates} 
+            disabled={isLoadingRates}
+            className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50"
+          >
+            <RefreshCcw className={`w-3.5 h-3.5 text-slate-400 ${isLoadingRates ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-3">
+          {/* USD/TMT */}
+          <div className="bg-slate-50 p-3 rounded-xl">
+            <div className="text-[10px] font-medium text-slate-400 mb-1">USD / TMT</div>
+            <div className="text-xl font-bold text-slate-800">
+              {rates.usdToTmt.toFixed(2)}
+            </div>
+          </div>
+          
+          {/* USDT/TMT */}
+          <div className="bg-slate-50 p-3 rounded-xl">
+            <div className="text-[10px] font-medium text-slate-400 mb-1 flex items-center gap-1">
+              USDT / TMT
+              {rates.change24h !== 0 && (
+                <span className={`text-[9px] font-bold ${rates.change24h > 0 ? 'text-emerald-500' : 'text-red-500'} flex items-center`}>
+                  {rates.change24h > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                  {Math.abs(rates.change24h)}%
+                </span>
+              )}
+            </div>
+            <div className="text-xl font-bold text-slate-800">
+              {rates.usdtToTmt.toFixed(2)}
+            </div>
+            {rates.lastUpdated > 0 && (
+              <div className="text-[8px] text-slate-400 mt-1">
+                Обновлено: {formatLastUpdated(rates.lastUpdated)}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
