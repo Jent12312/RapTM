@@ -12,7 +12,13 @@ export async function GET(req: Request) {
     }
 
     const wallet = await prisma.wallet.findUnique({
-      where: { userId }
+      where: { userId },
+      include: {
+        withdrawalAddresses: {
+          where: { isDefault: true },
+          take: 1,
+        },
+      },
     });
 
     if (!wallet) {
@@ -21,9 +27,13 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       usdtBalance: wallet.usdtBalance,
-      tmtBalance: wallet.tmtBalance
+      tmtBalance: wallet.tmtBalance,
+      bonusBalance: wallet.bonusBalance,
+      totalBalance: wallet.usdtBalance + wallet.tmtBalance + wallet.bonusBalance,
+      withdrawalAddresses: wallet.withdrawalAddresses,
     });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed' }, { status: 500 });
+    console.error('Get Balance Error:', error);
+    return NextResponse.json({ error: 'Failed to fetch balance' }, { status: 500 });
   }
 }

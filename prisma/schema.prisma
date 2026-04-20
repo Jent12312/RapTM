@@ -10,31 +10,36 @@ datasource db {
 }
 
 model User {
-  id          String   @id @default(uuid())
-  telegramId  String   @unique
-  username    String?
-  firstName   String?
-  isVerified  Boolean  @default(false)
-  kycStatus   String   @default("none") // none, pending, verified, rejected
-  kycPhotoUrl String?  // URL загруженного фото документа
-  createdAt   DateTime @default(now())
-  nickname    String?
-  avatarUrl   String?
-  lastSeen    DateTime @default(now())
-  language    String   @default("ru") // ru, tm, en
-
-  // Новые поля из PDF
-  phone       String?  // Для верификации
-  email       String?  // Для привязки почты
-  passcode    String?  // Для 2FA PIN-кода
-  isAdmin     Boolean  @default(false) // Для доступа в админку
+  id            String   @id @default(uuid())
+  telegramId    String   @unique
+  username      String?
+  firstName     String?
+  isVerified   Boolean  @default(false)
+  kycStatus    String   @default("none") // none, pending, verified, rejected
+  kycPhotoUrl  String?  // URL загруженного фото документа
+  createdAt    DateTime  @default(now())
+  nickname     String?
+  avatarUrl    String?
+  lastSeen     DateTime @default(now())
+  language     String   @default("ru") // ru, tm, en
 
   // Telegram Bot настройки
-  tgNotifications Boolean @default(true) // Включены ли уведомления
-  tgChatId        String? // Chat ID для отправки уведомлений
+  phone             String?  // Для верификации
+  email             String?  // Для привязки почты
+  passcode          String?  // Для 2FA PIN-кода
+  isAdmin           Boolean  @default(false) // Для доступа в админку
+  tgNotifications   Boolean  @default(true) // Включены ли уведомления
+  tgChatId          String?  // Chat ID для отправки уведомлений
 
-  wallet      Wallet?
-  ads         P2PAd[]
+  // Система уровней
+  level         String   @default("Standard") // Standard, Pro, Partner
+  depositAmount Float    @default(0) // Страховой депозит
+  dailyLimit    Float    @default(150) // Лимит в день
+  tradesCount   Int      @default(0) // Количество сделок
+  volumeTotal   Float    @default(0) // Общий объём
+
+  wallet       Wallet?
+  ads          P2PAd[]
 
   ordersAsBuyer  Order[] @relation("BuyerOrders")
   ordersAsSeller Order[] @relation("SellerOrders")
@@ -52,11 +57,28 @@ model User {
 }
 
 model Wallet {
-  id          String   @id @default(uuid())
-  userId      String   @unique
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  usdtBalance Float    @default(0.0)
-  tmtBalance  Float    @default(0.0)
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  usdtBalance  Float    @default(0.0)
+  tmtBalance   Float    @default(0.0)
+  bonusBalance Float    @default(15.0) // Приветственный бонус
+
+  withdrawalAddresses WithdrawalAddress[]
+}
+
+model WithdrawalAddress {
+  id        String   @id @default(uuid())
+  walletId  String
+  wallet    Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  network   String   // TRC20, BEP20, ERC20, APTOS
+  address   String
+  label     String?  // Пользовательская метка
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([walletId, address])
+  @@index([walletId])
 }
 
 model P2PAd {
@@ -157,17 +179,27 @@ model CryptoTransaction {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   type      String   // 'DEPOSIT' (Пополнение) или 'WITHDRAWAL' (Вывод)
+  method    String   @default("CRYPTO") // CRYPTO, CASH, P2P, CODE
   asset     String   @default("USDT")
-  network   String   // 'TRC20', 'BEP20' или 'APTOS'
+  network   String?  // 'TRC20', 'BEP20' или 'APTOS'
 
   amount    Float
+  fee       Float    @default(0) // Комиссия
   address   String?  // Куда выводить (для WITHDRAWAL)
   txId      String?  // Хэш транзакции (для DEPOSIT)
 
-  status    String   @default("PENDING") // PENDING, COMPLETED, CANCELLED
+  city      String?  // Для CASH: город (Ашхабад, Туркменабад, Мары, Дашогуз, Балканабад)
+  code      String?  // Для CODE: код пополнения
+
+  status    String   @default("PENDING") // PENDING, PROCESSING, COMPLETED, CANCELLED, FAILED
+  adminNote String?  // Заметка админа
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([type])
 }
 
 // Коды для наличных расчетов (ваучеры)
