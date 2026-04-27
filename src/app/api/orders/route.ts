@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     });
 
     // Отправка Telegram уведомлений
-    const appUrl = process.env.APP_URL || 'https://rap-tm.vercel.app';
+    const appUrl = process.env.APP_URL || 'https://raptm.jents.online';
     const orderUrl = `${appUrl}/orders/${order.id}`;
 
     // Уведомление покупателю

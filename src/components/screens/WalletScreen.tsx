@@ -148,8 +148,11 @@ export default function WalletScreen() {
           <h2 className="text-4xl font-bold">
             {isBalanceVisible ? balances.tmt.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '****'} <span className="text-lg">TMT</span>
           </h2>
-          <div className="mt-2 text-sm font-medium text-emerald-100">
-             {isBalanceVisible ? balances.usdt.toFixed(2) : '****'} USDT
+          <div className="mt-2 text-sm font-medium text-emerald-100 flex items-center justify-between">
+             <span>{isBalanceVisible ? balances.usdt.toFixed(2) : '****'} USDT</span>
+             <span className="bg-white/20 px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider">
+               Bonus: {isBalanceVisible ? balances.bonus.toFixed(2) : '****'} ₮
+             </span>
           </div>
         </div>
         

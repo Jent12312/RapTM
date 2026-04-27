@@ -7,7 +7,7 @@ import { ChevronLeft, AlertTriangle, CheckCircle2, XCircle, MessageCircle, Clock
 
 export default function AdminScreen({ onClose }: { onClose: () => void }) {
   const { language, user } = useAppStore();
-  const [activeTab, setActiveTab] = useState<'disputes' | 'kyc' | 'exchanges' | 'crypto' | 'users' | 'stats'>('disputes');
+  const [activeTab, setActiveTab] = useState<'disputes' | 'kyc' | 'exchanges' | 'crypto' | 'users' | 'stats' | 'settings'>('disputes');
   const [disputes, setDisputes] = useState<any[]>([]);
   const [selectedDispute, setSelectedDispute] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
@@ -35,6 +35,13 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
 
   // Статистика
   const [stats, setStats] = useState<any>(null);
+
+  // Настройки
+  const [sysSettings, setSysSettings] = useState<any>({
+    EXCHANGE_RATE: '19.5',
+    EXCHANGE_FEE: '1'
+  });
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   useEffect(() => {
     fetch('/api/admin/disputes')
@@ -112,6 +119,40 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     if (activeTab === 'users') fetchUsers(usersPage, searchQuery);
   }, [activeTab, usersPage]);
+
+  // Загрузка настроек
+  const fetchSysSettings = async () => {
+    try {
+      const res = await fetch('/api/admin/settings');
+      const data = await res.json();
+      if (res.ok) setSysSettings(data);
+    } catch (e) {
+      console.error('Failed to fetch settings:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'settings') fetchSysSettings();
+  }, [activeTab]);
+
+  const saveSetting = async (key: string, value: string) => {
+    setIsSavingSettings(true);
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, value })
+      });
+      if (res.ok) {
+        alert(`${key} успешно обновлен!`);
+        fetchSysSettings();
+      }
+    } catch (e) {
+      alert('Ошибка при сохранении');
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
 
   // Загрузка операций пользователя
   const fetchUserOperations = async (userId: string, type = 'all') => {
@@ -461,6 +502,14 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                 }`}
               >
                 {t(language, 'adminStats')}
+              </button>
+              <button
+                onClick={() => setActiveTab('settings')}
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${
+                  activeTab === 'settings' ? 'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-200' : 'bg-slate-50 text-slate-500'
+                }`}
+              >
+                <RefreshCw className="w-4 h-4 inline mr-1" /> {t(language, 'exSettings')}
               </button>
             </div>
           </div>
@@ -816,6 +865,71 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                     </div>
                   </>
                 )}
+              </div>
+            ) : activeTab === 'settings' ? (
+              <div className="space-y-4">
+                <div className="bg-white p-6 rounded-[2rem] shadow-sm ring-1 ring-slate-100">
+                  <h3 className="text-sm font-bold text-slate-700 mb-6 flex items-center gap-2">
+                    <RefreshCw className="w-4 h-4 text-indigo-500" /> {t(language, 'exSettings')}
+                  </h3>
+                  
+                  <div className="space-y-6">
+                    {/* Курс */}
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">
+                        {t(language, 'exRate')} (1 USDT = ? TMT)
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={sysSettings.EXCHANGE_RATE}
+                          onChange={(e) => setSysSettings({ ...sysSettings, EXCHANGE_RATE: e.target.value })}
+                          className="flex-1 bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 text-lg font-black outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                        <button
+                          onClick={() => saveSetting('EXCHANGE_RATE', sysSettings.EXCHANGE_RATE)}
+                          disabled={isSavingSettings}
+                          className="px-6 bg-indigo-500 text-white font-bold rounded-xl active:scale-95 transition-all disabled:opacity-50"
+                        >
+                          {t(language, 'save')}
+                        </button>
+                      </div>
+                    </div>
+
+                    <hr className="border-slate-100" />
+
+                    {/* Комиссия */}
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">
+                        {t(language, 'exFeePercent')}
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={sysSettings.EXCHANGE_FEE}
+                          onChange={(e) => setSysSettings({ ...sysSettings, EXCHANGE_FEE: e.target.value })}
+                          className="flex-1 bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 text-lg font-black outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                        <button
+                          onClick={() => saveSetting('EXCHANGE_FEE', sysSettings.EXCHANGE_FEE)}
+                          disabled={isSavingSettings}
+                          className="px-6 bg-indigo-500 text-white font-bold rounded-xl active:scale-95 transition-all disabled:opacity-50"
+                        >
+                          {t(language, 'save')}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                      <p className="text-[10px] font-bold text-amber-700 uppercase leading-relaxed">
+                        Внимание: Изменения вступают в силу немедленно для всех новых заявок пользователей.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             ) : null}
           </div>

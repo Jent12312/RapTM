@@ -3,7 +3,7 @@
 import { t, Language } from './dictionaries';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const APP_URL = process.env.APP_URL || 'https://rap-tm.vercel.app';
+const APP_URL = process.env.APP_URL || 'https://raptm.jents.online';
 
 // Типы уведомлений
 export type NotificationType =

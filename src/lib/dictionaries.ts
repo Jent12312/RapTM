@@ -281,6 +281,14 @@ export const dict = {
     exCancelled: "Отменено",
     exSendTMT: "Переведите {amount} TMT",
     exSendToAdmin: "Переведите TMT на номер администратора",
+    exReverse: "Сменить направление",
+    exRate: "Курс",
+    exCommission: "Комиссия",
+    exBonusUsed: "Списано с бонусов",
+    exMainUsed: "Списано с основного",
+    exSettings: "Настройки обмена",
+    exMinAmount: "Мин. сумма",
+    exFeePercent: "Комиссия (%)",
 
     // --- Merchant Profile ---
     mpOnPlatform: "На платформе с",
@@ -669,6 +677,14 @@ export const dict = {
     exCancelled: "Ýatyryldy",
     exSendTMT: "{amount} TMT iberiň",
     exSendToAdmin: "TMT admin nomerine iberiň",
+    exReverse: "Ugruny üýtget",
+    exRate: "Kurs",
+    exCommission: "Komissiýa",
+    exBonusUsed: "Bonusdan aýryldy",
+    exMainUsed: "Esasy balansdan aýryldy",
+    exSettings: "Çalyşma sazlamalary",
+    exMinAmount: "Min. möçber",
+    exFeePercent: "Komissiýa (%)",
 
     // --- Söwdagar Profili ---
     mpOnPlatform: "Platformada",

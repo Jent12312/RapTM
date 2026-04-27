@@ -17,7 +17,7 @@ interface AppState {
   isBalanceVisible: boolean;
   
   user: any | null;
-  balances: { tmt: number; usdt: number };
+  balances: { tmt: number; usdt: number; bonus: number };
   
   ads: any[];
   isLoadingAds: boolean;
@@ -40,7 +40,7 @@ export const useAppStore = create<AppState>((set) => ({
   activeTab: 'wallet',
   isBalanceVisible: true,
   user: null,
-  balances: { tmt: 0, usdt: 0 },
+  balances: { tmt: 0, usdt: 0, bonus: 0 },
   
   ads: [],
   isLoadingAds: false,
@@ -67,7 +67,8 @@ export const useAppStore = create<AppState>((set) => ({
           user: data.user,
           balances: {
             tmt: data.user.wallet.tmtBalance,
-            usdt: data.user.wallet.usdtBalance
+            usdt: data.user.wallet.usdtBalance,
+            bonus: data.user.wallet.bonusBalance
           }
         });
       }
