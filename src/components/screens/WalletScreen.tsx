@@ -71,12 +71,10 @@ export default function WalletScreen() {
       'FAILED': 'Ошибка',
       'CANCELLED': 'Отменено'
     };
-    try {
-      const translated = t(language, status.toLowerCase() as any);
-      return translated && translated !== status.toLowerCase() ? translated : statusMap[status] || status;
-    } catch {
-      return statusMap[status] || status;
-    }
+
+    // Просто возвращаем текст из карты, не пытаясь мучить функцию t() 
+    // если не уверены, что там есть эти ключи
+    return statusMap[status] || status;
   };
 
   // ОБНОВЛЕННАЯ ФУНКЦИЯ: Загружаем и кошелек, и обмены
