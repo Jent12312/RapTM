@@ -1073,6 +1073,14 @@ export const dict = {
     exCancelled: "Cancelled",
     exSendTMT: "Send {amount} TMT",
     exSendToAdmin: "Send TMT to admin number",
+    exReverse: "Reverse Direction",
+    exRate: "Rate",
+    exCommission: "Commission",
+    exBonusUsed: "Deducted from Bonus",
+    exMainUsed: "Deducted from Main",
+    exSettings: "Exchange Settings",
+    exMinAmount: "Min Amount",
+    exFeePercent: "Fee (%)",
 
     // --- Merchant Profile ---
     mpOnPlatform: "On platform since",
