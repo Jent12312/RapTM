@@ -9,19 +9,89 @@ datasource db {
   url       = env("POSTGRES_URL")
 }
 
+enum KycStatus {
+  NONE
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum Language {
+  RU
+  TM
+  EN
+}
+
+enum UserLevel {
+  STANDARD
+  PRO
+  PARTNER
+}
+
+enum AdType {
+  BUY
+  SELL
+}
+
+enum PriceType {
+  FIXED
+  FLOATING
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
+enum ExchangeStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+}
+
+enum TransactionMethod {
+  CRYPTO
+  CASH
+  P2P
+  CODE
+}
+
+enum TransactionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum CodeStatus {
+  ACTIVE
+  USED
+  EXPIRED
+  CANCELLED
+}
+
 model User {
   id            String   @id @default(uuid())
   telegramId    String   @unique
   username      String?
   firstName     String?
   isVerified   Boolean  @default(false)
-  kycStatus    String   @default("none") // none, pending, verified, rejected
+  kycStatus    KycStatus @default(NONE)
   kycPhotoUrl  String?  // URL загруженного фото документа
   createdAt    DateTime  @default(now())
   nickname     String?
   avatarUrl    String?
   lastSeen     DateTime @default(now())
-  language     String   @default("ru") // ru, tm, en
+  language     Language  @default(RU)
 
   // Telegram Bot настройки
   phone             String?  // Для верификации
@@ -30,13 +100,14 @@ model User {
   isAdmin           Boolean  @default(false) // Для доступа в админку
   tgNotifications   Boolean  @default(true) // Включены ли уведомления
   tgChatId          String?  // Chat ID для отправки уведомлений
+  isDeleted         Boolean  @default(false) // Мягкое удаление (Soft Delete)
 
   // Система уровней
-  level         String   @default("Standard") // Standard, Pro, Partner
-  depositAmount Float    @default(0) // Страховой депозит
-  dailyLimit    Float    @default(150) // Лимит в день
+  level         UserLevel @default(STANDARD)
+  depositAmount Decimal   @default(0) // Страховой депозит
+  dailyLimit    Decimal   @default(150) // Лимит в день
   tradesCount   Int      @default(0) // Количество сделок
-  volumeTotal   Float    @default(0) // Общий объём
+  volumeTotal   Decimal   @default(0) // Общий объём
 
   wallet       Wallet?
   ads          P2PAd[]
@@ -59,10 +130,10 @@ model User {
 model Wallet {
   id           String   @id @default(uuid())
   userId       String   @unique
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  usdtBalance  Float    @default(0.0)
-  tmtBalance   Float    @default(0.0)
-  bonusBalance Float    @default(15.0) // Приветственный бонус
+  user         User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  usdtBalance  Decimal  @default(0.0)
+  tmtBalance   Decimal  @default(0.0)
+  bonusBalance Decimal  @default(15.0) // Приветственный бонус
 
   withdrawalAddresses WithdrawalAddress[]
 }
@@ -70,7 +141,7 @@ model Wallet {
 model WithdrawalAddress {
   id        String   @id @default(uuid())
   walletId  String
-  wallet    Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  wallet    Wallet   @relation(fields: [walletId], references: [id], onDelete: Restrict)
   network   String   // TRC20, BEP20, ERC20, APTOS
   address   String
   label     String?  // Пользовательская метка
@@ -84,14 +155,14 @@ model WithdrawalAddress {
 model P2PAd {
   id          String   @id @default(uuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type        String   
+  user        User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  type        AdType   
   asset       String   
   fiat        String   
-  priceType   String   
-  price       Float    // Если priceType == 'floating', здесь хранится маржа (например, 1.5%)
-  minLimit    Float    
-  maxLimit    Float    
+  priceType   PriceType   
+  price       Decimal  // Если priceType == 'floating', здесь хранится маржа (например, 1.5%)
+  minLimit    Decimal    
+  maxLimit    Decimal    
   city        String   
   autoReply   String?  
   
@@ -101,9 +172,10 @@ model P2PAd {
   isPrivate    Boolean  @default(false) // Приватное объявление по ссылке
   reqKyc       Boolean  @default(false) // Требовать верификацию
   reqMinTrades Int      @default(0)     // Минимум сделок у контрагента
-  reqRating    Float    @default(0.0)   // Минимальный рейтинг контрагента
+  reqRating    Decimal  @default(0.0)   // Минимальный рейтинг контрагента
 
   isActive    Boolean  @default(true)
+  isDeleted   Boolean  @default(false) // Мягкое удаление
   createdAt   DateTime @default(now())
   orders      Order[]
 }
@@ -117,9 +189,9 @@ model Order {
   sellerId    String
   seller      User     @relation("SellerOrders", fields: [sellerId], references: [id])
 
-  amountAsset Float    
-  amountFiat  Float    
-  status      String   @default("PENDING") 
+  amountAsset Decimal    
+  amountFiat  Decimal    
+  status      OrderStatus @default(PENDING) 
   
   isDisputed  Boolean  @default(false) // НОВОЕ: Нажат ли "Спор/Апелляция"
   
@@ -133,9 +205,9 @@ model Order {
 model Message {
   id        String   @id @default(uuid())
   orderId   String
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Restrict)
   senderId  String
-  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Restrict)
   text      String?
   imageUrl  String?  // URL загруженного изображения
   isSystem  Boolean  @default(false) // НОВОЕ: Системные сообщения (например автоответчик)
@@ -145,11 +217,11 @@ model Message {
 model Review {
   id        String   @id @default(uuid())
   orderId   String   
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Restrict)
   authorId  String
-  author    User     @relation("ReviewsGiven", fields: [authorId], references: [id], onDelete: Cascade)
+  author    User     @relation("ReviewsGiven", fields: [authorId], references: [id], onDelete: Restrict)
   targetId  String
-  target    User     @relation("ReviewsReceived", fields: [targetId], references: [id], onDelete: Cascade)
+  target    User     @relation("ReviewsReceived", fields: [targetId], references: [id], onDelete: Restrict)
   rating    String   
   comment   String?
   createdAt DateTime @default(now())
@@ -158,17 +230,17 @@ model Review {
 model ExchangeRequest {
   id          String   @id @default(uuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Restrict)
   
   direction   String   // 'USDT_TO_TMT' или 'TMT_TO_USDT'
-  amountUsdt  Float
-  amountTmt   Float
+  amountUsdt  Decimal
+  amountTmt   Decimal
   
   // Для USDT_TO_TMT: номер пользователя, куда админ отправит манаты
   userPhone   String?  
   
-  status      String   @default("PENDING") // PENDING, COMPLETED, CANCELLED
-  commission  Float    @default(0) // Комиссия за обмен (в USDT)
+  status      ExchangeStatus @default(PENDING)
+  commission  Decimal  @default(0) // Комиссия за обмен (в USDT)
   
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -183,22 +255,22 @@ model SystemSetting {
 model CryptoTransaction {
   id        String   @id @default(uuid())
   userId    String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
 
-  type      String   // 'DEPOSIT' (Пополнение) или 'WITHDRAWAL' (Вывод)
-  method    String   @default("CRYPTO") // CRYPTO, CASH, P2P, CODE
+  type      TransactionType
+  method    TransactionMethod @default(CRYPTO)
   asset     String   @default("USDT")
   network   String?  // 'TRC20', 'BEP20' или 'APTOS'
 
-  amount    Float
-  fee       Float    @default(0) // Комиссия
+  amount    Decimal
+  fee       Decimal  @default(0) // Комиссия
   address   String?  // Куда выводить (для WITHDRAWAL)
   txId      String?  // Хэш транзакции (для DEPOSIT)
 
   city      String?  // Для CASH: город (Ашхабад, Туркменабад, Мары, Дашогуз, Балканабад)
   code      String?  // Для CODE: код пополнения
 
-  status    String   @default("PENDING") // PENDING, PROCESSING, COMPLETED, CANCELLED, FAILED
+  status    TransactionStatus @default(PENDING)
   adminNote String?  // Заметка админа
 
   createdAt DateTime @default(now())
@@ -215,14 +287,14 @@ model Code {
   code        String   @unique // Сам код (например, TM-USDT-500-A7B8-C9D1-E2F3)
   codeHash    String   @unique // Хешированный код для безопасности
   
-  amount      Float    // Номинал кода
+  amount      Decimal  // Номинал кода
   currency    String   @default("USDT") // Валюта кода
   
-  fee         Float    @default(0) // Комиссия за создание
-  status      String   @default("ACTIVE") // ACTIVE, USED, EXPIRED, CANCELLED
+  fee         Decimal  @default(0) // Комиссия за создание
+  status      CodeStatus @default(ACTIVE)
   
   creatorId   String   // Кто создал код
-  creator     User     @relation("CreatedCodes", fields: [creatorId], references: [id], onDelete: Cascade)
+  creator     User     @relation("CreatedCodes", fields: [creatorId], references: [id], onDelete: Restrict)
   
   redeemerId  String?  // Кто активировал код
   redeemer    User?    @relation("RedeemedCodes", fields: [redeemerId], references: [id], onDelete: SetNull)

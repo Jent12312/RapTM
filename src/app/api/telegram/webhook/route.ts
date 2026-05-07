@@ -191,15 +191,15 @@ async function handleCommand(chatId: number, command: string, user: any) {
       // Проверяем, выбран ли уже язык
       if (user.language) {
         await sendMessage(chatId, getLocalizedText(user, 'botWelcomeUser', { username: user.firstName || getLocalizedText(user, 'userLabel') }) + '\n\n' +
-                                  getLocalizedText(user, 'botP2PAssistant') + '\n\n' +
-                                  getLocalizedText(user, 'botMyCommands') + '\n' +
-                                  getLocalizedText(user, 'botCheckTrades') + '\n' +
-                                  getLocalizedText(user, 'botHelpCommand') + '\n' +
-                                  getLocalizedText(user, 'botNotificationsCommand') + '\n' +
-                                  getLocalizedText(user, 'botEnableNotifications') + '\n' +
-                                  getLocalizedText(user, 'botDisableNotifications') + '\n' +
-                                  getLocalizedText(user, 'botUnlinkAccount') + '\n\n' +
-                                  getLocalizedText(user, 'botConnectAccountTip'));
+          getLocalizedText(user, 'botP2PAssistant') + '\n\n' +
+          getLocalizedText(user, 'botMyCommands') + '\n' +
+          getLocalizedText(user, 'botCheckTrades') + '\n' +
+          getLocalizedText(user, 'botHelpCommand') + '\n' +
+          getLocalizedText(user, 'botNotificationsCommand') + '\n' +
+          getLocalizedText(user, 'botEnableNotifications') + '\n' +
+          getLocalizedText(user, 'botDisableNotifications') + '\n' +
+          getLocalizedText(user, 'botUnlinkAccount') + '\n\n' +
+          getLocalizedText(user, 'botConnectAccountTip'));
       } else {
         // Показываем выбор языка
         const keyboard = [[
@@ -243,13 +243,13 @@ async function handleCommand(chatId: number, command: string, user: any) {
 
     case '/help':
       await sendMessage(chatId, getLocalizedText(user, 'botHelpTitle') + '\n\n' +
-                                getLocalizedText(user, 'botHelpDesc1') + '\n\n' +
-                                getLocalizedText(user, 'botHelpDesc2') + '\n\n' +
-                                getLocalizedText(user, 'botHelpCommands') + '\n' +
-                                getLocalizedText(user, 'botCheckTrades') + '\n' +
-                                getLocalizedText(user, 'botHelpCommand') + '\n' +
-                                getLocalizedText(user, 'botNotificationsCommand') + '\n' +
-                                getLocalizedText(user, 'botUnlinkAccount'));
+        getLocalizedText(user, 'botHelpDesc1') + '\n\n' +
+        getLocalizedText(user, 'botHelpDesc2') + '\n\n' +
+        getLocalizedText(user, 'botHelpCommands') + '\n' +
+        getLocalizedText(user, 'botCheckTrades') + '\n' +
+        getLocalizedText(user, 'botHelpCommand') + '\n' +
+        getLocalizedText(user, 'botNotificationsCommand') + '\n' +
+        getLocalizedText(user, 'botUnlinkAccount'));
       break;
 
     case '/notifications':
