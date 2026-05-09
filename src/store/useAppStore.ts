@@ -67,9 +67,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({
           user: data.user,
           balances: {
-            tmt: data.user.wallet.tmtBalance,
-            usdt: data.user.wallet.usdtBalance,
-            bonus: data.user.wallet.bonusBalance
+            tmt: data.user?.wallet?.tmtBalance || 0,
+            usdt: data.user?.wallet?.usdtBalance || 0,
+            bonus: data.user?.wallet?.bonusBalance || 0
           }
         });
       } else {
@@ -120,4 +120,4 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   removeToast: (id) => set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }))
-}));
+}));
