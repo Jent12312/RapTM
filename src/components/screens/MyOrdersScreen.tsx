@@ -15,15 +15,34 @@ export default function MyOrdersScreen({ onClose }: { onClose: () => void }) {
   const [filterType, setFilterType] = useState<string>('all');
 
   useEffect(() => {
-    fetch(`/api/orders?userId=${user.id}`)
-      .then(res => res.json())
-      .then(data => setOrders(data));
-  }, [user.id]);
+    // 1. Защита от неавторизованного пользователя (чтобы не было краша при user.id)
+    if (!user || !user.id) return;
 
-  const filteredOrders = orders.filter(order => {
+    fetch(`/api/orders?userId=${user.id}`)
+      .then(res => {
+        if (!res.ok) throw new Error('Ошибка сети');
+        return res.json();
+      })
+      .then(data => {
+        // 2. Умное извлечение массива, как мы это делали в useAppStore
+        const ordersArray = Array.isArray(data) ? data : (data?.orders || data?.data || []);
+        setOrders(ordersArray);
+      })
+      .catch(err => {
+        console.error('Ошибка загрузки ордеров:', err);
+        // При ошибке ставим пустой массив, чтобы приложение не упало
+        setOrders([]);
+      });
+  }, [user?.id]); // Безопасная зависимость
+
+  // 3. Дополнительная защита: убеждаемся, что orders — 100% массив перед вызовом .filter()
+  const safeOrders = Array.isArray(orders) ? orders : [];
+
+  const filteredOrders = safeOrders.filter(order => {
     if (filterStatus !== 'all' && order.status !== filterStatus) return false;
-    if (filterType !== 'all' && order.buyerId !== user.id && filterType === 'buy') return false;
-    if (filterType !== 'all' && order.sellerId !== user.id && filterType === 'sell') return false;
+    // Обязательно проверяем наличие user перед сравнением id
+    if (filterType !== 'all' && user && order.buyerId !== user.id && filterType === 'buy') return false;
+    if (filterType !== 'all' && user && order.sellerId !== user.id && filterType === 'sell') return false;
     return true;
   });
 
@@ -124,19 +143,19 @@ export default function MyOrdersScreen({ onClose }: { onClose: () => void }) {
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${
-                    order.buyerId === user.id ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'
+                    user && order.buyerId === user.id ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'
                   }`}>
-                    {order.buyerId === user.id ? t(language, 'buy') : t(language, 'sell')}
+                    {user && order.buyerId === user.id ? t(language, 'buy') : t(language, 'sell')}
                   </span>
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                     {order.status}
                   </span>
                 </div>
                 <div className="text-xl font-black text-slate-800 tracking-tight">
-                  {order.amountAsset} <span className="text-sm font-bold text-slate-500">{order.ad.asset}</span>
+                  {order.amountAsset} <span className="text-sm font-bold text-slate-500">{order.ad?.asset || ''}</span>
                 </div>
                 <div className="text-xs font-bold text-slate-500 mt-1">
-                  {t(language, 'p2pReceiveAmount')} {order.amountFiat} {order.ad.fiat}
+                  {t(language, 'p2pReceiveAmount')} {order.amountFiat} {order.ad?.fiat || ''}
                 </div>
               </div>
               <ArrowRightLeft className="w-6 h-6 text-slate-300" />
@@ -146,4 +165,4 @@ export default function MyOrdersScreen({ onClose }: { onClose: () => void }) {
       </div>
     </div>
   );
-}
+  }
