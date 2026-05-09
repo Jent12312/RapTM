@@ -82,7 +82,7 @@ export default function P2PScreen() {
 
 
   const targetAdType = tradeType === 'buy' ? 'sell' : 'buy';
-  const filteredAds = ads.filter(ad => {
+  const filteredAds = (Array.isArray(ads) ? ads : []).filter(ad => {
     const matchBase = ad.type === targetAdType && ad.asset === asset && ad.fiat === fiat;
     if (!filterAmount) return matchBase;
     const amount = Number(filterAmount);
@@ -469,4 +469,4 @@ export default function P2PScreen() {
       </div>
     </PullToRefresh>
   );
-}
+}
