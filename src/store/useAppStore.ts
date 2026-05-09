@@ -1,6 +1,7 @@
 // src/store/useAppStore.ts
 import { create } from 'zustand';
 import { Language } from '../lib/dictionaries';
+import { haptic } from '../lib/haptic';
 
 type Tab = 'wallet' | 'exchange' | 'p2p' | 'profile';
 export type ToastType = 'success' | 'error' | 'info';
@@ -22,20 +23,21 @@ interface AppState {
   ads: any[];
   isLoadingAds: boolean;
   
-  toasts: ToastMessage[]; // <-- НОВОЕ
+  toasts: ToastMessage[];
   
   setLanguage: (lang: Language) => void;
   setActiveTab: (tab: Tab) => void;
   toggleBalance: () => void;
   
-  initUser: (tgData: any) => Promise<void>;
+  initUser: (initData: string) => Promise<void>;
+  logout: () => void;
   fetchAds: () => Promise<void>;
   
-  addToast: (message: string, type: ToastType) => void; // <-- НОВОЕ
-  removeToast: (id: string) => void; // <-- НОВОЕ
+  addToast: (message: string, type: ToastType) => void;
+  removeToast: (id: string) => void;
 }
 
-export const useAppStore = create<AppState>((set) => ({
+export const useAppStore = create<AppState>((set, get) => ({
   language: 'ru',
   activeTab: 'wallet',
   isBalanceVisible: true,
@@ -48,18 +50,17 @@ export const useAppStore = create<AppState>((set) => ({
 
   setLanguage: (lang) => set({ language: lang }),
   setActiveTab: (tab) => set({ activeTab: tab }),
-  toggleBalance: () => set((state) => ({ isBalanceVisible: !state.isBalanceVisible })),
+  toggleBalance: () => {
+    haptic.light();
+    set((state) => ({ isBalanceVisible: !state.isBalanceVisible }));
+  },
 
-  initUser: async (tgData) => {
+  initUser: async (initData: string) => {
     try {
       const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          telegramId: tgData.id,
-          username: tgData.username,
-          firstName: tgData.first_name,
-        }),
+        body: JSON.stringify({ initData }),
       });
       const data = await res.json();
       if (data.success) {
@@ -71,10 +72,22 @@ export const useAppStore = create<AppState>((set) => ({
             bonus: data.user.wallet.bonusBalance
           }
         });
+      } else {
+        console.error("Ошибка авторизации: ", data.error);
+        get().addToast("Ошибка авторизации. Пожалуйста, перезапустите приложение.", "error");
       }
     } catch (err) {
       console.error("Ошибка авторизации:", err);
+      get().addToast("Ошибка сети при авторизации.", "error");
     }
+  },
+
+  logout: () => {
+    set({
+      user: null,
+      balances: { tmt: 0, usdt: 0, bonus: 0 },
+      ads: []
+    });
   },
 
   fetchAds: async () => {
@@ -94,19 +107,17 @@ export const useAppStore = create<AppState>((set) => ({
   addToast: (message, type) => {
     const id = Date.now().toString();
     set((state) => ({ toasts: [...state.toasts, { id, message, type }] }));
+    
+    // Вибрация
+    if (type === 'success') haptic.success();
+    else if (type === 'error') haptic.error();
+    else haptic.medium();
+
     // Автоудаление через 3 секунды
     setTimeout(() => {
       set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }));
     }, 3000);
-    
-    // Вибрация Telegram
-    import('@twa-dev/sdk').then((WebApp) => {
-      const t = WebApp.default;
-      if (type === 'success') t.HapticFeedback.notificationOccurred('success');
-      if (type === 'error') t.HapticFeedback.notificationOccurred('error');
-      if (type === 'info') t.HapticFeedback.impactOccurred('medium');
-    });
   },
 
   removeToast: (id) => set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }))
-}));
+}));

@@ -8,17 +8,24 @@ export async function GET(req: Request) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const search = searchParams.get('search') || '';
+    const level = searchParams.get('level');
+    const kycStatus = searchParams.get('kycStatus');
 
     const skip = (page - 1) * limit;
 
-    // Фильтр по поиску (username, firstName, telegramId)
-    const where = search ? {
-      OR: [
-        { username: { contains: search } },
-        { firstName: { contains: search } },
+    // Сбор фильтров
+    const where: any = {};
+    
+    if (search) {
+      where.OR = [
+        { username: { contains: search, mode: 'insensitive' } },
+        { firstName: { contains: search, mode: 'insensitive' } },
         { telegramId: { contains: search } }
-      ]
-    } : {};
+      ];
+    }
+    
+    if (level) where.level = level;
+    if (kycStatus) where.kycStatus = kycStatus;
 
     const [users, total] = await Promise.all([
       prisma.user.findMany({

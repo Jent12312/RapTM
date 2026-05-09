@@ -79,9 +79,10 @@ export async function POST(req: NextRequest) {
         // Проверка выбора языка
         if (startParam && startParam.startsWith('lang_')) {
           const lang = startParam.replace('lang_', '');
+          const langMap: Record<string, 'RU' | 'TM' | 'EN'> = { ru: 'RU', tm: 'TM', en: 'EN' };
           await prisma.user.update({
             where: { id: user.id },
-            data: { language: lang as 'ru' | 'tm' | 'en' },
+            data: { language: langMap[lang] || 'RU' },
           });
           const langNames: Record<string, string> = {
             ru: '🇷🇺 Русский',
@@ -142,10 +143,10 @@ async function handleInlineQuery(inlineQuery: any) {
         where: { OR: [{ buyerId: user.id }, { sellerId: user.id }], status: 'COMPLETED' }
       });
 
-      const goodReviews = reviews.filter(r => r.rating === 'GOOD').length;
+      const goodReviews = reviews.filter(r => r.rating === 'EXCELLENT').length;
       const totalReviews = reviews.length;
       const ratingPercent = totalReviews > 0 ? Math.round((goodReviews / totalReviews) * 100) : 0;
-      const volume = orders.reduce((acc, curr) => acc + curr.amountAsset, 0);
+      const volume = orders.reduce((acc, curr) => acc + Number(curr.amountAsset), 0);
 
       statsText = `👤 <b>Мерчант: ${user.nickname || user.firstName}</b> ⚡️\n\n🛡 Статус: ${user.isVerified ? 'Проверен' : 'Базовый'}\n📊 Сделок: ${orders.length}\n✅ Выполнено: 100%\n💎 Объём: ${volume.toFixed(2)} USDT\n👍 Рейтинг: ${ratingPercent}%\n\n👇 <i>Нажмите кнопку ниже, чтобы открыть профиль продавца в Rapira TM!</i>`;
     }
@@ -306,9 +307,10 @@ async function handleCallback(chatId: number, data: string, fromId: string) {
       const lang = args[0];
 
       if (user) {
+        const langMap: Record<string, 'RU' | 'TM' | 'EN'> = { ru: 'RU', tm: 'TM', en: 'EN' };
         await prisma.user.update({
           where: { id: user.id },
-          data: { language: lang as 'ru' | 'tm' | 'en' },
+          data: { language: langMap[lang] || 'RU' },
         });
 
         const langNames: Record<string, string> = {

@@ -8,7 +8,7 @@ export async function GET() {
   try {
     const pendingUsers = await prisma.user.findMany({
       where: {
-        kycStatus: 'pending'
+        kycStatus: 'PENDING'
       },
       orderBy: {
         createdAt: 'desc'
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    if (user.kycStatus !== 'pending') {
+    if (user.kycStatus !== 'PENDING') {
       return NextResponse.json({ error: 'User KYC is not pending' }, { status: 400 });
     }
 
@@ -44,15 +44,16 @@ export async function POST(req: Request) {
 
     if (action === 'approve') {
       updateData = {
-        kycStatus: 'verified',
+        kycStatus: 'VERIFIED',
         isVerified: true
       };
     } else if (action === 'reject') {
       updateData = {
-        kycStatus: 'rejected',
+        kycStatus: 'REJECTED',
         isVerified: false
       };
-    } else {
+    }
+ else {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
 

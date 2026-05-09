@@ -58,10 +58,8 @@ export default function CodeScreen({ onClose }: { onClose: () => void }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user.id,
           amount: Number(amount),
-          currency,
-          feePercent: 1 // 1% комиссия
+          currency
         })
       });
 
@@ -91,8 +89,7 @@ export default function CodeScreen({ onClose }: { onClose: () => void }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user.id,
-          code: redeemCode.trim().toUpperCase()
+          code: redeemCode.trim()
         })
       });
 
@@ -255,7 +252,7 @@ export default function CodeScreen({ onClose }: { onClose: () => void }) {
                       <div className="flex items-start gap-2">
                         <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5" />
                         <div className="text-[10px] text-amber-700 space-y-1">
-                          <p className="font-bold">Комиссия 1%</p>
+                          <p className="font-bold">Комиссия {user?.level === 'Partner' ? '0.2%' : '0%'}</p>
                           <p>Срок действия: 24 часа</p>
                           <p>Можно активировать только один раз</p>
                         </div>
@@ -308,7 +305,7 @@ export default function CodeScreen({ onClose }: { onClose: () => void }) {
 
                 <div className="flex items-center justify-center gap-2 text-[10px] text-slate-400 mb-4">
                   <Clock className="w-3 h-3" />
-                  <span>{t(language, 'codeExpires')} {new Date(codeData?.expiresAt).toLocaleString('ru-RU')}</span>
+                  <span>Действует до {new Date(codeData?.expiresAt).toLocaleString('ru-RU')}</span>
                 </div>
 
                 <button
@@ -406,6 +403,7 @@ export default function CodeScreen({ onClose }: { onClose: () => void }) {
                   </div>
 
                   <div className="bg-slate-50 p-3 rounded-xl mb-3">
+                    <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">ID Ключ</p>
                     <code className="text-xs font-bold text-slate-600 tracking-wider break-all">
                       {code.code}
                     </code>

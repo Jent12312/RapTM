@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getAuthUser } from '@/lib/getAuthUser';
 
 // GET /api/admin/settings
 export async function GET() {
@@ -19,11 +20,25 @@ export async function GET() {
 // POST /api/admin/settings
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { key, value } = body;
+    const authUser = await getAuthUser();
+    if (!authUser?.isAdmin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    if (!key || value === undefined) {
-      return NextResponse.json({ error: 'Key and value are required' }, { status: 400 });
+    const { key, value } = await req.json();
+    const ip = req.headers.get('x-forwarded-for') || '127.0.0.1';
+
+    // Если меняем курс, записываем в историю
+    if (key === 'EXCHANGE_RATE') {
+      const oldSetting = await prisma.systemSetting.findUnique({ where: { key: 'EXCHANGE_RATE' } });
+      const oldRate = oldSetting ? parseFloat(oldSetting.value) : 0;
+      const newRate = parseFloat(value);
+
+      await prisma.rateHistory.create({
+        data: {
+          oldRate,
+          newRate,
+          changedBy: authUser.userId
+        }
+      });
     }
 
     const setting = await prisma.systemSetting.upsert({
@@ -32,9 +47,20 @@ export async function POST(req: Request) {
       create: { key, value: String(value) }
     });
 
-    return NextResponse.json({ success: true, setting });
+    // Audit log
+    await prisma.adminAction.create({
+      data: {
+        adminId: authUser.userId,
+        action: 'SETTINGS_CHANGE',
+        targetId: key,
+        details: `Изменена настройка ${key} на ${value}`,
+        ip
+      }
+    });
+
+    return NextResponse.json(setting);
   } catch (error) {
-    console.error('Admin Settings Update Error:', error);
-    return NextResponse.json({ error: 'Failed to update setting' }, { status: 500 });
+    console.error('Settings save error:', error);
+    return NextResponse.json({ error: 'Failed' }, { status: 500 });
   }
 }

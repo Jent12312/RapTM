@@ -17,12 +17,12 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     }
 
     // Если уже верифицирован - отказываем
-    if (user.kycStatus === 'verified' || user.isVerified) {
+    if (user.kycStatus === 'VERIFIED' || user.isVerified) {
       return NextResponse.json({ error: 'Already verified' }, { status: 400 });
     }
 
     // Если уже есть pending заявка - отказываем
-    if (user.kycStatus === 'pending') {
+    if (user.kycStatus === 'PENDING') {
       return NextResponse.json({ error: 'KYC already pending' }, { status: 400 });
     }
 
@@ -30,7 +30,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     const updatedUser = await prisma.user.update({
       where: { id },
       data: {
-        kycStatus: 'pending',
+        kycStatus: 'PENDING',
         kycPhotoUrl: kycPhotoUrl || null
       }
     });

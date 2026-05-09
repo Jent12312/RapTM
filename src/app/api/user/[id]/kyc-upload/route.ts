@@ -32,7 +32,7 @@ export async function POST(
       where: { id },
       data: { 
         kycPhotoUrl: base64Image,
-        kycStatus: 'pending'
+        kycStatus: 'PENDING'
       }
     });
 

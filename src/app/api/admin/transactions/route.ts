@@ -4,7 +4,7 @@ import prisma from '@/lib/prisma';
 
 export async function GET() {
   try {
-    const requests = await prisma.cryptoTransaction.findMany({
+    const requests = await prisma.transaction.findMany({
       where: { status: 'PENDING' },
       include: { user: true },
       orderBy: { createdAt: 'desc' }
@@ -19,7 +19,7 @@ export async function PATCH(req: Request) {
   try {
     const { id, action } = await req.json(); // action: 'approve' | 'reject'
 
-    const tx = await prisma.cryptoTransaction.findUnique({
+    const tx = await prisma.transaction.findUnique({
       where: { id },
       include: { user: true }
     });
@@ -34,14 +34,14 @@ export async function PATCH(req: Request) {
             where: { userId: tx.userId },
             data: { usdtBalance: { increment: tx.amount } }
           }),
-          prisma.cryptoTransaction.update({
+          prisma.transaction.update({
             where: { id },
             data: { status: 'COMPLETED' }
           })
         ]);
       } else {
         // Вывод: просто меняем статус, админ уже отправил крипту руками
-        await prisma.cryptoTransaction.update({
+        await prisma.transaction.update({
           where: { id },
           data: { status: 'COMPLETED' }
         });
@@ -56,14 +56,14 @@ export async function PATCH(req: Request) {
             where: { userId: tx.userId },
             data: { usdtBalance: { increment: tx.amount } }
           }),
-          prisma.cryptoTransaction.update({
+          prisma.transaction.update({
             where: { id },
             data: { status: 'CANCELLED' }
           })
         ]);
       } else {
         // Отказ в пополнении (фейковый TxID)
-        await prisma.cryptoTransaction.update({
+        await prisma.transaction.update({
           where: { id },
           data: { status: 'CANCELLED' }
         });

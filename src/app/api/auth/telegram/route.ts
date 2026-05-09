@@ -1,45 +1,7 @@
 import { NextResponse } from 'next/server';
-import crypto from 'crypto';
 import prisma from '@/lib/prisma';
-
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
-const SECRET_KEY = process.env.TELEGRAM_BOT_TOKEN || '';
-
-function parseInitData(initData: string): Record<string, string> {
-  const params = new URLSearchParams(initData);
-  const result: Record<string, string> = {};
-  params.forEach((value, key) => {
-    result[key] = value;
-  });
-  return result;
-}
-
-function validateInitData(initData: string, secretKey: string): boolean {
-  try {
-    const params = new URLSearchParams(initData);
-    const hash = params.get('hash');
-    params.delete('hash');
-
-    const dataCheckString = Array.from(params.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, value]) => `${key}=${value}`)
-      .join('\n');
-
-    const secretKeyHash = crypto
-      .createHmac('sha256', 'WebAppData')
-      .update(secretKey)
-      .digest();
-
-    const generatedHash = crypto
-      .createHmac('sha256', secretKeyHash)
-      .update(dataCheckString)
-      .digest('hex');
-
-    return generatedHash === hash;
-  } catch {
-    return false;
-  }
-}
+import { validateTelegramWebAppData, signJwt } from '@/lib/auth';
+import { cookies } from 'next/headers';
 
 export async function POST(req: Request) {
   try {
@@ -53,17 +15,15 @@ export async function POST(req: Request) {
       );
     }
 
-    const isValid = validateInitData(initData, SECRET_KEY);
-    if (!isValid) {
+    const authData = validateTelegramWebAppData(initData);
+    if (!authData) {
       return NextResponse.json(
         { error: 'Invalid initData: signature mismatch' },
         { status: 401 }
       );
     }
 
-    const parsed = parseInitData(initData);
-    const userData = parsed.user ? JSON.parse(parsed.user) : null;
-
+    const userData = authData.user;
     if (!userData || !userData.id) {
       return NextResponse.json(
         { error: 'Invalid user data in initData' },
@@ -76,6 +36,7 @@ export async function POST(req: Request) {
     const firstName = userData.first_name || null;
     const lastName = userData.last_name || null;
     const languageCode = userData.language_code || 'ru';
+    const startParam = authData.start_param;
 
     let user = await prisma.user.findUnique({
       where: { telegramId },
@@ -83,28 +44,50 @@ export async function POST(req: Request) {
     });
 
     if (!user) {
+      // NEW USER REGISTRATION
+      let level: 'Standard' | 'Pro' | 'Partner' = 'Standard';
+      let bonus = 15.0;
+
+      // Logic for Partner level via start_param
+      if (startParam === 'partner' || startParam?.startsWith('partner_')) {
+        level = 'Partner';
+        bonus = 50.0;
+      }
+
+      // Logic for Referrals
+      let referrerId = null;
+      if (startParam && startParam.startsWith('ref_')) {
+        const refId = startParam.replace('ref_', '');
+        const referrer = await prisma.user.findUnique({ where: { id: refId } });
+        if (referrer) {
+          referrerId = referrer.id;
+        }
+      }
+
       user = await prisma.user.create({
         data: {
           telegramId,
           username,
           firstName: firstName || lastName,
-          language: languageCode,
-          level: 'Standard',
+          language: languageCode === 'tm' ? 'TM' : languageCode === 'en' ? 'EN' : 'RU',
+          level: level,
           depositAmount: 0,
-          dailyLimit: 150,
+          dailyLimit: level === 'Partner' ? 1000 : 150, // Higher limit for partners
           tradesCount: 0,
           volumeTotal: 0,
+          referrerId,
           wallet: {
             create: {
               usdtBalance: 0.0,
               tmtBalance: 0.0,
-              bonusBalance: 15.0,
+              bonusBalance: bonus,
             },
           },
         },
         include: { wallet: true },
       });
     } else {
+      // EXISTING USER LOGIN
       user = await prisma.user.update({
         where: { telegramId },
         data: {
@@ -115,6 +98,23 @@ export async function POST(req: Request) {
         include: { wallet: true },
       });
     }
+
+    // Create JWT token
+    const token = await signJwt({ 
+      userId: user.id, 
+      telegramId: user.telegramId,
+      role: user.level
+    });
+
+    // Set cookie
+    const cookieStore = await cookies();
+    cookieStore.set('auth_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 24, // 24 hours
+      path: '/',
+    });
 
     return NextResponse.json({
       success: true,
@@ -131,8 +131,11 @@ export async function POST(req: Request) {
         isVerified: user.isVerified,
         kycStatus: user.kycStatus,
         language: user.language,
+        email: user.email,
+        isEmailVerified: user.isEmailVerified,
         wallet: user.wallet,
       },
+      token // Also return token in body for convenience if needed
     });
   } catch (error) {
     console.error('Telegram Auth Error:', error);

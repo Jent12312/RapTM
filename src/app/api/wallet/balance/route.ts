@@ -29,7 +29,7 @@ export async function GET(req: Request) {
       usdtBalance: wallet.usdtBalance,
       tmtBalance: wallet.tmtBalance,
       bonusBalance: wallet.bonusBalance,
-      totalBalance: wallet.usdtBalance + wallet.tmtBalance + wallet.bonusBalance,
+      totalBalance: Number(wallet.usdtBalance) + Number(wallet.tmtBalance) + Number(wallet.bonusBalance),
       withdrawalAddresses: wallet.withdrawalAddresses,
     });
   } catch (error) {

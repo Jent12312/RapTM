@@ -15,7 +15,7 @@ export async function GET(
 
     // Крипто-транзакции
     if (type === 'all' || type === 'crypto') {
-      const cryptoTx = await prisma.cryptoTransaction.findMany({
+      const cryptoTx = await prisma.transaction.findMany({
         where: { userId },
         orderBy: { createdAt: 'desc' },
         take: 50

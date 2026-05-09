@@ -31,13 +31,13 @@ export async function PATCH(req: Request) {
 
     if (action === 'approve') {
       if (exchange.direction === 'USDT_TO_TMT') {
-        // USDT уже списаны, просто ставим COMPLETED
+        // USDT и комиссия уже списаны при создании заявки
         await prisma.exchangeRequest.update({
           where: { id },
           data: { status: 'COMPLETED' }
         });
       } else if (exchange.direction === 'TMT_TO_USDT') {
-        // Зачисляем пользователю USDT
+        // Зачисляем пользователю USDT (комиссия была списана при создании)
         await prisma.$transaction([
           prisma.wallet.update({
             where: { userId: exchange.userId },
@@ -53,11 +53,11 @@ export async function PATCH(req: Request) {
     
     else if (action === 'reject') {
       if (exchange.direction === 'USDT_TO_TMT') {
-        // Возвращаем USDT пользователю, так как мы их списали
+        // Возвращаем USDT + комиссию
         await prisma.$transaction([
           prisma.wallet.update({
             where: { userId: exchange.userId },
-            data: { usdtBalance: { increment: exchange.amountUsdt } }
+            data: { usdtBalance: { increment: Number(exchange.amountUsdt) + Number(exchange.commission) } }
           }),
           prisma.exchangeRequest.update({
             where: { id },
@@ -65,11 +65,17 @@ export async function PATCH(req: Request) {
           })
         ]);
       } else if (exchange.direction === 'TMT_TO_USDT') {
-        // Просто отменяем
-        await prisma.exchangeRequest.update({
-          where: { id },
-          data: { status: 'CANCELLED' }
-        });
+        // Возвращаем только комиссию (TMT пользователь не передавал или админ не подтвердил)
+        await prisma.$transaction([
+          prisma.wallet.update({
+            where: { userId: exchange.userId },
+            data: { usdtBalance: { increment: exchange.commission } }
+          }),
+          prisma.exchangeRequest.update({
+            where: { id },
+            data: { status: 'CANCELLED' }
+          })
+        ]);
       }
     }
 

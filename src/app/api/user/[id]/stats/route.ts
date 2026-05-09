@@ -10,16 +10,26 @@ export async function GET(req: Request, context: { params: Promise<{ id: string 
       where: { OR: [{ buyerId: id }, { sellerId: id }], status: 'COMPLETED' }
     });
 
+    const good = reviews.filter(r => r.rating === 'EXCELLENT').length;
+    const neutral = reviews.filter(r => r.rating === 'NEUTRAL').length;
+    const bad = reviews.filter(r => r.rating === 'BAD').length;
+    const totalReviews = reviews.length;
+
     const stats = {
-      good: reviews.filter(r => r.rating === 'GOOD').length,
-      neutral: reviews.filter(r => r.rating === 'NEUTRAL').length,
-      bad: reviews.filter(r => r.rating === 'BAD').length,
+      good,
+      neutral,
+      bad,
       trades: orders.length,
-      volume: orders.reduce((acc, curr) => acc + curr.amountAsset, 0)
+      volume: orders.reduce((acc, curr) => acc + Number(curr.amountAsset), 0),
+      positivePercent: totalReviews > 0 ? Math.round((good / totalReviews) * 100) : 0,
+      averageRating: totalReviews > 0 
+        ? (good * 5 + neutral * 3 + bad * 1) / totalReviews 
+        : 0
     };
 
     return NextResponse.json(stats);
   } catch (error) {
+    console.error('Stats Error:', error);
     return NextResponse.json({ error: 'Failed' }, { status: 500 });
   }
 }

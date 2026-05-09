@@ -1,49 +1,142 @@
 // src/app/api/p2p/route.ts
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getAuthUser } from '@/lib/getAuthUser';
+import { z } from 'zod';
 
+// Zod-схема для валидации создания объявления
+const createAdSchema = z.object({
+  type: z.enum(['BUY', 'SELL']),
+  asset: z.string().min(1, 'Asset is required'),
+  fiat: z.string().min(1, 'Fiat is required'),
+  priceType: z.enum(['FIXED', 'FLOATING']),
+  price: z.number().positive('Price must be greater than 0'),
+  minLimit: z.number().positive('Min limit must be greater than 0'),
+  maxLimit: z.number().positive('Max limit must be greater than 0'),
+  city: z.string().min(1, 'City is required'),
+  autoReply: z.string().optional().nullable(),
+  description: z.string().optional().default(''),
+  paymentTime: z.number().int().min(5).max(120).optional().default(15),
+  isPrivate: z.boolean().optional().default(false),
+  reqKyc: z.boolean().optional().default(false),
+  reqMinTrades: z.number().int().min(0).optional().default(0),
+  reqRating: z.number().min(0).max(5).optional().default(0),
+  paymentMethods: z.array(z.string()).optional().default([]),
+}).refine(data => data.maxLimit > data.minLimit, {
+  message: 'Max limit must be greater than min limit',
+  path: ['maxLimit'],
+});
+
+// Пагинация по умолчанию
+const DEFAULT_PAGE_SIZE = 20;
+
+// 1. Получить объявления (с пагинацией)
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get('userId');
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || String(DEFAULT_PAGE_SIZE), 10)));
+    const skip = (page - 1) * limit;
 
-    // Если передан userId — ищем все объявления этого юзера (и активные, и выключенные). 
-    // Если нет — ищем только активные для общего Маркета.
-    const ads = await prisma.p2PAd.findMany({
-      where: userId ? { userId } : { isActive: true },
-      include: { user: true },
-      orderBy: { createdAt: 'desc' }
+    // Фильтры
+    const type = searchParams.get('type'); // BUY | SELL
+    const asset = searchParams.get('asset');
+    const city = searchParams.get('city');
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = {};
+
+    if (userId) {
+      // Все объявления этого юзера (и активные, и выключенные, кроме удалённых)
+      where.userId = userId;
+      where.isDeleted = false;
+    } else {
+      // Общий маркет — только активные и не удалённые
+      where.isActive = true;
+      where.isDeleted = false;
+    }
+
+    if (type === 'BUY' || type === 'SELL') where.type = type;
+    if (asset) where.asset = asset;
+    if (city) where.city = city;
+
+    const [ads, total] = await Promise.all([
+      prisma.p2PAd.findMany({
+        where,
+        include: { user: { select: { id: true, username: true, firstName: true, avatarUrl: true, tradesCount: true, level: true, isVerified: true, rating: true } } },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.p2PAd.count({ where }),
+    ]);
+
+    return NextResponse.json({
+      ads,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      }
     });
-    
-    return NextResponse.json(ads);
   } catch (error) {
+    console.error("Fetch Ads Error:", error);
     return NextResponse.json({ error: 'Failed to fetch ads' }, { status: 500 });
   }
 }
 
-// 2. Создать новое объявление
+// 2. Создать новое объявление (защищено JWT)
 export async function POST(req: Request) {
   try {
+    // Извлекаем userId из JWT, а не из тела запроса
+    const authUser = await getAuthUser();
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await req.json();
-    const { 
-      userId, type, asset, fiat, priceType, price, minLimit, maxLimit, 
-      city, autoReply, description, paymentTime, reqKyc, reqMinTrades, reqRating 
-    } = body;
+
+    // Валидация через Zod
+    const parsed = createAdSchema.safeParse({
+      ...body,
+      price: Number(body.price),
+      minLimit: Number(body.minLimit),
+      maxLimit: Number(body.maxLimit),
+      paymentTime: body.paymentTime ? Number(body.paymentTime) : 15,
+      reqMinTrades: body.reqMinTrades ? Number(body.reqMinTrades) : 0,
+      reqRating: body.reqRating ? Number(body.reqRating) : 0,
+    });
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: parsed.error.flatten().fieldErrors },
+        { status: 400 }
+      );
+    }
+
+    const data = parsed.data;
 
     const newAd = await prisma.p2PAd.create({
       data: {
-        userId, type, asset, fiat, priceType,
-        price: Number(price),
-        minLimit: Number(minLimit),
-        maxLimit: Number(maxLimit),
-        city, autoReply,
-        
-        // Новые поля
-        description: description || "",
-        paymentTime: Number(paymentTime) || 15,
-        reqKyc: Boolean(reqKyc),
-        reqMinTrades: Number(reqMinTrades) || 0,
-        reqRating: Number(reqRating) || 0,
+        userId: authUser.userId, // ← из JWT, не из body
+        type: data.type,
+        asset: data.asset,
+        fiat: data.fiat,
+        priceType: data.priceType,
+        price: data.price,
+        minLimit: data.minLimit,
+        maxLimit: data.maxLimit,
+        city: data.city,
+        autoReply: data.autoReply || null,
+        description: data.description,
+        paymentTime: data.paymentTime,
+        isPrivate: data.isPrivate,
+        reqKyc: data.reqKyc,
+        reqMinTrades: data.reqMinTrades,
+        reqRating: data.reqRating,
+        paymentMethods: data.paymentMethods,
       }
     });
 

@@ -1,106 +1,407 @@
 // src/components/screens/HelpScreen.tsx
 'use client';
 
+import React, { useState, useMemo } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { t } from '@/lib/dictionaries';
-import { ChevronLeft, MessageCircle, HelpCircle, BookOpen, Shield, Users, ArrowRight } from 'lucide-react';
+import { 
+  ChevronLeft, 
+  Search, 
+  ChevronDown, 
+  MessageCircle, 
+  Shield, 
+  Wallet, 
+  RefreshCcw, 
+  Users, 
+  FileCheck, 
+  Gift, 
+  Key, 
+  TrendingUp, 
+  MapPin,
+  FileText,
+  ExternalLink,
+  HelpCircle,
+  X
+} from 'lucide-react';
+
+interface FAQItem {
+  question: string;
+  answer: string | React.ReactNode;
+}
+
+interface FAQSection {
+  id: string;
+  title: string;
+  icon: any;
+  items: FAQItem[];
+}
 
 export default function HelpScreen({ onClose }: { onClose: () => void }) {
-  const { language } = useAppStore();
+  const { language, setActiveTab } = useAppStore();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [openItems, setOpenItems] = useState<string[]>([]);
+  const [activeSection, setActiveSection] = useState<string | null>(null);
 
-  const faqItems = [
-    { icon: Users, question: 'Как зарегистрироваться?' },
-    { icon: ArrowRight, question: 'Как купить/продать криптовалюту?' },
-    { icon: BookOpen, question: 'Как создать объявление?' },
-    { icon: Shield, question: 'Что такое KYC и зачем он нужен?' },
-    { icon: MessageCircle, question: 'Как обратиться в поддержку?' },
+  const faqData: FAQSection[] = [
+    {
+      id: 'account',
+      title: 'Учетная запись и безопасность',
+      icon: Shield,
+      items: [
+        {
+          question: 'Как защитить свой аккаунт?',
+          answer: (
+            <div>
+              Мы настоятельно рекомендуем включить двухфакторную аутентификацию (2FA) в разделе 
+              <button 
+                onClick={() => { onClose(); setActiveTab('profile'); }}
+                className="inline-flex items-center gap-1 mx-1 text-blue-600 font-bold hover:underline"
+              >
+                Безопасность
+                <ExternalLink className="w-3 h-3" />
+              </button>. 
+              Также используйте сложный пароль и не передавайте свои данные третьим лицам.
+            </div>
+          )
+        },
+        {
+          question: 'Забыли пароль или PIN-код?',
+          answer: 'Для восстановления доступа воспользуйтесь формой сброса пароля на экране входа или обратитесь в нашу службу поддержки через Telegram.'
+        },
+        {
+          question: 'Как пройти верификацию (KYC)?',
+          answer: (
+            <div>
+              Перейдите в раздел 
+              <button 
+                onClick={() => { onClose(); setActiveTab('profile'); }}
+                className="inline-flex items-center gap-1 mx-1 text-blue-600 font-bold hover:underline"
+              >
+                Профиль
+              </button> 
+              и выберите "Верификация". Вам потребуется загрузить фото документа, удостоверяющего личность. Проверка обычно занимает от 15 до 60 минут.
+            </div>
+          )
+        }
+      ]
+    },
+    {
+      id: 'finance',
+      title: 'Пополнение и вывод',
+      icon: Wallet,
+      items: [
+        {
+          question: 'Какие сети поддерживаются для ввода USDT?',
+          answer: 'На данный момент мы поддерживаем сеть TRC-20 (Tron) и BEP-20 (BSC). Пожалуйста, убедитесь, что вы выбираете правильную сеть при отправке средств, иначе они могут быть безвозвратно утеряны.'
+        },
+        {
+          question: 'Какое время обработки вывода средств?',
+          answer: 'Вывод криптовалюты обычно занимает от 5 до 30 минут в зависимости от загруженности сети. Вывод фиатных средств через P2P зависит от скорости подтверждения контрагентом.'
+        }
+      ]
+    },
+    {
+      id: 'exchange',
+      title: 'Биржа',
+      icon: RefreshCcw,
+      items: [
+        {
+          question: 'Как работает "Быстрый обмен"?',
+          answer: (
+            <div>
+              Функция 
+              <button 
+                onClick={() => { onClose(); setActiveTab('exchange'); }}
+                className="inline-flex items-center gap-1 mx-1 text-blue-600 font-bold hover:underline"
+              >
+                Быстрый обмен
+              </button> 
+              позволяет мгновенно конвертировать TMT в USDT и наоборот по актуальному курсу системы с минимальной комиссией.
+            </div>
+          )
+        },
+        {
+          question: 'Где посмотреть историю торговых операций?',
+          answer: 'История всех обменов доступна во вкладке "Обмен" -> "История обменов". Там вы найдете детали каждой транзакции и её статус.'
+        }
+      ]
+    },
+    {
+      id: 'p2p',
+      title: 'P2P Платформа',
+      icon: Users,
+      items: [
+        {
+          question: 'Безопасно ли торговать на P2P?',
+          answer: (
+            <div>
+              Да, наша платформа использует систему Escrow. Когда вы открываете сделку, криптовалюта продавца блокируется системой до подтверждения оплаты. 
+              Подробнее в 
+              <button className="text-blue-600 font-bold mx-1 hover:underline">
+                Правилах P2P торговли
+              </button>.
+            </div>
+          )
+        },
+        {
+          question: 'Что делать, если контрагент не подтверждает оплату?',
+          answer: 'Если прошло более 15 минут, а подтверждения нет, вы можете открыть "Спор". Наш арбитр рассмотрит доказательства оплаты (чеки, скриншоты) и примет решение.'
+        }
+      ]
+    },
+    {
+      id: 'aml',
+      title: 'AML проверки',
+      icon: FileCheck,
+      items: [
+        {
+          question: 'Что такое AML и зачем это нужно?',
+          answer: 'Anti-Money Laundering (AML) — это меры по борьбе с отмыванием денег. Мы проверяем входящие транзакции на причастность к незаконной деятельности для обеспечения безопасности всех пользователей.'
+        }
+      ]
+    },
+    {
+      id: 'referral',
+      title: 'Реферальная программа',
+      icon: Gift,
+      items: [
+        {
+          question: 'Как работает реферальная система?',
+          answer: (
+            <div>
+              Приглашайте друзей по своей ссылке в разделе 
+              <button 
+                onClick={() => { onClose(); setActiveTab('profile'); }}
+                className="text-blue-600 font-bold mx-1 hover:underline"
+              >
+                Рефералы
+              </button> 
+              и получайте бонусы с их первой сделки.
+            </div>
+          )
+        }
+      ]
+    },
+    {
+      id: 'api',
+      title: 'API-ключи',
+      icon: Key,
+      items: [
+        {
+          question: 'Как создать API-ключ?',
+          answer: 'Создание API-ключей доступно в разделе "Настройки" -> "Управление API". Вы можете настроить права доступа: только чтение или возможность совершать сделки.'
+        }
+      ]
+    },
+    {
+      id: 'levels',
+      title: 'Финансовые уровни',
+      icon: TrendingUp,
+      items: [
+        {
+          question: 'Как повысить свой уровень?',
+          answer: 'Уровень зависит от объема ваших торгов за последние 30 дней. Чем выше уровень, тем ниже комиссии на бирже и выше лимиты на P2P.'
+        }
+      ]
+    },
+    {
+      id: 'offices',
+      title: 'Офисы',
+      icon: MapPin,
+      items: [
+        {
+          question: 'Где находятся ваши офисы?',
+          answer: 'Наши партнерские офисы для работы с наличными расположены в Ашхабаде и других крупных городах. Точные адреса доступны при создании P2P заявки с методом "Наличные".'
+        }
+      ]
+    }
   ];
 
+  const filteredData = useMemo(() => {
+    if (!searchQuery) return faqData;
+    const query = searchQuery.toLowerCase();
+    return faqData.map(section => ({
+      ...section,
+      items: section.items.filter(item => 
+        item.question.toLowerCase().includes(query) || 
+        (typeof item.answer === 'string' && item.answer.toLowerCase().includes(query))
+      )
+    })).filter(section => section.items.length > 0);
+  }, [searchQuery]);
+
+  const toggleItem = (id: string) => {
+    setOpenItems(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
   return (
-    <div className="fixed inset-0 z-[100] bg-gradient-to-b from-slate-50 to-white overflow-y-auto animate-in slide-in-from-right duration-300">
-      {/* Шапка с улучшенной типографикой и эффектами */}
-      <div className="bg-white/80 backdrop-blur-md px-5 py-4 flex items-center gap-3 sticky top-0 z-10 border-b border-slate-200/60 shadow-sm">
-        <button
-          onClick={onClose}
-          className="p-2 -ml-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-600 transition-all duration-200 active:scale-95"
-          aria-label={"назад"}
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-        <div>
-          <h2 className="text-xl font-bold text-slate-800 tracking-tight">
-            {t(language, 'help')}
-          </h2>
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-            {t(language, 'helpSubtitle')}
-          </p>
+    <div className="fixed inset-0 z-[100] bg-slate-50 flex flex-col animate-in slide-in-from-right duration-300">
+      {/* Header */}
+      <div className="bg-white/80 backdrop-blur-xl px-5 py-4 flex items-center justify-between sticky top-0 z-10 border-b border-slate-200/60 shadow-sm">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onClose}
+            className="p-2 -ml-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-600 transition-all active:scale-95"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <div>
+            <h2 className="text-xl font-bold text-slate-900 leading-none mb-1">
+              Центр поддержки
+            </h2>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+              FAQ & Документация
+            </p>
+          </div>
         </div>
+        
+        <a
+          href="https://t.me/rapira_support"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors"
+        >
+          <MessageCircle className="w-5 h-5" />
+        </a>
       </div>
 
-      {/* Основной контент с карточками и аккуратными отступами */}
-      <div className="max-w-2xl mx-auto p-5 space-y-5 pb-32">
-        {/* Приветственная карточка */}
-        <div className="bg-white p-6 rounded-[2.5rem] shadow-md ring-1 ring-slate-200/80 transition-all hover:shadow-lg">
-          <div className="flex items-start gap-3 mb-4">
-            <div className="p-2.5 bg-blue-50 rounded-2xl">
-              <HelpCircle className="w-5 h-5 text-blue-600" />
-            </div>
-            <h3 className="text-base font-bold text-slate-800 leading-tight">
-              Добро пожаловать в раздел помощи!
-            </h3>
-          </div>
-          <p className="text-slate-600 text-sm leading-relaxed mb-4">
-            Здесь вы найдете ответы на часто задаваемые вопросы и полезные инструкции по работе с нашим приложением.
-          </p>
-
-          {/* Telegram-контакт в виде красивой кнопки-ссылки */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-2xl border border-blue-100">
-            <p className="text-slate-700 text-sm mb-2 font-medium">
-              Связаться с поддержкой
-            </p>
-            <a
-              href="https://t.me/your_support_bot"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl shadow-sm ring-1 ring-slate-200 text-blue-600 font-medium text-sm hover:bg-blue-50 transition-all duration-200"
-            >
-              <MessageCircle className="w-4 h-4" />
-              <span>@your_support_bot</span>
-              <ArrowRight className="w-3.5 h-3.5 opacity-70" />
-            </a>
+      <div className="flex-1 overflow-y-auto pb-10">
+        {/* Search Bar */}
+        <div className="p-5">
+          <div className="relative group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+            <input 
+              type="text"
+              placeholder="Поиск по вопросам..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
+            />
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery('')}
+                className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-slate-100 rounded-full text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Карточка FAQ с улучшенным отображением */}
-        <div className="bg-white p-6 rounded-[2.5rem] shadow-md ring-1 ring-slate-200/80">
-          <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-5">
-            Часто задаваемые вопросы
-          </h3>
-          <ul className="space-y-3">
-            {faqItems.map((item, idx) => {
-              const Icon = item.icon;
-              return (
-                <li key={idx}>
-                  <div className="flex items-center gap-3 p-2 -mx-2 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer group">
-                    <div className="p-2 bg-slate-100 rounded-xl text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-600 transition-all">
-                      <Icon className="w-4 h-4" />
-                    </div>
-                    <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">
-                      {item.question}
+        {/* FAQ Sections */}
+        <div className="px-5 space-y-6">
+          {filteredData.length > 0 ? (
+            filteredData.map((section) => (
+              <div key={section.id} className="space-y-3">
+                <div className="flex items-center gap-2 px-1">
+                  <div className="p-1.5 bg-blue-100 rounded-lg text-blue-600">
+                    <section.icon className="w-4 h-4" />
+                  </div>
+                  <h3 className="text-sm font-bold text-slate-800 uppercase tracking-tight">
+                    {section.title}
+                  </h3>
+                </div>
+
+                <div className="space-y-2">
+                  {section.items.map((item, idx) => {
+                    const itemId = `${section.id}-${idx}`;
+                    const isOpen = openItems.includes(itemId);
+                    
+                    return (
+                      <div 
+                        key={itemId}
+                        className={`bg-white border transition-all duration-300 rounded-2xl overflow-hidden ${
+                          isOpen ? 'border-blue-200 ring-4 ring-blue-500/5 shadow-md' : 'border-slate-100 shadow-sm'
+                        }`}
+                      >
+                        <button
+                          onClick={() => toggleItem(itemId)}
+                          className="w-full px-5 py-4 flex items-center justify-between text-left group"
+                        >
+                          <span className={`text-sm font-semibold transition-colors ${
+                            isOpen ? 'text-blue-600' : 'text-slate-700 group-hover:text-slate-900'
+                          }`}>
+                            {item.question}
+                          </span>
+                          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${
+                            isOpen ? 'rotate-180 text-blue-500' : ''
+                          }`} />
+                        </button>
+                        
+                        <div className={`transition-all duration-300 ease-in-out ${
+                          isOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
+                        }`}>
+                          <div className="px-5 pb-5 text-sm leading-relaxed text-slate-600 border-t border-slate-50 pt-4">
+                            {item.answer}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="py-20 text-center">
+              <div className="inline-flex p-4 bg-slate-100 rounded-full mb-4">
+                <HelpCircle className="w-8 h-8 text-slate-400" />
+              </div>
+              <h4 className="text-base font-bold text-slate-800">Ничего не найдено</h4>
+              <p className="text-sm text-slate-500 mt-1">Попробуйте изменить запрос</p>
+            </div>
+          )}
+        </div>
+
+        {/* Documents Section */}
+        <div className="mt-10 px-5">
+          <div className="bg-slate-900 rounded-[2.5rem] p-6 text-white overflow-hidden relative shadow-xl">
+            <div className="absolute top-0 right-0 p-8 opacity-10">
+              <FileText className="w-32 h-32" />
+            </div>
+            
+            <h3 className="text-lg font-bold mb-4 relative z-10">Юридические документы</h3>
+            <div className="space-y-3 relative z-10">
+              {[
+                { name: 'Пользовательское соглашение', icon: FileText },
+                { name: 'Политика конфиденциальности', icon: Shield },
+                { name: 'AML/KYC Политика', icon: FileCheck },
+                { name: 'Правила P2P торговли', icon: Users },
+              ].map((doc, i) => (
+                <button 
+                  key={i}
+                  className="w-full flex items-center justify-between p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-colors border border-white/10 group"
+                >
+                  <div className="flex items-center gap-3">
+                    <doc.icon className="w-4 h-4 text-slate-400 group-hover:text-white" />
+                    <span className="text-sm font-medium text-slate-300 group-hover:text-white">
+                      {doc.name}
                     </span>
                   </div>
-                </li>
-              );
-            })}
-          </ul>
+                  <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-white" />
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* Блок о постоянном улучшении */}
-        <div className="bg-gradient-to-br from-slate-100 to-slate-50 p-5 rounded-[2rem] border border-slate-200/50">
-          <p className="text-slate-600 text-sm italic flex items-center gap-2">
-            <span className="inline-block w-1.5 h-1.5 bg-blue-400 rounded-full"></span>
-            Мы постоянно работаем над улучшением нашего сервиса и добавлением новых функций. Следите за обновлениями!
-          </p>
+        {/* Footer Support */}
+        <div className="mt-8 px-5">
+          <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2.5rem] p-6 text-center shadow-lg shadow-blue-500/20">
+            <h3 className="text-lg font-bold text-white mb-2">Остались вопросы?</h3>
+            <p className="text-blue-100 text-sm mb-5 px-4">
+              Наши специалисты службы поддержки работают 24/7 и готовы помочь вам в любое время.
+            </p>
+            <a
+              href="https://t.me/rapira_support"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 bg-white text-blue-600 px-6 py-3 rounded-2xl font-bold text-sm shadow-sm hover:bg-blue-50 transition-all active:scale-95"
+            >
+              <MessageCircle className="w-4 h-4" />
+              Связаться в Telegram
+            </a>
+          </div>
         </div>
       </div>
     </div>

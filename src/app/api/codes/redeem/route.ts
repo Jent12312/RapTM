@@ -1,26 +1,25 @@
 // src/app/api/codes/redeem/route.ts
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { createHash } from 'crypto';
-
-function hashCode(code: string): string {
-  return createHash('sha256').update(code + process.env.CODE_SALT || 'default-salt').digest('hex');
-}
+import { getAuthUser } from '@/lib/getAuthUser';
+import bcrypt from 'bcryptjs';
 
 // Хранилище попыток в памяти (для production лучше использовать Redis)
 const failedAttempts = new Map<string, { count: number; lockedUntil: number }>();
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { userId, code } = body;
+    const authUser = await getAuthUser();
+    if (!authUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    if (!userId || !code) {
-      return NextResponse.json(
-        { error: 'Некорректные данные' },
-        { status: 400 }
-      );
+    const body = await req.json();
+    const { code } = body;
+
+    if (!code) {
+      return NextResponse.json({ error: 'Введите код' }, { status: 400 });
     }
+
+    const userId = authUser.userId;
 
     // Проверка на блокировку (защита от brute force)
     const userAttempts = failedAttempts.get(userId);
@@ -33,44 +32,54 @@ export async function POST(req: Request) {
           { status: 429 }
         );
       } else {
-        // Сброс блокировки
         failedAttempts.delete(userId);
       }
     }
 
-    // Хешируем введенный код для поиска в БД
-    const codeHash = hashCode(code.trim().toUpperCase());
+    // Парсим код: TM-USDT-500-KEY-SECRET
+    const parts = code.trim().split('-');
+    if (parts.length < 5) {
+      return NextResponse.json({ error: 'Неверный формат кода' }, { status: 400 });
+    }
+
+    const key = parts[3]; // KEY
 
     // Используем транзакцию для защиты от Double Spending
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Находим код и блокируем строку (FOR UPDATE эмуляция через transaction)
+      // 1. Находим код по ключу
       const codeRecord = await tx.code.findUnique({
-        where: { codeHash },
-        include: { creator: true, redeemer: true }
+        where: { code: key },
+        include: { creator: true }
       });
 
       if (!codeRecord) {
-        // Записываем неудачную попытку
-        const current = failedAttempts.get(userId) || { count: 0, lockedUntil: 0 };
-        failedAttempts.set(userId, {
-          count: current.count + 1,
-          lockedUntil: current.count >= 2 ? Date.now() + 60 * 60 * 1000 : 0 // 1 час блокировки после 3 попыток
-        });
         throw new Error('Код не найден');
       }
 
-      // 2. Проверяем статус
-      if (codeRecord.status !== 'ACTIVE') {
-        if (codeRecord.status === 'USED') {
-          throw new Error('Код уже был использован');
-        } else if (codeRecord.status === 'EXPIRED') {
-          throw new Error('Срок действия кода истек');
-        } else if (codeRecord.status === 'CANCELLED') {
-          throw new Error('Код был отменен');
-        }
+      // 2. Сравниваем хеш
+      const isValid = await bcrypt.compare(code.trim(), codeRecord.codeHash);
+      if (!isValid) {
+        // Записываем неудачную попытку
+        const current = failedAttempts.get(userId) || { count: 0, lockedUntil: 0 };
+        const newCount = current.count + 1;
+        failedAttempts.set(userId, {
+          count: newCount,
+          lockedUntil: newCount >= 3 ? Date.now() + 30 * 60 * 1000 : 0 // 30 мин блокировки
+        });
+        throw new Error('Неверный код');
       }
 
-      // 3. Проверяем срок действия
+      // 3. Проверяем статус
+      if (codeRecord.status !== 'ACTIVE') {
+        const statusMessages: Record<string, string> = {
+          USED: 'Код уже был использован',
+          EXPIRED: 'Срок действия кода истек',
+          CANCELLED: 'Код был отменен'
+        };
+        throw new Error(statusMessages[codeRecord.status] || 'Код недействителен');
+      }
+
+      // 4. Проверяем срок действия
       if (new Date() > codeRecord.expiresAt) {
         await tx.code.update({
           where: { id: codeRecord.id },
@@ -79,12 +88,12 @@ export async function POST(req: Request) {
         throw new Error('Срок действия кода истек');
       }
 
-      // 4. Проверяем, не активирует ли пользователь свой собственный код
+      // 5. Проверяем, не активирует ли пользователь свой собственный код
       if (codeRecord.creatorId === userId) {
         throw new Error('Нельзя активировать собственный код');
       }
 
-      // 5. Помечаем код как использованный
+      // 6. Помечаем код как использованный
       const updatedCode = await tx.code.update({
         where: { id: codeRecord.id },
         data: {
@@ -94,34 +103,44 @@ export async function POST(req: Request) {
         }
       });
 
-      // 6. Начисляем баланс пользователю
+      // 7. Начисляем баланс пользователю
+      const balanceField = codeRecord.currency === 'USDT' ? 'usdtBalance' : 'tmtBalance';
       const updatedWallet = await tx.wallet.update({
         where: { userId },
         data: {
-          [codeRecord.currency === 'USDT' ? 'usdtBalance' : 'tmtBalance']: {
+          [balanceField]: {
             increment: codeRecord.amount
           }
+        }
+      });
+
+      // 8. Создаем транзакцию пополнения
+      await tx.transaction.create({
+        data: {
+          userId,
+          type: 'DEPOSIT',
+          method: 'CODE',
+          amount: codeRecord.amount,
+          asset: codeRecord.currency,
+          status: 'COMPLETED',
+          code: `TM-${codeRecord.currency}-${codeRecord.amount}-${key}-****`
         }
       });
 
       // Успех - сбрасываем счетчик неудачных попыток
       failedAttempts.delete(userId);
 
-      return { code: updatedCode, wallet: updatedWallet, creator: codeRecord.creator };
+      return { code: updatedCode, wallet: updatedWallet, creator: codeRecord.creator, key };
     });
 
-    // Уведомление создателю кода (если Telegram подключен)
+    // Уведомление создателю кода
     try {
       if (result.creator?.tgChatId) {
-        const msg = `✅ Ваш код на ${result.code.amount} ${result.code.currency} был активирован!\n\nКод: ${code.slice(0, 8)}...`;
-
+        const msg = `✅ Ваш код на ${result.code.amount} ${result.code.currency} был активирован!\n\nID: ${result.key}`;
         await fetch(`${process.env.TELEGRAM_BOT_API}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: result.creator.tgChatId,
-            text: msg
-          })
+          body: JSON.stringify({ chat_id: result.creator.tgChatId, text: msg })
         });
       }
     } catch (e) {
@@ -133,9 +152,7 @@ export async function POST(req: Request) {
       message: `Деньги зачислены!`,
       amount: result.code.amount,
       currency: result.code.currency,
-      balance: result.code.currency === 'USDT' 
-        ? result.wallet.usdtBalance 
-        : result.wallet.tmtBalance
+      balance: Number(result.wallet[result.code.currency === 'USDT' ? 'usdtBalance' : 'tmtBalance'])
     });
   } catch (error: any) {
     console.error('Redeem code error:', error);

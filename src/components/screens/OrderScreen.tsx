@@ -21,6 +21,8 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
   const myReview = initialOrder.reviews?.find((r: any) => r.authorId === user.id);
   const [hasReviewed, setHasReviewed] = useState(!!myReview);
   const [selectedRating, setSelectedRating] = useState<string | null>(myReview?.rating || null);
+  const [comment, setComment] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   // РОЛИ ТЕПЕРЬ ЖЕЛЕЗОБЕТОННЫЕ:
   const isBuyer = user.id === order.buyerId; // Тот кто ПОЛУЧАЕТ крипту
@@ -94,22 +96,31 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
     }
   };
 
-  const handleLeaveReview = async (rating: 'GOOD' | 'NEUTRAL' | 'BAD') => {
-    setSelectedRating(rating);
-    setHasReviewed(true);
-
+  const handleLeaveReview = async (rating: 'EXCELLENT' | 'NEUTRAL' | 'BAD') => {
+    if (isSubmittingReview) return;
+    setIsSubmittingReview(true);
+    
     try {
-      await fetch(`/api/orders/${order.id}/review`, {
+      const res = await fetch(`/api/orders/${order.id}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          authorId: user.id,
-          targetId: partnerId,
-          rating
+          rating,
+          comment: comment.trim() || null
         })
       });
+      
+      if (res.ok) {
+        setSelectedRating(rating);
+        setHasReviewed(true);
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Ошибка при отправке отзыва');
+      }
     } catch (e) {
       alert(t(language, 'error'));
+    } finally {
+      setIsSubmittingReview(false);
     }
   };
 
@@ -253,19 +264,19 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
 
                   <div className="flex justify-center gap-4">
                     <button
-                      disabled={hasReviewed}
-                      onClick={() => handleLeaveReview('GOOD')}
+                      disabled={hasReviewed || isSubmittingReview}
+                      onClick={() => handleLeaveReview('EXCELLENT')}
                       className={`p-4 rounded-2xl flex flex-col items-center gap-2 transition-all ${
-                        selectedRating === 'GOOD' ? 'bg-blue-50 ring-2 ring-blue-500 scale-110' :
+                        selectedRating === 'EXCELLENT' ? 'bg-blue-50 ring-2 ring-blue-500 scale-110' :
                         hasReviewed ? 'opacity-30' : 'bg-slate-50 hover:bg-blue-50 active:scale-95'
                       }`}
                     >
-                      <Smile className={`w-8 h-8 ${selectedRating === 'GOOD' ? 'text-blue-500' : 'text-slate-400'}`} />
-                      <span className={`text-[10px] font-bold ${selectedRating === 'GOOD' ? 'text-blue-600' : 'text-slate-400'}`}>{t(language, 'excellent')}</span>
+                      <Smile className={`w-8 h-8 ${selectedRating === 'EXCELLENT' ? 'text-blue-500' : 'text-slate-400'}`} />
+                      <span className={`text-[10px] font-bold ${selectedRating === 'EXCELLENT' ? 'text-blue-600' : 'text-slate-400'}`}>{t(language, 'excellent')}</span>
                     </button>
 
                     <button
-                      disabled={hasReviewed}
+                      disabled={hasReviewed || isSubmittingReview}
                       onClick={() => handleLeaveReview('NEUTRAL')}
                       className={`p-4 rounded-2xl flex flex-col items-center gap-2 transition-all ${
                         selectedRating === 'NEUTRAL' ? 'bg-slate-100 ring-2 ring-slate-400 scale-110' :
@@ -277,7 +288,7 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
                     </button>
 
                     <button
-                      disabled={hasReviewed}
+                      disabled={hasReviewed || isSubmittingReview}
                       onClick={() => handleLeaveReview('BAD')}
                       className={`p-4 rounded-2xl flex flex-col items-center gap-2 transition-all ${
                         selectedRating === 'BAD' ? 'bg-red-50 ring-2 ring-red-500 scale-110' :
@@ -288,6 +299,17 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
                       <span className={`text-[10px] font-bold ${selectedRating === 'BAD' ? 'text-red-600' : 'text-slate-400'}`}>{t(language, 'bad')}</span>
                     </button>
                   </div>
+
+                  {!hasReviewed && (
+                    <div className="mt-6 animate-in fade-in slide-in-from-top-2">
+                      <textarea
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
+                        placeholder="Напишите пару слов о сделке (необязательно)..."
+                        className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-2xl px-4 py-3 text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-400 min-h-[80px] resize-none"
+                      />
+                    </div>
+                  )}
 
                   {hasReviewed && (
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-4">{t(language, 'reviewSuccess')}</p>
@@ -315,19 +337,19 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
 
                   <div className="flex justify-center gap-4">
                     <button
-                      disabled={hasReviewed}
-                      onClick={() => handleLeaveReview('GOOD')}
+                      disabled={hasReviewed || isSubmittingReview}
+                      onClick={() => handleLeaveReview('EXCELLENT')}
                       className={`p-4 rounded-2xl flex flex-col items-center gap-2 transition-all ${
-                        selectedRating === 'GOOD' ? 'bg-blue-50 ring-2 ring-blue-500 scale-110' :
+                        selectedRating === 'EXCELLENT' ? 'bg-blue-50 ring-2 ring-blue-500 scale-110' :
                         hasReviewed ? 'opacity-30' : 'bg-slate-50 hover:bg-blue-50 active:scale-95'
                       }`}
                     >
-                      <Smile className={`w-8 h-8 ${selectedRating === 'GOOD' ? 'text-blue-500' : 'text-slate-400'}`} />
-                      <span className={`text-[10px] font-bold ${selectedRating === 'GOOD' ? 'text-blue-600' : 'text-slate-400'}`}>{t(language, 'excellent')}</span>
+                      <Smile className={`w-8 h-8 ${selectedRating === 'EXCELLENT' ? 'text-blue-500' : 'text-slate-400'}`} />
+                      <span className={`text-[10px] font-bold ${selectedRating === 'EXCELLENT' ? 'text-blue-600' : 'text-slate-400'}`}>{t(language, 'excellent')}</span>
                     </button>
 
                     <button
-                      disabled={hasReviewed}
+                      disabled={hasReviewed || isSubmittingReview}
                       onClick={() => handleLeaveReview('NEUTRAL')}
                       className={`p-4 rounded-2xl flex flex-col items-center gap-2 transition-all ${
                         selectedRating === 'NEUTRAL' ? 'bg-slate-100 ring-2 ring-slate-400 scale-110' :
@@ -339,7 +361,7 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
                     </button>
 
                     <button
-                      disabled={hasReviewed}
+                      disabled={hasReviewed || isSubmittingReview}
                       onClick={() => handleLeaveReview('BAD')}
                       className={`p-4 rounded-2xl flex flex-col items-center gap-2 transition-all ${
                         selectedRating === 'BAD' ? 'bg-red-50 ring-2 ring-red-500 scale-110' :
@@ -351,6 +373,17 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
                     </button>
                   </div>
 
+                  {!hasReviewed && (
+                    <div className="mt-6 animate-in fade-in slide-in-from-top-2">
+                      <textarea
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
+                        placeholder="Напишите пару слов о сделке (необязательно)..."
+                        className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-2xl px-4 py-3 text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-400 min-h-[80px] resize-none"
+                      />
+                    </div>
+                  )}
+
                   {hasReviewed && (
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-4">{t(language, 'reviewSuccess')}</p>
                   )}
@@ -360,26 +393,48 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
           </div>
 
           {/* Детали платежа (скрываем если завершено) */}
-          {status !== 'COMPLETED' && (
-            <div className="bg-white p-6 rounded-[2rem] shadow-sm ring-1 ring-slate-100 space-y-4">
-              <div className="flex justify-between items-center pb-4 border-b border-slate-50">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  {isBuyer ? t(language, 'adminSendAmount') : t(language, 'adminReceiveAmount')}
-                </span>
-                <span className="text-lg font-black text-slate-800">{order.amountFiat} {order.ad.fiat}</span>
+          {status !== 'COMPLETED' && status !== 'CANCELLED' && (
+            <div className="space-y-4">
+              <div className="bg-white p-6 rounded-[2rem] shadow-sm ring-1 ring-slate-100 space-y-4">
+                <div className="flex justify-between items-center pb-4 border-b border-slate-50">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    {isBuyer ? t(language, 'adminSendAmount') : t(language, 'adminReceiveAmount')}
+                  </span>
+                  <span className="text-lg font-black text-slate-800">{order.amountFiat} {order.ad.fiat}</span>
+                </div>
+                <div className="flex justify-between items-center pb-4 border-b border-slate-50">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    {isBuyer ? t(language, 'adminReceiveAmount') : t(language, 'adminSendAmount')}
+                  </span>
+                  <span className="text-lg font-black text-emerald-600">{order.amountAsset} {order.ad.asset}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t(language, 'meetingCity')}</span>
+                  <span className="text-sm font-bold text-slate-700 flex items-center gap-1">
+                    <MapPin className="w-4 h-4 text-emerald-500" /> {order.ad.city}
+                  </span>
+                </div>
               </div>
-              <div className="flex justify-between items-center pb-4 border-b border-slate-50">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  {isBuyer ? t(language, 'adminReceiveAmount') : t(language, 'adminSendAmount')}
-                </span>
-                <span className="text-lg font-black text-emerald-600">{order.amountAsset} {order.ad.asset}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t(language, 'meetingCity')}</span>
-                <span className="text-sm font-bold text-slate-700 flex items-center gap-1">
-                  <MapPin className="w-4 h-4 text-emerald-500" /> {order.ad.city}
-                </span>
-              </div>
+
+              {/* Платёжные реквизиты для Покупателя */}
+              {isBuyer && status === 'PENDING' && (
+                <div className="bg-blue-50 p-6 rounded-[2rem] ring-1 ring-blue-100 space-y-4 animate-in slide-in-from-top-4">
+                  <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">{t(language, 'adminSendAmount')} {t(language, 'fiat')}</p>
+                  
+                  <div className="space-y-3">
+                    {order.ad.paymentMethods?.map((method: string) => (
+                      <div key={method} className="bg-white/60 p-3 rounded-xl flex items-center justify-between border border-blue-200">
+                        <span className="text-xs font-bold text-blue-800">{method === 'Cash' ? '🤝 Наличные' : method === 'Card' ? '💳 Банковская карта' : '📱 Tmcell'}</span>
+                        <span className="text-[10px] font-bold text-blue-500 uppercase">{method === 'Cash' ? order.ad.city : 'Реквизиты в чате'}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="text-xs text-blue-700 font-medium bg-blue-100/50 p-3 rounded-xl">
+                    💡 {order.ad.description || 'Свяжитесь с продавцом в чате для уточнения реквизитов или места встречи.'}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -388,15 +443,24 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
         <div className="fixed bottom-0 left-0 right-0 p-5 bg-white/90 backdrop-blur-xl border-t border-slate-100 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-20">
           
           {/* Блокировка кнопок при споре */}
-          {order.isDisputed && (
-            <div className="text-center text-red-500 font-bold text-sm mb-4">
-              ⚠️ Сделка заморожена. Действия заблокированы.
+          {order.isDisputed && !['COMPLETED', 'CANCELLED'].includes(status) && (
+            <div className="text-center text-red-500 font-bold text-sm mb-4 bg-red-50 py-3 rounded-2xl ring-1 ring-red-100">
+              ⚠️ Сделка заморожена. Ждите решения арбитра.
             </div>
           )}
 
           {status === 'PENDING' && isBuyer && !order.isDisputed && (
             <div className="flex gap-3">
-              <button className="flex-1 py-4 text-slate-400 font-bold text-sm uppercase bg-slate-50 rounded-2xl active:scale-95">{t(language, 'cancel')}</button>
+              <button 
+                onClick={() => {
+                  if (confirm('Вы уверены, что хотите отменить сделку?')) {
+                    updateOrderStatus('CANCELLED');
+                  }
+                }}
+                className="flex-1 py-4 text-slate-400 font-bold text-sm uppercase bg-slate-50 rounded-2xl active:scale-95"
+              >
+                {t(language, 'cancel')}
+              </button>
               <button onClick={() => updateOrderStatus('PAID')} className="flex-[2] bg-emerald-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-emerald-200 active:scale-95 transition-all uppercase tracking-wide">
                 {t(language, 'iPay')}
               </button>

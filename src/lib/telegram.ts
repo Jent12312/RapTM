@@ -12,12 +12,15 @@ export type NotificationType =
   | 'order_completed'    // Сделка завершена
   | 'order_cancelled'    // Сделка отменена
   | 'order_disputed'     // Открыт спор
+  | 'dispute_resolved'   // Спор разрешён
   | 'kyc_approved'       // KYC одобрен
   | 'kyc_rejected'       // KYC отклонён
   | 'new_message'        // Новое сообщение в чате
   | 'review_received'    // Получен отзыв
   | 'ad_published'       // Объявление опубликовано
   | 'ad_expired'         // Объявление истекло
+  | 'referral_reward'     // Награда за реферала
+  | 'deposit_received'    // Депозит получен
   | 'welcome';           // Приветственное сообщение
 
 interface NotificationData {
@@ -397,6 +400,47 @@ ${getLocalizedText(language, 'botCreateNewAd')}
             {
               text: getLocalizedText(language, 'botCreateAd'),
               url: `https://t.me/rapira_tm_bot/app?startapp=create_ad`
+            }
+          ]]
+        }
+      };
+
+    case 'referral_reward':
+      return {
+        text: `
+${getLocalizedText(language, 'referralRewardReceived')}
+
+💰 +${data.amount} ${data.asset}
+👤 ${getLocalizedText(language, 'adminUser')}: ${data.referralName}
+
+${getLocalizedText(language, 'botThankYou')}
+        `.trim(),
+        reply_markup: {
+          inline_keyboard: [[
+            {
+              text: getLocalizedText(language, 'referralTitle'),
+              url: `https://t.me/rapira_tm_bot/app?startapp=referral`
+            }
+          ]]
+        }
+      };
+
+    case 'deposit_received':
+      return {
+        text: `
+📥 <b>${getLocalizedText(language, 'botDepositReceived') || 'Депозит зачислен!'}</b>
+
+💰 ${getLocalizedText(language, 'botAmount') || 'Сумма'}: <b>${data.amount} ${data.asset}</b>
+🌐 ${getLocalizedText(language, 'botNetwork') || 'Сеть'}: ${data.network}
+📝 TxID: <code>${data.txId}</code>
+
+${getLocalizedText(language, 'botDepositSuccess') || 'Средства успешно добавлены на ваш баланс.'}
+        `.trim(),
+        reply_markup: {
+          inline_keyboard: [[
+            {
+              text: getLocalizedText(language, 'botBackToWallet'),
+              url: `https://t.me/rapira_tm_bot/app?startapp=wallet`
             }
           ]]
         }

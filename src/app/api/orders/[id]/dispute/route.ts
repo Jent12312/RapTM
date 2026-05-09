@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { sendAdminNotification } from '@/lib/telegram';
+import { getAuthUser } from '@/lib/getAuthUser';
 
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    const { id: orderId } = await params;
+    const authUser = await getAuthUser();
+    if (!authUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { id: orderId } = await context.params;
 
     // Находим заказ
     const order = await prisma.order.findUnique({
@@ -18,6 +22,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    }
+
+    // Only buyer or seller can dispute
+    if (order.buyerId !== authUser.userId && order.sellerId !== authUser.userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Проверяем, что заказ в статусе PAID и еще не в споре

@@ -14,10 +14,10 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Получаем актуальный статус из user или храним локально
-  const kycStatus = user?.kycStatus || 'none';
-  const isVerified = user?.isVerified || kycStatus === 'verified';
-  const isPending = kycStatus === 'pending';
-  const isRejected = kycStatus === 'rejected';
+  const kycStatus = user?.kycStatus || 'NONE';
+  const isVerified = user?.isVerified || kycStatus === 'VERIFIED';
+  const isPending = kycStatus === 'PENDING';
+  const isRejected = kycStatus === 'REJECTED';
 
   const handlePhotoSelect = (file: File) => {
     // Проверка типа
@@ -77,7 +77,7 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
       if (res.ok) {
         addToast('Заявка отправлена! Ожидайте проверки администратором.', 'success');
         // Обновляем пользователя в сторе
-        await initUser(WebApp.initDataUnsafe.user);
+        await initUser(WebApp.initData);
       } else {
         addToast(data.error || 'Ошибка при отправке заявки', 'error');
       }

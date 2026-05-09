@@ -1,85 +1,74 @@
 // src/app/api/codes/generate/route.ts
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { createHash } from 'crypto';
+import { getAuthUser } from '@/lib/getAuthUser';
+import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
-// Генерация уникального кода формата: TM-USDT-500-A7B8-C9D1-E2F3
-function generateCode(amount: number, currency: string): string {
-  const randomPart = () => {
-    return Math.random().toString(36).substring(2, 6).toUpperCase();
-  };
-  
-  const parts = [
-    'TM',
-    currency,
-    Math.floor(amount).toString(),
-    randomPart(),
-    randomPart(),
-    randomPart()
-  ];
-  
-  return parts.join('-');
-}
-
-// Хеширование кода для хранения в БД
-function hashCode(code: string): string {
-  return createHash('sha256').update(code + process.env.CODE_SALT || 'default-salt').digest('hex');
+// Генерация уникального кода формата: TM-USDT-500-KEY-SECRET
+// KEY (6 символов) хранится открыто для поиска
+// SECRET (10 символов) хешируется
+function generateRawCodeParts() {
+  const key = crypto.randomBytes(3).toString('hex').toUpperCase(); // 6 chars
+  const secret = crypto.randomBytes(5).toString('hex').toUpperCase(); // 10 chars
+  return { key, secret };
 }
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { userId, amount, currency = 'USDT', feePercent = 1 } = body;
+    const authUser = await getAuthUser();
+    if (!authUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    if (!userId || !amount || amount <= 0) {
+    const body = await req.json();
+    const { amount, currency = 'USDT' } = body;
+
+    if (!amount || amount <= 0) {
       return NextResponse.json(
-        { error: 'Некорректные данные' },
+        { error: 'Некорректная сумма' },
         { status: 400 }
       );
     }
 
-    // Проверяем баланс пользователя
-    const wallet = await prisma.wallet.findUnique({
-      where: { userId }
+    // Получаем пользователя и его уровень
+    const user = await prisma.user.findUnique({
+      where: { id: authUser.userId },
+      include: { wallet: true }
     });
 
-    if (!wallet) {
-      return NextResponse.json({ error: 'Кошелек не найден' }, { status: 404 });
+    if (!user || !user.wallet) {
+      return NextResponse.json({ error: 'Пользователь или кошелек не найден' }, { status: 404 });
     }
 
+    // Комиссия 0.2% только для партнеров
+    const feePercent = user.level === 'Partner' ? 0.2 : 0.0;
     const fee = amount * (feePercent / 100);
     const totalDeduction = amount + fee;
 
-    if (currency === 'USDT') {
-      if (wallet.usdtBalance < totalDeduction) {
-        return NextResponse.json(
-          { error: `Недостаточно ${currency}. Нужно: ${totalDeduction} (включая комиссию ${fee})` },
-          { status: 400 }
-        );
-      }
-    } else if (currency === 'TMT') {
-      if (wallet.tmtBalance < totalDeduction) {
-        return NextResponse.json(
-          { error: `Недостаточно ${currency}. Нужно: ${totalDeduction} (включая комиссию ${fee})` },
-          { status: 400 }
-        );
-      }
+    const balanceField = currency === 'USDT' ? 'usdtBalance' : 'tmtBalance';
+    const currentBalance = Number(user.wallet[balanceField as keyof typeof user.wallet]);
+
+    if (currentBalance < totalDeduction) {
+      return NextResponse.json(
+        { error: `Недостаточно средств. Нужно: ${totalDeduction.toFixed(2)} ${currency} (включая комиссию ${fee.toFixed(2)})` },
+        { status: 400 }
+      );
     }
 
-    // Генерируем уникальный код
-    let code = generateCode(amount, currency);
-    let codeHash = hashCode(code);
+    // Генерируем код
+    let { key, secret } = generateRawCodeParts();
+    const fullCode = `TM-${currency}-${amount}-${key}-${secret}`;
     
-    // Проверяем уникальность (маловероятно, но всё же)
+    // Проверяем уникальность ключа
     let existing = await prisma.code.findUnique({
-      where: { codeHash }
+      where: { code: key }
     });
     
     let attempts = 0;
     while (existing && attempts < 10) {
-      code = generateCode(amount, currency);
-      codeHash = hashCode(code);
-      existing = await prisma.code.findUnique({ where: { codeHash } });
+      const parts = generateRawCodeParts();
+      key = parts.key;
+      secret = parts.secret;
+      existing = await prisma.code.findUnique({ where: { code: key } });
       attempts++;
     }
 
@@ -87,46 +76,58 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Не удалось сгенерировать уникальный код' }, { status: 500 });
     }
 
-    // Создаем код в транзакции: списываем баланс + создаем код
+    // Хешируем полный код
+    const codeHash = await bcrypt.hash(fullCode, 10);
+
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24);
+
+    // Создаем код в транзакции
     const [updatedWallet, newCode] = await prisma.$transaction([
-      // Списываем баланс
-      currency === 'USDT'
-        ? prisma.wallet.update({
-            where: { userId },
-            data: { usdtBalance: { decrement: totalDeduction } }
-          })
-        : prisma.wallet.update({
-            where: { userId },
-            data: { tmtBalance: { decrement: totalDeduction } }
-          }),
+      prisma.wallet.update({
+        where: { userId: authUser.userId },
+        data: { [balanceField]: { decrement: totalDeduction } }
+      }),
       
-      // Создаем код
       prisma.code.create({
         data: {
-          code,
+          code: key, // Сохраняем только ключ для поиска
           codeHash,
           amount,
           currency,
           fee,
           status: 'ACTIVE',
-          creatorId: userId,
-          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 часа
-        },
-        include: { creator: true }
+          creatorId: authUser.userId,
+          expiresAt
+        }
+      }),
+
+      prisma.transaction.create({
+        data: {
+          userId: authUser.userId,
+          type: 'WITHDRAWAL',
+          method: 'CODE',
+          amount,
+          fee,
+          asset: currency,
+          status: 'COMPLETED',
+          code: `TM-${currency}-${amount}-${key}-****` // Маскируем в истории транзакций
+        }
       })
     ]);
 
     return NextResponse.json({
       success: true,
-      code: newCode.code, // Возвращаем код в открытом виде
+      code: fullCode, // Возвращаем полный код пользователю ОДИН РАЗ
       amount: newCode.amount,
       currency: newCode.currency,
       fee: newCode.fee,
       expiresAt: newCode.expiresAt,
-      balance: currency === 'USDT' ? updatedWallet.usdtBalance : updatedWallet.tmtBalance
+      balance: Number(updatedWallet[balanceField as keyof typeof updatedWallet])
     });
   } catch (error) {
     console.error('Generate code error:', error);
-    return NextResponse.json({ error: 'Failed to generate code' }, { status: 500 });
+    return NextResponse.json({ error: 'Ошибка при создании кода' }, { status: 500 });
   }
 }
+

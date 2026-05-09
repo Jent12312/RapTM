@@ -37,31 +37,10 @@ export default function CreateAdScreen({ onClose }: Props) {
   const [paymentTime, setPaymentTime] = useState('15');
   const [reqKyc, setReqKyc] = useState(false);
   const [reqMinTrades, setReqMinTrades] = useState('');
-  const [showAdvanced, setShowAdvanced] = useState(false); // Тоггл для скрытия/показа сложных настроек
-
-  // Загрузка рыночной цены при изменении asset/fiat
-  useEffect(() => {
-    const fetchMarketPrice = async () => {
-      setIsLoadingPrice(true);
-      try {
-        const res = await fetch(`/api/market-price?asset=${asset}&fiat=${fiat}`);
-        const data = await res.json();
-        if (data.basePrice) {
-          setMarketPrice(data);
-          // Для фиксированной цены - автозаполняем текущим курсом
-          if (priceType === 'fixed' && !price) {
-            setPrice(data.basePrice.toFixed(2));
-          }
-        }
-      } catch (error) {
-        console.error('Failed to fetch market price:', error);
-      } finally {
-        setIsLoadingPrice(false);
-      }
-    };
-
-    fetchMarketPrice();
-  }, [asset, fiat, priceType]);
+  const [reqRating, setReqRating] = useState('0'); // Минимальный рейтинг
+  const [isPrivate, setIsPrivate] = useState(false); // Приватное объявление
+  const [paymentMethods, setPaymentMethods] = useState<string[]>(['Cash']); // Методы оплаты
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Калькулятор цены
   const calculatedPrice = (() => {
@@ -70,38 +49,44 @@ export default function CreateAdScreen({ onClose }: Props) {
     if (priceType === 'fixed') {
       return price || '0.00';
     } else {
-      // Плавающая цена: basePrice + процент
       const percent = parseFloat(pricePercent) || 0;
       const calculated = marketPrice.basePrice * (1 + percent / 100);
       return calculated.toFixed(2);
     }
   })();
 
-  // Предпросмотр цены в зависимости от типа
-  const pricePreview = (() => {
-    if (!marketPrice) return '';
-    
-    if (priceType === 'fixed') {
-      return `1 ${asset} = ${price || '0.00'} ${fiat}`;
+  const togglePaymentMethod = (method: string) => {
+    if (paymentMethods.includes(method)) {
+      if (paymentMethods.length > 1) {
+        setPaymentMethods(paymentMethods.filter(m => m !== method));
+      }
     } else {
-      const percent = parseFloat(pricePercent) || 0;
-      const sign = percent >= 0 ? '+' : '';
-      return `Рынок: ${marketPrice.basePrice} ${fiat} ${sign}${percent}% = ${calculatedPrice} ${fiat}`;
+      setPaymentMethods([...paymentMethods, method]);
     }
-  })();
+  };
 
   return (
     <div className="fixed inset-0 z-[100] bg-slate-50 overflow-y-auto animate-in slide-in-from-bottom duration-300">
       
       {/* Шапка */}
-      <div className="bg-white px-4 py-4 flex items-center gap-3 sticky top-0 z-10 border-b border-slate-100 shadow-sm">
-        <button onClick={onClose} className="p-2 -ml-2 bg-slate-50 rounded-full text-slate-500 active:scale-95">
-          <ChevronLeft className="w-6 h-6" />
-        </button>
-        <div>
-          <h2 className="text-lg font-bold text-slate-800 tracking-tight">{t(language, 'createAdHeader')}</h2>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">P2P {t(language, 'navP2P')}</p>
+      <div className="bg-white px-4 py-4 flex items-center justify-between sticky top-0 z-10 border-b border-slate-100 shadow-sm">
+        <div className="flex items-center gap-3">
+          <button onClick={onClose} className="p-2 -ml-2 bg-slate-50 rounded-full text-slate-500 active:scale-95">
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+          <div>
+            <h2 className="text-lg font-bold text-slate-800 tracking-tight">{t(language, 'createAdHeader')}</h2>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">P2P {t(language, 'navP2P')}</p>
+          </div>
         </div>
+
+        {/* Переключатель Публичный/Приватный */}
+        <button 
+          onClick={() => setIsPrivate(!isPrivate)}
+          className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${isPrivate ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200' : 'bg-slate-100 text-slate-500'}`}
+        >
+          {isPrivate ? '🔒 Приватный' : '🌍 Публичный'}
+        </button>
       </div>
 
       <div className="p-4 space-y-6 pb-32">
@@ -211,19 +196,6 @@ export default function CreateAdScreen({ onClose }: Props) {
             )}
           </div>
 
-          {/* Предпросмотр итоговой цены */}
-          {priceType === 'floating' && marketPrice && (
-            <div className="bg-gradient-to-r from-blue-50 to-emerald-50 p-4 rounded-2xl ring-1 ring-blue-100">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t(language, 'adFinalPrice')}</p>
-              <p className="text-2xl font-bold text-slate-800">
-                {calculatedPrice} <span className="text-sm font-medium text-slate-500">{fiat}</span>
-              </p>
-              <p className="text-xs text-slate-500 mt-1">
-                {marketPrice.basePrice.toFixed(2)} {fiat} × (1 + {parseFloat(pricePercent) || 0}% / 100)
-              </p>
-            </div>
-          )}
-
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t(language, 'minLimit')}</label>
@@ -240,42 +212,64 @@ export default function CreateAdScreen({ onClose }: Props) {
           </div>
         </div>
 
-        {/* 4. Детали сделки */}
-        <div className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-slate-100 space-y-4">
-
+        {/* 4. Методы оплаты и Детали */}
+        <div className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-slate-100 space-y-6">
+          
+          {/* Мульти-выбор методов оплаты */}
           <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t(language, 'adCashMethod').replace('{cash}', t(language, 'adCash'))}</label>
-            <div className="flex items-center justify-between mt-2 bg-emerald-50 ring-1 ring-emerald-100 p-3 rounded-2xl">
-              <span className="text-sm font-bold text-emerald-700 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4" /> {t(language, 'adCash')}
-              </span>
-              <select value={city} onChange={(e) => setCity(e.target.value)} className="bg-white text-xs font-bold text-slate-700 px-3 py-1.5 rounded-lg outline-none ring-1 ring-slate-200 appearance-none text-center">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 block">Методы оплаты</label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: 'Cash', label: 'Наличные', color: 'emerald' },
+                { id: 'Card', label: 'Карта', color: 'blue' },
+                { id: 'Tmcell', label: 'Tmcell', color: 'amber' }
+              ].map(m => (
+                <button
+                  key={m.id}
+                  onClick={() => togglePaymentMethod(m.id)}
+                  className={`py-3 rounded-xl text-[10px] font-bold transition-all border-2 ${
+                    paymentMethods.includes(m.id) 
+                      ? `bg-${m.color}-50 border-${m.color}-500 text-${m.color}-700 shadow-sm` 
+                      : 'bg-slate-50 border-transparent text-slate-400'
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {paymentMethods.includes('Cash') && (
+            <div className="animate-in fade-in slide-in-from-top-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Город для встречи (Наличные)</label>
+              <select value={city} onChange={(e) => setCity(e.target.value)} className="w-full mt-2 bg-slate-50 text-sm font-bold text-slate-700 px-4 py-3 rounded-2xl outline-none ring-1 ring-slate-200 appearance-none">
                 <option value="Ашхабад">Ашхабад</option>
                 <option value="Мары">Мары</option>
                 <option value="Туркменабад">Туркменабад</option>
                 <option value="Дашогуз">Дашогуз</option>
+                <option value="Балканабад">Балканабад</option>
               </select>
             </div>
-          </div>
+          )}
 
           <div>
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t(language, 'adTerms')}</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder={t(language, 'adTerms')}
-              className="w-full mt-1 bg-slate-50 p-4 rounded-2xl ring-1 ring-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium text-slate-700 min-h-[80px] resize-none placeholder-slate-500"
+              placeholder="Укажите номер карты или телефона, если выбрали безналичный расчет..."
+              className="w-full mt-2 bg-slate-50 p-4 rounded-2xl ring-1 ring-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium text-slate-700 min-h-[100px] resize-none placeholder-slate-400"
             ></textarea>
           </div>
 
-          <div className="flex justify-between items-center pt-2">
+          <div className="flex justify-between items-center">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t(language, 'adPaymentTime')}</label>
-            <div className="flex bg-slate-100 p-1 rounded-lg">
+            <div className="flex bg-slate-100 p-1 rounded-xl">
               {['15', '30', '45'].map(time => (
                 <button
                   key={time}
                   onClick={() => setPaymentTime(time)}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${paymentTime === time ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400'}`}
+                  className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${paymentTime === time ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400'}`}
                 >
                   {time} {t(language, 'time')}
                 </button>
@@ -299,7 +293,7 @@ export default function CreateAdScreen({ onClose }: Props) {
           </button>
 
           {showAdvanced && (
-            <div className="pt-4 border-t border-slate-50 space-y-4 animate-in fade-in slide-in-from-top-2">
+            <div className="pt-4 border-t border-slate-50 space-y-5 animate-in fade-in slide-in-from-top-2">
 
               {/* Требовать KYC */}
               <div className="flex justify-between items-center">
@@ -315,18 +309,21 @@ export default function CreateAdScreen({ onClose }: Props) {
                 </button>
               </div>
 
-              {/* Минимум сделок */}
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t(language, 'adMinTrades')}</label>
-                <div className="flex items-center gap-3 mt-1 bg-slate-50 p-3 rounded-2xl ring-1 ring-slate-200">
-                  <input
-                    type="number"
-                    placeholder="0"
-                    value={reqMinTrades}
-                    onChange={(e) => setReqMinTrades(e.target.value)}
-                    className="w-full font-bold text-slate-800 bg-transparent outline-none placeholder-slate-500"
-                  />
-                  <span className="text-xs font-bold text-slate-400">{t(language, 'adTrades')}</span>
+              <div className="grid grid-cols-2 gap-4">
+                {/* Минимум сделок */}
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t(language, 'adMinTrades')}</label>
+                  <div className="flex items-center gap-2 mt-1 bg-slate-50 p-3 rounded-2xl ring-1 ring-slate-200">
+                    <input type="number" placeholder="0" value={reqMinTrades} onChange={(e) => setReqMinTrades(e.target.value)} className="w-full text-sm font-bold text-slate-800 bg-transparent outline-none placeholder-slate-400" />
+                  </div>
+                </div>
+
+                {/* Минимальный рейтинг */}
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Мин. рейтинг</label>
+                  <div className="flex items-center gap-2 mt-1 bg-slate-50 p-3 rounded-2xl ring-1 ring-slate-200">
+                    <input type="number" step="0.1" placeholder="0.0" value={reqRating} onChange={(e) => setReqRating(e.target.value)} className="w-full text-sm font-bold text-slate-800 bg-transparent outline-none placeholder-slate-400" />
+                  </div>
                 </div>
               </div>
 
@@ -340,20 +337,16 @@ export default function CreateAdScreen({ onClose }: Props) {
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-xl border-t border-slate-100 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-20">
         <button
         onClick={async () => {
-            // Проверка для фиксированной цены
             if (priceType === 'fixed' && !price) {
-              addToast(t(language, 'error') + ': Введите цену', 'error');
+              addToast('Введите цену', 'error');
               return;
             }
-            
-            // Проверка для плавающей цены
             if (priceType === 'floating' && !pricePercent) {
-              addToast(t(language, 'error') + ': Введите процент', 'error');
+              addToast('Введите процент', 'error');
               return;
             }
-            
             if (!minLimit || !maxLimit) {
-              addToast(t(language, 'error') + ': Заполните лимиты', 'error');
+              addToast('Заполните лимиты', 'error');
               return;
             }
 
@@ -364,7 +357,6 @@ export default function CreateAdScreen({ onClose }: Props) {
               }
             }
 
-            // Определяем итоговую цену
             const finalPrice = priceType === 'floating' ? parseFloat(pricePercent) : parseFloat(price);
 
             const res = await fetch('/api/p2p', {
@@ -372,21 +364,21 @@ export default function CreateAdScreen({ onClose }: Props) {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 userId: user.id,
-                type: adDirection,
+                type: adDirection.toUpperCase(),
                 asset,
                 fiat,
-                priceType,
-                price: finalPrice, // Для floating - это процент, для fixed - это цена
-                minLimit,
-                maxLimit,
+                priceType: priceType.toUpperCase(),
+                price: finalPrice,
+                minLimit: Number(minLimit),
+                maxLimit: Number(maxLimit),
                 city,
-                autoReply: "",
-                // НОВЫЕ ПОЛЯ
-                description: description,
+                description,
                 paymentTime: Number(paymentTime),
-                reqKyc: reqKyc,
+                isPrivate,
+                reqKyc,
                 reqMinTrades: Number(reqMinTrades) || 0,
-                reqRating: 0 // Пока оставляем 0, добавим расчет рейтинга позже если нужно
+                reqRating: Number(reqRating) || 0,
+                paymentMethods
               })
             });
 
@@ -394,10 +386,11 @@ export default function CreateAdScreen({ onClose }: Props) {
               addToast(t(language, 'success'), 'success');
               onClose();
             } else {
-              addToast(t(language, 'error'), 'error');
+              const err = await res.json();
+              addToast(err.error || t(language, 'error'), 'error');
             }
           }}
-        className="w-full bg-blue-600 text-white font-bold py-4 rounded-[2rem] shadow-lg active:scale-95 transition-all text-lg"
+        className="w-full bg-blue-600 text-white font-bold py-5 rounded-[2.5rem] shadow-xl shadow-blue-100 active:scale-95 transition-all text-lg"
         >
         {t(language, 'publish')}
         </button>

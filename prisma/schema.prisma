@@ -23,9 +23,9 @@ enum Language {
 }
 
 enum UserLevel {
-  STANDARD
-  PRO
-  PARTNER
+  Standard
+  Pro
+  Partner
 }
 
 enum AdType {
@@ -55,6 +55,7 @@ enum ExchangeStatus {
 enum TransactionType {
   DEPOSIT
   WITHDRAWAL
+  BONUS
 }
 
 enum TransactionMethod {
@@ -62,6 +63,7 @@ enum TransactionMethod {
   CASH
   P2P
   CODE
+  SYSTEM
 }
 
 enum TransactionStatus {
@@ -77,6 +79,12 @@ enum CodeStatus {
   USED
   EXPIRED
   CANCELLED
+}
+
+enum ReviewRating {
+  EXCELLENT
+  NEUTRAL
+  BAD
 }
 
 model User {
@@ -96,18 +104,33 @@ model User {
   // Telegram Bot настройки
   phone             String?  // Для верификации
   email             String?  // Для привязки почты
+  isEmailVerified   Boolean  @default(false) // НОВОЕ: Подтверждение почты
   passcode          String?  // Для 2FA PIN-кода
   isAdmin           Boolean  @default(false) // Для доступа в админку
   tgNotifications   Boolean  @default(true) // Включены ли уведомления
   tgChatId          String?  // Chat ID для отправки уведомлений
   isDeleted         Boolean  @default(false) // Мягкое удаление (Soft Delete)
+  isBlocked         Boolean  @default(false) // Блокировка пользователя
+  twoFactorSecret   String?  // Секрет для Google Authenticator
+  twoFactorEnabled  Boolean  @default(false) // Включена ли 2FA
+
+  // Реферальная система
+  referrerId    String?
+  autoResponse  String?
+  referrer      User?    @relation("Referrals", fields: [referrerId], references: [id])
+  referrals     User[]   @relation("Referrals")
 
   // Система уровней
-  level         UserLevel @default(STANDARD)
+  level         UserLevel @default(Standard)
   depositAmount Decimal   @default(0) // Страховой депозит
   dailyLimit    Decimal   @default(150) // Лимит в день
+  dailyLimitOverride Decimal? // Индивидуальный лимит, переопределяет dailyLimit
+  isFrozen      Boolean   @default(false) // Заморозка действий пользователя
+  riskScore     Int?      // AML risk score (percentage)
   tradesCount   Int      @default(0) // Количество сделок
   volumeTotal   Decimal   @default(0) // Общий объём
+  rating        Float     @default(0) // НОВОЕ: Рейтинг пользователя
+  firstTradeAt  DateTime?           // Дата первой сделки
 
   wallet       Wallet?
   ads          P2PAd[]
@@ -120,11 +143,17 @@ model User {
   reviewsReceived Review[] @relation("ReviewsReceived")
 
   exchangeRequests ExchangeRequest[]
-  cryptoTransactions CryptoTransaction[]
+  transactions     Transaction[]
   
   // Коды (ваучеры)
   createdCodes  Code[] @relation("CreatedCodes")
   redeemedCodes Code[] @relation("RedeemedCodes")
+
+  adminActions  AdminAction[] @relation("AdminActions")
+
+  sessionVersion Int @default(0) // Для сброса сессий
+  
+  levelApplications LevelApplication[]
 }
 
 model Wallet {
@@ -132,10 +161,25 @@ model Wallet {
   userId       String   @unique
   user         User     @relation(fields: [userId], references: [id], onDelete: Restrict)
   usdtBalance  Decimal  @default(0.0)
+  frozenBalance Decimal @default(0.0) // Замороженные средства (эскроу)
   tmtBalance   Decimal  @default(0.0)
   bonusBalance Decimal  @default(15.0) // Приветственный бонус
+  referralBonus Decimal @default(0.0)  // Заработанные реферальные бонусы
 
   withdrawalAddresses WithdrawalAddress[]
+  depositAddresses    DepositAddress[]
+}
+
+model DepositAddress {
+  id        String   @id @default(uuid())
+  walletId  String
+  wallet    Wallet   @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  network   String   // TRC20, BEP20, APTOS
+  address   String
+  createdAt DateTime @default(now())
+
+  @@unique([walletId, network])
+  @@index([address])
 }
 
 model WithdrawalAddress {
@@ -173,6 +217,7 @@ model P2PAd {
   reqKyc       Boolean  @default(false) // Требовать верификацию
   reqMinTrades Int      @default(0)     // Минимум сделок у контрагента
   reqRating    Decimal  @default(0.0)   // Минимальный рейтинг контрагента
+  paymentMethods String[] @default([])    // НОВОЕ: Методы оплаты (Card, Cash, etc.)
 
   isActive    Boolean  @default(true)
   isDeleted   Boolean  @default(false) // Мягкое удаление
@@ -222,7 +267,7 @@ model Review {
   author    User     @relation("ReviewsGiven", fields: [authorId], references: [id], onDelete: Restrict)
   targetId  String
   target    User     @relation("ReviewsReceived", fields: [targetId], references: [id], onDelete: Restrict)
-  rating    String   
+  rating    ReviewRating   
   comment   String?
   createdAt DateTime @default(now())
 }
@@ -252,7 +297,7 @@ model SystemSetting {
   value String
 }
 
-model CryptoTransaction {
+model Transaction {
   id        String   @id @default(uuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
@@ -275,6 +320,8 @@ model CryptoTransaction {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  ip        String?  // IP адрес транзакции
 
   @@index([userId])
   @@index([status])
@@ -307,4 +354,114 @@ model Code {
   @@index([code])
   @@index([codeHash])
   @@index([status])
+}
+
+// История изменения курса
+model RateHistory {
+  id        String   @id @default(uuid())
+  oldRate   Decimal
+  newRate   Decimal
+  changedBy String?  // ID администратора (если применимо)
+  createdAt DateTime @default(now())
+}
+
+// Global exchange rate for USDT <-> TMT
+model ExchangeRate {
+  id        String   @id @default(uuid())
+  rate      Decimal   // 1 USDT = rate TMT
+  isFrozen  Boolean   @default(false)
+  updatedAt DateTime @updatedAt
+}
+
+// Журнал действий администратора (в т.ч. арбитраж)
+model AdminAction {
+  id          String   @id @default(uuid())
+  adminId     String?
+  admin       User?    @relation("AdminActions", fields: [adminId], references: [id])
+  action      String   // BLOCK, UNBLOCK, DISPUTE_RESOLVE, BONUS_ADJUST, LIMIT_CHANGE
+  targetId    String?  // ID пользователя или ордера
+  details     String?  // JSON или текстовое описание
+  ip          String?  // IP адрес админа
+  createdAt   DateTime @default(now())
+
+  @@index([adminId])
+}
+
+// Системные кошельки (Hot/Cold Storage)
+model SystemWallet {
+  id        String   @id @default(uuid())
+  type      String   // 'HOT' или 'COLD'
+  address   String   @unique
+  network   String   // 'TRC20', 'BEP20', 'APTOS'
+  balance   Decimal  @default(0)
+  threshold Decimal  @default(1000) // Порог для авто-вывода на холодный
+  updatedAt DateTime @updatedAt
+}
+
+// Сверка балансов (Reconciliation)
+model ReconciliationLog {
+  id               String   @id @default(uuid())
+  totalDeposits    Decimal
+  totalWithdrawals Decimal
+  totalFees        Decimal
+  totalBalance     Decimal
+  isMatch          Boolean
+  details          String?  // JSON с расхождениями по валютам
+  createdAt        DateTime @default(now())
+}
+
+// Общий лог действий и безопасности
+model Log {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  severity  String   @default("INFO") // INFO, WARNING, CRITICAL
+  details   String?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([severity])
+}
+
+// Черный список (Global Blacklist)
+model BlacklistEntry {
+  id          String   @id @default(uuid())
+  type        String   // ID, CRYPTO_ADDRESS, BANK_CARD, DEVICE_ID
+  value       String   @unique
+  reason      String?
+  addedBy     String?
+  createdAt   DateTime @default(now())
+
+  @@index([value])
+  @@index([type])
+}
+
+// Заявки на повышение уровня (Pro/Partner)
+model LevelApplication {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  level     UserLevel
+  status    KycStatus @default(PENDING) // PENDING, VERIFIED, REJECTED
+  reason    String?   // Причина отказа
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+// Системные алерты (Telegram / Admin Panel)
+model SystemAlert {
+  id        String   @id @default(uuid())
+  type      String   // HIGH_VOLUME, DISPUTE, NEW_KYC, SYSTEM_ERROR
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([type])
+  @@index([isRead])
 }

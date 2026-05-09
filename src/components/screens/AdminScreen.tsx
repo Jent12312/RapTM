@@ -7,16 +7,16 @@ import { ChevronLeft, AlertTriangle, CheckCircle2, XCircle, MessageCircle, Clock
 
 export default function AdminScreen({ onClose }: { onClose: () => void }) {
   const { language, user } = useAppStore();
-  const [activeTab, setActiveTab] = useState<'disputes' | 'kyc' | 'exchanges' | 'crypto' | 'users' | 'stats' | 'settings'>('disputes');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'disputes' | 'kyc' | 'exchanges' | 'crypto' | 'users' | 'stats' | 'settings' | 'logs' | 'audit' | 'stability' | 'blacklist' | 'cash' | 'levels'>('dashboard');
   const [disputes, setDisputes] = useState<any[]>([]);
   const [selectedDispute, setSelectedDispute] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
-  const [loading, setLoading] = useState<{[key: string]: boolean}>({});
+  const [loading, setLoading] = useState<{ [key: string]: boolean }>({});
 
   // KYC состояния
   const [kycRequests, setKycRequests] = useState<any[]>([]);
   const [selectedKyc, setSelectedKyc] = useState<any>(null);
-  const [kycLoading, setKycLoading] = useState<{[key: string]: boolean}>({});
+  const [kycLoading, setKycLoading] = useState<{ [key: string]: boolean }>({});
 
   // Обмены
   const [exchanges, setExchanges] = useState<any[]>([]);
@@ -42,6 +42,28 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
     EXCHANGE_FEE: '1'
   });
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [blacklist, setBlacklist] = useState<any[]>([]);
+  const [cashBalances, setCashBalances] = useState<any[]>([]);
+  const [isBlacklistLoading, setIsBlacklistLoading] = useState(false);
+  const [isCashLoading, setIsCashLoading] = useState(false);
+  const [levelApps, setLevelApps] = useState<any[]>([]);
+  const [isLevelsLoading, setIsLevelsLoading] = useState(false);
+
+  // Audit logs
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [auditTotal, setAuditTotal] = useState(0);
+
+  // System logs
+  const [logsPage, setLogsPage] = useState(1);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [systemLogs, setSystemLogs] = useState<any[]>([]);
+  const [logsTotal, setLogsTotal] = useState(0);
+
+  // Reconciliation
+  const [reconLoading, setReconLoading] = useState(false);
+  const [reconLogs, setReconLogs] = useState<any[]>([]);
 
   useEffect(() => {
     fetch('/api/admin/disputes')
@@ -89,20 +111,122 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
     if (activeTab === 'crypto') fetchCryptoTxs();
   }, [activeTab]);
 
-  // Загрузка статистики
-  const fetchStats = async () => {
+  useEffect(() => {
+    if (activeTab === 'stats') fetchDashboard();
+  }, [activeTab]);
+
+  const fetchDashboard = async () => {
     try {
-      const res = await fetch('/api/admin/stats');
+      const res = await fetch('/api/admin/dashboard');
       const data = await res.json();
-      setStats(data);
+      if (data.success) {
+        setStats(data.stats);
+        setSysSettings((prev: any) => ({
+          ...prev,
+          EXCHANGE_RATE: data.rate.rate,
+          RATE_FROZEN: data.rate.isFrozen ? 'true' : 'false'
+        }));
+      }
     } catch (e) {
-      console.error('Failed to fetch stats:', e);
+      console.error('Failed to fetch dashboard:', e);
     }
   };
 
   useEffect(() => {
-    if (activeTab === 'stats') fetchStats();
+    if (activeTab === 'dashboard') fetchDashboard();
   }, [activeTab]);
+
+  const fetchAuditLogs = async (page = 1) => {
+    setAuditLoading(true);
+    try {
+      const res = await fetch(`/api/admin/audit?page=${page}`);
+      const data = await res.json();
+      setAuditLogs(data.logs);
+      setAuditTotal(data.total);
+    } catch (e) { console.error(e); }
+    setAuditLoading(false);
+  };
+
+  const fetchLogs = async (page = 1) => {
+    setLogsLoading(true);
+    try {
+      const res = await fetch(`/api/admin/logs?page=${page}`);
+      const data = await res.json();
+      setSystemLogs(data.logs);
+      setLogsTotal(data.total);
+    } catch (e) { console.error(e); }
+    setLogsLoading(false);
+  };
+
+  const runReconciliation = async () => {
+    setReconLoading(true);
+    try {
+      const res = await fetch('/api/admin/reconcile', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setReconLogs(prev => [data.log, ...prev]);
+        alert('Сверка завершена: ' + (data.log.isMatch ? 'Успешно' : 'Найдено расхождение'));
+      }
+    } catch (e) { console.error(e); }
+    setReconLoading(false);
+  };
+
+  const fetchBlacklist = async () => {
+    setIsBlacklistLoading(true);
+    try {
+      const res = await fetch('/api/admin/blacklist');
+      const data = await res.json();
+      if (data.success) setBlacklist(data.entries);
+    } catch (e) { console.error(e); }
+    setIsBlacklistLoading(false);
+  };
+
+  const fetchCashBalances = async () => {
+    setIsCashLoading(true);
+    try {
+      const res = await fetch('/api/admin/cash');
+      const data = await res.json();
+      if (data.success) setCashBalances(data.balances);
+    } catch (e) { console.error(e); }
+    setIsCashLoading(false);
+  };
+
+  useEffect(() => {
+    if (activeTab === 'audit') fetchAuditLogs(auditPage);
+    if (activeTab === 'logs') fetchLogs(logsPage);
+    if (activeTab === 'stability') {
+      fetch('/api/admin/reconcile').then(r => r.json()).then(d => setReconLogs(d.logs));
+    }
+    if (activeTab === 'blacklist') fetchBlacklist();
+    if (activeTab === 'cash') fetchCashBalances();
+    if (activeTab === 'levels') fetchLevelApps();
+  }, [activeTab, auditPage, logsPage]);
+
+  const fetchLevelApps = async () => {
+    setIsLevelsLoading(true);
+    try {
+      const res = await fetch('/api/admin/levels');
+      const data = await res.json();
+      if (data.success) setLevelApps(data.applications);
+    } catch (e) { console.error(e); }
+    setIsLevelsLoading(false);
+  };
+
+  const processLevelApp = async (id: string, status: 'APPROVED' | 'REJECTED') => {
+    setLoading({ ...loading, [id]: true });
+    try {
+      const res = await fetch('/api/admin/levels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status })
+      });
+      if (res.ok) {
+        setLevelApps(levelApps.filter(a => a.id !== id));
+        fetchDashboard();
+      }
+    } catch (e) { console.error(e); }
+    setLoading({ ...loading, [id]: false });
+  };
 
   // Загрузка пользователей
   const fetchUsers = async (page = 1, search = '') => {
@@ -203,7 +327,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
       if (data.success) {
         // Обновляем список заявок
         setKycRequests(kycRequests.filter(k => k.id !== userId));
-        
+
         // Если это текущая выбранная заявка, возвращаемся к списку
         if (selectedKyc?.id === userId) {
           setSelectedKyc(null);
@@ -277,21 +401,21 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: resolution, isDisputed: false }) // снимаем флаг спора
       });
-      
+
       const data = await res.json();
-      
+
       if (data.success && data.order) {
         // Обновляем список споров
         setDisputes(disputes.filter(d => d.id !== orderId));
-        
+
         // Если это текущий выбранный спор, возвращаемся к списку
         if (selectedDispute?.id === orderId) {
           handleBackToList();
         }
-        
+
         // Уведомляем обоих участников о решении спора
         alert(`Спор разрешен! Статус сделки изменен на ${resolution === 'COMPLETED' ? 'Завершен' : 'Отменен'}.`);
-        
+
         // Немедленное обновление данных для всех участников
         setTimeout(async () => {
           try {
@@ -299,7 +423,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
             const orderDetails = data.order;
             const buyerId = orderDetails.buyerId;
             const sellerId = orderDetails.sellerId;
-            
+
             console.log(`Спор ${orderId} разрешен. Уведомляем участников: ${buyerId}, ${sellerId}`);
           } catch (e) {
             console.error('Failed to notify participants:', e);
@@ -390,11 +514,10 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
               <button
                 onClick={() => processKyc(selectedKyc.id, 'reject')}
                 disabled={kycLoading[selectedKyc.id]}
-                className={`flex flex-col items-center gap-2 p-4 rounded-xl font-bold text-sm transition-all ${
-                  kycLoading[selectedKyc.id]
+                className={`flex flex-col items-center gap-2 p-4 rounded-xl font-bold text-sm transition-all ${kycLoading[selectedKyc.id]
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     : 'bg-red-50 text-red-600 hover:bg-red-100 active:scale-95'
-                }`}
+                  }`}
               >
                 {kycLoading[selectedKyc.id] ? (
                   <div className="w-6 h-6 border-2 border-red-400 border-t-transparent rounded-full animate-spin"></div>
@@ -406,11 +529,10 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
               <button
                 onClick={() => processKyc(selectedKyc.id, 'approve')}
                 disabled={kycLoading[selectedKyc.id]}
-                className={`flex flex-col items-center gap-2 p-4 rounded-xl font-bold text-sm transition-all ${
-                  kycLoading[selectedKyc.id]
+                className={`flex flex-col items-center gap-2 p-4 rounded-xl font-bold text-sm transition-all ${kycLoading[selectedKyc.id]
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 active:scale-95'
-                }`}
+                  }`}
               >
                 {kycLoading[selectedKyc.id] ? (
                   <div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
@@ -438,14 +560,22 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
 
           {/* Табы */}
           <div className="bg-white px-4 py-3 sticky top-[60px] z-20 border-b border-slate-100">
-            <div className="flex gap-2 overflow-x-auto pb-2">
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+              <button
+                onClick={() => setActiveTab('dashboard')}
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'dashboard'
+                    ? 'bg-slate-900 text-white shadow-lg'
+                    : 'bg-slate-50 text-slate-500'
+                  }`}
+              >
+                <TrendingUp className="w-4 h-4 inline mr-1" /> Панель
+              </button>
               <button
                 onClick={() => setActiveTab('disputes')}
-                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${
-                  activeTab === 'disputes'
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'disputes'
                     ? 'bg-red-50 text-red-600 ring-1 ring-red-200'
                     : 'bg-slate-50 text-slate-500'
-                }`}
+                  }`}
               >
                 <AlertTriangle className="w-4 h-4 inline mr-1" /> {t(language, 'adminDisputes')}
                 {disputes.length > 0 && (
@@ -456,11 +586,10 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
               </button>
               <button
                 onClick={() => setActiveTab('kyc')}
-                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${
-                  activeTab === 'kyc'
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'kyc'
                     ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200'
                     : 'bg-slate-50 text-slate-500'
-                }`}
+                  }`}
               >
                 <ShieldCheck className="w-4 h-4 inline mr-1" /> {t(language, 'adminKYC')}
                 {kycRequests.length > 0 && (
@@ -471,52 +600,184 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
               </button>
               <button
                 onClick={() => setActiveTab('exchanges')}
-                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${
-                  activeTab === 'exchanges' ? 'bg-blue-50 text-blue-600 ring-1 ring-blue-200' : 'bg-slate-50 text-slate-500'
-                }`}
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'exchanges' ? 'bg-blue-50 text-blue-600 ring-1 ring-blue-200' : 'bg-slate-50 text-slate-500'
+                  }`}
               >
                 {t(language, 'adminExchanges')}
                 {exchanges.length > 0 && <span className="ml-2 bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full">{exchanges.length}</span>}
               </button>
               <button
                 onClick={() => setActiveTab('crypto')}
-                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${
-                  activeTab === 'crypto' ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200' : 'bg-slate-50 text-slate-500'
-                }`}
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'crypto' ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200' : 'bg-slate-50 text-slate-500'
+                  }`}
               >
                 {t(language, 'adminCrypto')}
                 {cryptoTxs.length > 0 && <span className="ml-2 bg-amber-500 text-white text-[10px] px-2 py-0.5 rounded-full">{cryptoTxs.length}</span>}
               </button>
               <button
                 onClick={() => setActiveTab('users')}
-                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${
-                  activeTab === 'users' ? 'bg-purple-50 text-purple-600 ring-1 ring-purple-200' : 'bg-slate-50 text-slate-500'
-                }`}
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'users' ? 'bg-purple-50 text-purple-600 ring-1 ring-purple-200' : 'bg-slate-50 text-slate-500'
+                  }`}
               >
                 {t(language, 'adminUsers')}
               </button>
               <button
                 onClick={() => setActiveTab('stats')}
-                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${
-                  activeTab === 'stats' ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200' : 'bg-slate-50 text-slate-500'
-                }`}
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'stats' ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200' : 'bg-slate-50 text-slate-500'
+                  }`}
               >
                 {t(language, 'adminStats')}
               </button>
               <button
                 onClick={() => setActiveTab('settings')}
-                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${
-                  activeTab === 'settings' ? 'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-200' : 'bg-slate-50 text-slate-500'
-                }`}
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'settings' ? 'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-200' : 'bg-slate-50 text-slate-500'
+                  }`}
               >
                 <RefreshCw className="w-4 h-4 inline mr-1" /> {t(language, 'exSettings')}
+              </button>
+              <button
+                onClick={() => setActiveTab('blacklist')}
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'blacklist' ? 'bg-red-900 text-white shadow-lg' : 'bg-slate-50 text-slate-500'
+                  }`}
+              >
+                <UserX className="w-4 h-4 inline mr-1" /> ЧС
+              </button>
+              <button
+                onClick={() => setActiveTab('cash')}
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'cash' ? 'bg-amber-900 text-white shadow-lg' : 'bg-slate-50 text-slate-500'
+                  }`}
+              >
+                <RefreshCw className="w-4 h-4 inline mr-1" /> Кассы
               </button>
             </div>
           </div>
 
           {/* Контент табов */}
           <div className="p-4 space-y-4 pb-32">
-            {activeTab === 'disputes' ? (
+            {activeTab === 'dashboard' ? (
+              <div className="space-y-4 animate-in fade-in duration-500">
+                {/* Real-time Stats */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-slate-100">
+                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Объем 24ч</div>
+                    <div className="text-2xl font-black text-slate-900">{stats?.volume24h?.toFixed(2) || '0.00'} <span className="text-sm font-bold text-slate-400">USDT</span></div>
+                  </div>
+                  <div className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-slate-100">
+                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Объем 7д</div>
+                    <div className="text-2xl font-black text-slate-900">{stats?.volume7d?.toFixed(2) || '0.00'} <span className="text-sm font-bold text-slate-400">USDT</span></div>
+                  </div>
+                  <div className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-slate-100">
+                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Комиссии сегодня</div>
+                    <div className="text-2xl font-black text-emerald-600">{stats?.todayFees?.toFixed(2) || '0.00'} <span className="text-sm font-bold text-emerald-400">USDT</span></div>
+                  </div>
+                  <div className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-slate-100">
+                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Активные сделки</div>
+                    <div className="text-2xl font-black text-blue-600">{stats?.activeOrders || '0'}</div>
+                  </div>
+                </div>
+
+                {/* Queues */}
+                <div className="grid grid-cols-2 gap-3">
+                  <button onClick={() => setActiveTab('kyc')} className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-slate-100 flex flex-col items-center gap-2 group active:scale-95 transition-all">
+                    <div className="w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600 group-hover:bg-emerald-100 transition-colors">
+                      <ShieldCheck className="w-6 h-6" />
+                    </div>
+                    <div className="text-center">
+                      <div className="text-[10px] font-black text-slate-400 uppercase">Верификация</div>
+                      <div className="text-lg font-black text-slate-800">{stats?.verificationQueueCount || 0} заявок</div>
+                    </div>
+                  </button>
+                  <button onClick={() => setActiveTab('crypto')} className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-slate-100 flex flex-col items-center gap-2 group active:scale-95 transition-all">
+                    <div className="w-10 h-10 bg-amber-50 rounded-full flex items-center justify-center text-amber-600 group-hover:bg-amber-100 transition-colors">
+                      <Clock className="w-6 h-6" />
+                    </div>
+                    <div className="text-center">
+                      <div className="text-[10px] font-black text-slate-400 uppercase">Выводы</div>
+                      <div className="text-lg font-black text-slate-800">{stats?.withdrawalQueueCount || 0} заявок</div>
+                    </div>
+                  </button>
+                </div>
+
+                {/* Exchange Rate Control */}
+                <div className="bg-slate-900 p-6 rounded-[2.5rem] shadow-xl shadow-slate-200/50 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                    <RefreshCw className="w-32 h-32 text-white animate-spin-slow" />
+                  </div>
+                  <h3 className="text-white text-sm font-black uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                    <RefreshCw className="w-4 h-4" /> Глобальный курс
+                  </h3>
+                  <div className="flex gap-3">
+                    <div className="flex-1 relative">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-xs uppercase tracking-widest">1 USDT =</div>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={sysSettings.EXCHANGE_RATE}
+                        onChange={(e) => setSysSettings({ ...sysSettings, EXCHANGE_RATE: e.target.value })}
+                        className="w-full bg-white/10 border border-white/20 rounded-2xl py-4 pl-20 pr-4 text-white text-2xl font-black outline-none focus:bg-white/20 transition-all"
+                      />
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 text-white font-bold text-lg">TMT</div>
+                    </div>
+                    <button
+                      onClick={() => saveSetting('EXCHANGE_RATE', sysSettings.EXCHANGE_RATE)}
+                      className="bg-emerald-500 hover:bg-emerald-400 text-white font-black px-6 rounded-2xl transition-all active:scale-95 shadow-lg shadow-emerald-500/20"
+                    >
+                      OK
+                    </button>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${sysSettings.RATE_FROZEN === 'true' ? 'bg-red-500' : 'bg-emerald-500'}`}></div>
+                      <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">
+                        {sysSettings.RATE_FROZEN === 'true' ? 'Курс заморожен' : 'Курс активен'}
+                      </span>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        const isFrozen = sysSettings.RATE_FROZEN === 'true';
+                        await saveSetting('RATE_FROZEN', isFrozen ? 'false' : 'true');
+                        setSysSettings({ ...sysSettings, RATE_FROZEN: isFrozen ? 'false' : 'true' });
+                      }}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${sysSettings.RATE_FROZEN === 'true' ? 'bg-red-500 text-white' : 'bg-white/10 text-white'
+                        }`}
+                    >
+                      <ShieldCheck className="w-4 h-4" /> {sysSettings.RATE_FROZEN === 'true' ? 'Разморозить' : 'Заморозить'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : activeTab === 'levels' ? (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center mb-2 px-1">
+                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Заявки на повышение</h3>
+                  <button onClick={fetchLevelApps} className={`p-2 ${isLevelsLoading ? 'animate-spin' : ''}`}><RefreshCw className="w-4 h-4 text-slate-400" /></button>
+                </div>
+                {levelApps.length === 0 ? (
+                  <div className="text-center py-20 bg-white rounded-[2rem] border border-slate-100">
+                    <UserCheck className="w-12 h-12 text-slate-100 mx-auto mb-2" />
+                    <div className="text-slate-400 font-bold text-xs">Нет новых заявок</div>
+                  </div>
+                ) : (
+                  levelApps.map(app => (
+                    <div key={app.id} className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${app.requestedLevel === 'PARTNER' ? 'bg-purple-500' : 'bg-blue-500'}`}>
+                          {app.requestedLevel === 'PARTNER' ? 'P' : 'PRO'}
+                        </div>
+                        <div>
+                          <div className="font-bold text-slate-800">{app.user.firstName || app.user.username}</div>
+                          <div className="text-[10px] text-slate-400">Запрос на {app.requestedLevel}</div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button onClick={() => processLevelApp(app.id, 'REJECTED')} disabled={loading[app.id]} className="p-3 bg-red-50 text-red-600 font-bold rounded-xl text-xs active:scale-95">ОТКЛОНИТЬ</button>
+                        <button onClick={() => processLevelApp(app.id, 'APPROVED')} disabled={loading[app.id]} className="p-3 bg-emerald-50 text-emerald-600 font-bold rounded-xl text-xs active:scale-95">ПОДТВЕРДИТЬ</button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            ) : activeTab === 'disputes' ? (
               disputes.length === 0 ? (
                 <div className="text-center text-slate-400 py-10 font-bold">{t(language, 'adminNoDisputes')}</div>
               ) : (
@@ -557,11 +818,10 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                             resolveDispute(order.id, 'CANCELLED');
                           }}
                           disabled={loading[order.id]}
-                          className={`flex flex-col items-center gap-1 p-2 rounded-xl font-bold text-xs transition-all ${
-                            loading[order.id]
+                          className={`flex flex-col items-center gap-1 p-2 rounded-xl font-bold text-xs transition-all ${loading[order.id]
                               ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                               : 'bg-red-50 text-red-600 hover:bg-red-100 active:scale-95'
-                          }`}
+                            }`}
                         >
                           {loading[order.id] ? (
                             <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin"></div>
@@ -575,11 +835,10 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                             resolveDispute(order.id, 'COMPLETED');
                           }}
                           disabled={loading[order.id]}
-                          className={`flex flex-col items-center gap-1 p-2 rounded-xl font-bold text-xs transition-all ${
-                            loading[order.id]
+                          className={`flex flex-col items-center gap-1 p-2 rounded-xl font-bold text-xs transition-all ${loading[order.id]
                               ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                               : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 active:scale-95'
-                          }`}
+                            }`}
                         >
                           {loading[order.id] ? (
                             <div className="w-4 h-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
@@ -739,7 +998,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                           <div className="font-bold text-slate-800">{u.firstName || u.username || t(language, 'userLabel')}</div>
                           <div className="text-[10px] text-slate-400">@{u.username || 'no_username'} • ID: {u.telegramId}</div>
                         </div>
-                        
+
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div className="bg-slate-50 p-2 rounded-lg">
@@ -872,7 +1131,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                   <h3 className="text-sm font-bold text-slate-700 mb-6 flex items-center gap-2">
                     <RefreshCw className="w-4 h-4 text-indigo-500" /> {t(language, 'exSettings')}
                   </h3>
-                  
+
                   <div className="space-y-6">
                     {/* Курс */}
                     <div>
@@ -922,6 +1181,26 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                       </div>
                     </div>
 
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">
+                        Приветственный бонус (USDT)
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          value={sysSettings.WELCOME_BONUS || '15'}
+                          onChange={(e) => setSysSettings({ ...sysSettings, WELCOME_BONUS: e.target.value })}
+                          className="flex-1 bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 text-lg font-black outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                        <button
+                          onClick={() => saveSetting('WELCOME_BONUS', sysSettings.WELCOME_BONUS)}
+                          className="px-6 bg-purple-500 text-white font-bold rounded-xl active:scale-95"
+                        >
+                          {t(language, 'save')}
+                        </button>
+                      </div>
+                    </div>
+
                     <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 flex items-start gap-2">
                       <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                       <p className="text-[10px] font-bold text-amber-700 uppercase leading-relaxed">
@@ -931,6 +1210,213 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                   </div>
                 </div>
               </div>
+          ) : activeTab === 'blacklist' ? (
+          <div className="space-y-4">
+            <div className="bg-white p-6 rounded-[2.5rem] shadow-sm ring-1 ring-slate-100">
+              <h3 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2">
+                <UserX className="w-5 h-5 text-red-500" /> Добавить в ЧС
+              </h3>
+              <div className="space-y-3">
+                <select id="bl-type" className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                  <option value="ID">По Telegram ID</option>
+                  <option value="CRYPTO_ADDRESS">По Крипто-адресу</option>
+                  <option value="BANK_CARD">По Банковской карте</option>
+                  <option value="DEVICE_ID">По Device ID</option>
+                </select>
+                <input id="bl-value" type="text" placeholder="Значение (ID, Адрес, Карта)" className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm font-bold outline-none ring-1 ring-slate-200" />
+                <input id="bl-reason" type="text" placeholder="Причина блокировки" className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm font-bold outline-none ring-1 ring-slate-200" />
+                <button
+                  onClick={async () => {
+                    const type = (document.getElementById('bl-type') as HTMLSelectElement).value;
+                    const value = (document.getElementById('bl-value') as HTMLInputElement).value;
+                    const reason = (document.getElementById('bl-reason') as HTMLInputElement).value;
+                    if (!value) return alert('Введите значение');
+                    const res = await fetch('/api/admin/blacklist', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ type, value, reason })
+                    });
+                    if (res.ok) {
+                      alert('Добавлено в черный список');
+                      fetchBlacklist();
+                      (document.getElementById('bl-value') as HTMLInputElement).value = '';
+                      (document.getElementById('bl-reason') as HTMLInputElement).value = '';
+                    }
+                  }}
+                  className="w-full py-4 bg-red-600 text-white font-black rounded-xl active:scale-95 transition-all shadow-lg shadow-red-600/20"
+                >
+                  ЗАБЛОКИРОВАТЬ ГЛОБАЛЬНО
+                </button>
+              </div>
+            </div>
+
+            {/* Список ЧС */}
+            <div className="bg-white p-6 rounded-[2.5rem] shadow-sm ring-1 ring-slate-100">
+              <h3 className="text-sm font-black text-slate-800 mb-4 flex items-center justify-between">
+                <span>Текущий ЧС</span>
+                <button onClick={fetchBlacklist} className="p-2"><RefreshCw className={`w-4 h-4 text-slate-400 ${isBlacklistLoading ? 'animate-spin' : ''}`} /></button>
+              </h3>
+              <div className="space-y-2">
+                {blacklist.length > 0 ? blacklist.map(entry => (
+                  <div key={entry.id} className="bg-slate-50 p-4 rounded-2xl flex justify-between items-center group">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] font-black text-red-500 uppercase px-2 py-0.5 bg-red-50 rounded-md">{entry.type}</span>
+                        <span className="text-sm font-black text-slate-800">{entry.value}</span>
+                      </div>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{entry.reason || 'Без причины'}</div>
+                    </div>
+                    <button 
+                      onClick={async () => {
+                        if (!confirm('Удалить из черного списка?')) return;
+                        await fetch('/api/admin/blacklist', {
+                          method: 'DELETE',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ value: entry.value })
+                        });
+                        fetchBlacklist();
+                      }}
+                      className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                    >
+                      <XCircle className="w-5 h-5" />
+                    </button>
+                  </div>
+                )) : (
+                  <div className="text-center py-10">
+                    <UserX className="w-12 h-12 text-slate-100 mx-auto mb-2" />
+                    <div className="text-slate-400 font-bold text-xs">Черный список пуст</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          ) : activeTab === 'cash' ? (
+          <div className="space-y-4">
+            <div className="bg-white p-6 rounded-[2.5rem] shadow-sm ring-1 ring-slate-100">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                  <RefreshCw className="w-5 h-5 text-amber-500" /> Мониторинг Касс
+                </h3>
+                <button onClick={fetchCashBalances} className={`p-2 ${isCashLoading ? 'animate-spin' : ''}`}>
+                  <RefreshCw className="w-4 h-4 text-slate-400" />
+                </button>
+              </div>
+              <div className="space-y-3">
+                {cashBalances.length > 0 ? cashBalances.map((item: any) => (
+                  <div key={item.city} className="bg-slate-50 p-5 rounded-2xl flex justify-between items-center border border-slate-100 hover:border-amber-200 transition-colors">
+                    <div>
+                      <div className="text-lg font-black text-slate-800">{item.city}</div>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Региональный пункт</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-black text-slate-900">{item._sum.amount?.toFixed(2) || '0.00'}</div>
+                      <div className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">USDT (Доступно)</div>
+                    </div>
+                  </div>
+                )) : (
+                  ['Ашхабад', 'Туркменабад', 'Мары', 'Дашогуз', 'Балканабад'].map(city => (
+                    <div key={city} className="bg-slate-50 p-4 rounded-2xl flex justify-between items-center opacity-50">
+                      <div className="font-bold text-slate-700">{city}</div>
+                      <div className="text-lg font-black text-slate-900">0.00 <span className="text-[10px] text-slate-400">USDT</span></div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+            ) : activeTab === 'audit' ? (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center px-1">
+                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Действия Администраторов</h3>
+                <button onClick={() => fetchAuditLogs(auditPage)} className="p-2 bg-white rounded-xl shadow-sm"><RefreshCw className={`w-4 h-4 text-slate-400 ${auditLoading ? 'animate-spin' : ''}`} /></button>
+              </div>
+              <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-100">
+                        <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Дата</th>
+                        <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Админ</th>
+                        <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Действие</th>
+                        <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Детали</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50 font-bold">
+                      {auditLogs.map(log => (
+                        <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-5 py-4 text-slate-400 whitespace-nowrap">{new Date(log.createdAt).toLocaleString('ru-RU')}</td>
+                          <td className="px-5 py-4 text-slate-800">{log.admin?.firstName || 'System'}</td>
+                          <td className="px-5 py-4"><span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-lg text-[9px] font-black uppercase">{log.action}</span></td>
+                          <td className="px-5 py-4 text-slate-600">{log.details}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            ) : activeTab === 'logs' ? (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center px-1">
+                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Журнал Системы</h3>
+                <button onClick={() => fetchLogs(logsPage)} className="p-2 bg-white rounded-xl shadow-sm"><RefreshCw className={`w-4 h-4 text-slate-400 ${logsLoading ? 'animate-spin' : ''}`} /></button>
+              </div>
+              <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-100">
+                        <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Дата</th>
+                        <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Тип</th>
+                        <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Сообщение</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50 font-bold">
+                      {systemLogs.map(log => (
+                        <tr key={log.id} className={`hover:bg-slate-50/50 transition-colors ${log.severity === 'CRITICAL' ? 'bg-rose-50/30' : ''}`}>
+                          <td className="px-5 py-4 text-slate-400 whitespace-nowrap">{new Date(log.createdAt).toLocaleString('ru-RU')}</td>
+                          <td className="px-5 py-4"><span className="px-2 py-0.5 bg-slate-100 rounded-lg text-[9px] font-black uppercase">{log.type}</span></td>
+                          <td className="px-5 py-4 text-slate-800">{log.message}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            ) : activeTab === 'stability' ? (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center px-1">
+                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Сверка Балансов</h3>
+                <button onClick={runReconciliation} disabled={reconLoading} className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl text-xs font-bold active:scale-95 disabled:opacity-50">
+                  <RefreshCw className={`w-3 h-3 ${reconLoading ? 'animate-spin' : ''}`} /> Сверить
+                </button>
+              </div>
+              <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100">
+                      <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Дата</th>
+                      <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Статус</th>
+                      <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Разница</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50 font-bold">
+                    {reconLogs.map(log => (
+                      <tr key={log.id}>
+                        <td className="px-5 py-4 text-slate-400">{new Date(log.createdAt).toLocaleString('ru-RU')}</td>
+                        <td className="px-5 py-4">
+                          <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase ${log.isMatch ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+                            {log.isMatch ? 'OK' : 'DIFF'}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4">{log.totalBalance}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
             ) : null}
           </div>
         </>
@@ -992,11 +1478,10 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                       className={`flex ${message.senderId === selectedDispute.buyerId ? 'justify-start' : 'justify-end'}`}
                     >
                       <div
-                        className={`max-w-[80%] p-3 rounded-2xl text-sm ${
-                          message.senderId === selectedDispute.buyerId
+                        className={`max-w-[80%] p-3 rounded-2xl text-sm ${message.senderId === selectedDispute.buyerId
                             ? 'bg-blue-50 text-slate-800 rounded-tl-none'
                             : 'bg-emerald-50 text-slate-800 rounded-tr-none'
-                        }`}
+                          }`}
                       >
                         <div className="font-bold text-xs mb-1">
                           {message.senderId === selectedDispute.buyerId ? t(language, 'adminBuyer') : t(language, 'adminSeller')}
@@ -1017,11 +1502,10 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
               <button
                 onClick={() => resolveDispute(selectedDispute.id, 'CANCELLED')}
                 disabled={loading[selectedDispute.id]}
-                className={`flex flex-col items-center gap-2 p-4 rounded-xl font-bold text-sm transition-all ${
-                  loading[selectedDispute.id]
+                className={`flex flex-col items-center gap-2 p-4 rounded-xl font-bold text-sm transition-all ${loading[selectedDispute.id]
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     : 'bg-red-50 text-red-600 hover:bg-red-100 active:scale-95'
-                }`}
+                  }`}
               >
                 {loading[selectedDispute.id] ? (
                   <div className="w-6 h-6 border-2 border-red-400 border-t-transparent rounded-full animate-spin"></div>
@@ -1034,11 +1518,10 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
               <button
                 onClick={() => resolveDispute(selectedDispute.id, 'COMPLETED')}
                 disabled={loading[selectedDispute.id]}
-                className={`flex flex-col items-center gap-2 p-4 rounded-xl font-bold text-sm transition-all ${
-                  loading[selectedDispute.id]
+                className={`flex flex-col items-center gap-2 p-4 rounded-xl font-bold text-sm transition-all ${loading[selectedDispute.id]
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 active:scale-95'
-                }`}
+                  }`}
               >
                 {loading[selectedDispute.id] ? (
                   <div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
@@ -1067,7 +1550,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
           </div>
 
           <div className="p-4 space-y-4 pb-32">
-            {/* Информация о пользователе */}
+            {/* Основная информация */}
             <div className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-slate-100">
               <div className="flex items-center gap-4 mb-4">
                 {selectedUser.avatarUrl ? (
@@ -1080,7 +1563,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                 <div>
                   <h3 className="text-xl font-bold text-slate-800">{selectedUser.firstName || selectedUser.nickname || t(language, 'userLabel')}</h3>
                   <p className="text-sm text-slate-500">ID: {selectedUser.telegramId}</p>
-                  
+
                 </div>
               </div>
 
@@ -1097,9 +1580,9 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
 
               <div className="mt-4 pt-4 border-t border-slate-100 space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-slate-500">KYC {t(language, 'kycLabel')}:</span>
-                  <span className={`font-bold ${selectedUser.kycStatus === 'verified' ? 'text-emerald-600' : selectedUser.kycStatus === 'pending' ? 'text-amber-600' : selectedUser.kycStatus === 'rejected' ? 'text-red-600' : 'text-slate-400'}`}>
-                    {selectedUser.kycStatus || 'none'}
+                  <span className="text-slate-500">Статус KYC:</span>
+                  <span className={`font-bold uppercase ${selectedUser.kycStatus === 'VERIFIED' ? 'text-emerald-600' : selectedUser.kycStatus === 'PENDING' ? 'text-amber-600' : selectedUser.kycStatus === 'REJECTED' ? 'text-red-600' : 'text-slate-400'}`}>
+                    {selectedUser.kycStatus || 'NONE'}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -1114,7 +1597,91 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                   <span className="text-slate-500">{t(language, 'stats')}:</span>
                   <span className="font-bold text-slate-800">{new Date(selectedUser.createdAt).toLocaleDateString('ru-RU')}</span>
                 </div>
+                <div className="flex justify-between mt-2 pt-2 border-t border-slate-50">
+                  <span className="text-slate-500">Лимит (24ч):</span>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      id="user-limit-override"
+                      defaultValue={selectedUser.dailyLimitOverride || 5000}
+                      className="w-20 bg-slate-100 rounded px-1 text-right font-bold text-xs outline-none"
+                    />
+                    <button
+                      onClick={async () => {
+                        const val = (document.getElementById('user-limit-override') as HTMLInputElement).value;
+                        const res = await fetch(`/api/admin/users/${selectedUser.id}/limit`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ dailyLimit: parseFloat(val) })
+                        });
+                        if (res.ok) alert('Лимит обновлен');
+                      }}
+                      className="p-1 bg-slate-800 text-white rounded"
+                    >
+                      <UserCheck className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
               </div>
+            </div>
+
+            {/* Управление Финансами */}
+            <div className="bg-white p-6 rounded-[2.5rem] shadow-sm ring-1 ring-slate-100">
+              <h3 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2">
+                <Gift className="w-5 h-5 text-purple-500" /> Финансовые операции
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={async () => {
+                    const amount = prompt('Сумма бонуса (USDT):');
+                    if (!amount) return;
+                    const res = await fetch(`/api/admin/users/${selectedUser.id}/bonus`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ amount: parseFloat(amount) })
+                    });
+                    if (res.ok) alert('Бонус начислен');
+                  }}
+                  className="p-4 bg-purple-50 text-purple-600 rounded-2xl flex flex-col items-center gap-2 active:scale-95 transition-all"
+                >
+                  <Gift className="w-6 h-6" />
+                  <span className="text-[10px] font-black uppercase">Бонус</span>
+                </button>
+                <button
+                  onClick={async () => {
+                    const amount = prompt('Сумма списания/начисления (USDT, можно минус):');
+                    if (!amount) return;
+                    const res = await fetch(`/api/admin/users/${selectedUser.id}/balance`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ amount: parseFloat(amount) })
+                    });
+                    if (res.ok) alert('Баланс изменен');
+                  }}
+                  className="p-4 bg-slate-50 text-slate-600 rounded-2xl flex flex-col items-center gap-2 active:scale-95 transition-all"
+                >
+                  <RefreshCw className="w-6 h-6" />
+                  <span className="text-[10px] font-black uppercase">Баланс</span>
+                </button>
+              </div>
+              <button
+                onClick={async () => {
+                  const res = await fetch(`/api/admin/users/${selectedUser.id}/freeze`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ isFrozen: !selectedUser.isFrozen })
+                  });
+                  if (res.ok) {
+                    const data = await res.json();
+                    setSelectedUser(data.user);
+                    alert(data.user.isFrozen ? 'Заморожен' : 'Разморожен');
+                  }
+                }}
+                className={`w-full mt-4 py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${selectedUser.isFrozen ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-red-500 text-white shadow-lg shadow-red-500/20'
+                  }`}
+              >
+                {selectedUser.isFrozen ? 'РАЗМОРОЗИТЬ АККАУНТ' : 'ЗАМОРОЗИТЬ АККАУНТ'}
+              </button>
             </div>
 
             {/* Операции */}
@@ -1130,9 +1697,8 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                       fetchUserOperations(selectedUser.id, type);
                       setSelectedOpType(type);
                     }}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap ${
-                      type === selectedOpType ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'
-                    }`}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap ${type === selectedOpType ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'
+                      }`}
                   >
                     {type === 'all' ? t(language, 'adminAllOps') : type === 'crypto' ? t(language, 'adminCryptoOps') : type === 'exchange' ? t(language, 'adminExchangeOps') : t(language, 'adminCodesOps')}
                   </button>
@@ -1147,11 +1713,10 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                     <div key={op.id} className="bg-slate-50 p-3 rounded-xl flex justify-between items-center">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-lg ${
-                            op.type === 'CRYPTO' ? 'bg-amber-100 text-amber-600' :
-                            op.type === 'EXCHANGE' ? 'bg-blue-100 text-blue-600' :
-                            'bg-purple-100 text-purple-600'
-                          }`}>
+                          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-lg ${op.type === 'CRYPTO' ? 'bg-amber-100 text-amber-600' :
+                              op.type === 'EXCHANGE' ? 'bg-blue-100 text-blue-600' :
+                                'bg-purple-100 text-purple-600'
+                            }`}>
                             {op.type}
                           </span>
                           <span className="text-xs font-bold text-slate-600">{op.action}</span>
@@ -1164,11 +1729,10 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                         <div className="text-sm font-bold text-slate-800">
                           {op.amount ? `${op.amount} ${op.currency || ''}` : op.amountUsdt ? `${op.amountUsdt} USDT` : `${op.amountTmt} TMT`}
                         </div>
-                        <div className={`text-[10px] font-bold ${
-                          op.status === 'COMPLETED' ? 'text-emerald-600' :
-                          op.status === 'PENDING' ? 'text-amber-600' :
-                          op.status === 'CANCELLED' ? 'text-red-600' : 'text-slate-400'
-                        }`}>
+                        <div className={`text-[10px] font-bold ${op.status === 'COMPLETED' ? 'text-emerald-600' :
+                            op.status === 'PENDING' ? 'text-amber-600' :
+                              op.status === 'CANCELLED' ? 'text-red-600' : 'text-slate-400'
+                          }`}>
                           {op.status}
                         </div>
                       </div>

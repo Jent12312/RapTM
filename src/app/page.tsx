@@ -25,8 +25,8 @@ export default function Home() {
       const WebApp = module.default;
       WebApp.ready();
 
-      if (WebApp.initDataUnsafe?.user) {
-        initUser(WebApp.initDataUnsafe.user);
+      if (WebApp.initData) {
+        initUser(WebApp.initData);
       }
 
       // ЛОВИМ DEEP LINK (ссылку "Поделиться" или уведомление)

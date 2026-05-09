@@ -2,33 +2,52 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { sendAdminNotification } from '@/lib/telegram';
+import { getAuthUser } from '@/lib/getAuthUser';
+import { z } from 'zod';
 
-// Получить историю обменов пользователя
+const exchangeSchema = z.object({
+  direction: z.enum(['USDT_TO_TMT', 'TMT_TO_USDT']),
+  amountUsdt: z.number().positive(),
+  amountTmt: z.number().positive(),
+  userPhone: z.string().optional().nullable(),
+});
+
 export async function GET(req: Request) {
   try {
-    const { searchParams } = new URL(req.url);
-    const userId = searchParams.get('userId');
-
-    if (!userId) return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
+    const authUser = await getAuthUser();
+    if (!authUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const requests = await prisma.exchangeRequest.findMany({
-      where: { userId },
+      where: { userId: authUser.userId },
       orderBy: { createdAt: 'desc' }
     });
 
     return NextResponse.json(requests);
   } catch (error) {
+    console.error('Fetch exchanges error:', error);
     return NextResponse.json({ error: 'Failed' }, { status: 500 });
   }
 }
 
-// Создать заявку на обмен
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { userId, direction, amountUsdt, amountTmt, userPhone } = body;
+    const authUser = await getAuthUser();
+    if (!authUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Получаем текущие настройки (курс и комиссию)
+    const body = await req.json();
+    const parsed = exchangeSchema.safeParse({
+      ...body,
+      amountUsdt: Number(body.amountUsdt),
+      amountTmt: Number(body.amountTmt),
+    });
+
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Validation failed', details: parsed.error.flatten().fieldErrors }, { status: 400 });
+    }
+
+    const { direction, amountUsdt, amountTmt, userPhone } = parsed.data;
+    const userId = authUser.userId;
+
     const settings = await prisma.systemSetting.findMany({
       where: { key: { in: ['EXCHANGE_RATE', 'EXCHANGE_FEE'] } }
     });
@@ -39,7 +58,9 @@ export async function POST(req: Request) {
     }, { EXCHANGE_RATE: '19.5', EXCHANGE_FEE: '1' });
 
     const currentRate = parseFloat(settingsMap.EXCHANGE_RATE);
-    const feePercent = parseFloat(settingsMap.EXCHANGE_FEE);
+    
+    // Фиатные пары (USDT/TMT): 20 TMT фикс (списывается в USDT эквиваленте)
+    const fee = 20 / currentRate;
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -49,37 +70,31 @@ export async function POST(req: Request) {
     if (!user || !user.wallet) {
       return NextResponse.json({ error: 'User or wallet not found' }, { status: 404 });
     }
+    
+    // Подготовка списания комиссии (Бонус -> USDT)
+    let feeDeductionFromBonus = 0;
+    let feeDeductionFromMain = 0;
 
-    // Расчет комиссии в USDT
-    const fee = (amountUsdt * feePercent) / 100;
+    if (Number(user.wallet.bonusBalance) >= fee) {
+      feeDeductionFromBonus = fee;
+    } else {
+      feeDeductionFromBonus = Number(user.wallet.bonusBalance);
+      feeDeductionFromMain = fee - feeDeductionFromBonus;
+    }
+
     let exchange;
 
-    // СЦЕНАРИЙ 1: USDT -> TMT (Списываем USDT + комиссию сразу)
     if (direction === 'USDT_TO_TMT') {
-      const totalToDeduct = amountUsdt; // Сумма обмена. Комиссия рассчитывается отдельно.
-      // Логика из запроса: Комиссия с бонусного счета -> основной USDT
-      let bonusDeduction = 0;
-      let mainBalanceDeduction = totalToDeduct; // Основная сумма обмена всегда с основного
-      let feeDeductionFromBonus = 0;
-      let feeDeductionFromMain = 0;
-
-      if (user.wallet.bonusBalance >= fee) {
-        feeDeductionFromBonus = fee;
-      } else {
-        feeDeductionFromBonus = user.wallet.bonusBalance;
-        feeDeductionFromMain = fee - user.wallet.bonusBalance;
-      }
-
-      if (user.wallet.usdtBalance < (mainBalanceDeduction + feeDeductionFromMain)) {
+      // При продаже USDT: списываем сумму продажи + комиссию
+      if (Number(user.wallet.usdtBalance) < (amountUsdt + feeDeductionFromMain)) {
         return NextResponse.json({ error: 'Недостаточно USDT (учитывая комиссию)' }, { status: 400 });
       }
 
-      // Используем транзакцию
       const transactionResult = await prisma.$transaction([
         prisma.wallet.update({
           where: { userId },
           data: { 
-            usdtBalance: { decrement: mainBalanceDeduction + feeDeductionFromMain },
+            usdtBalance: { decrement: amountUsdt + feeDeductionFromMain },
             bonusBalance: { decrement: feeDeductionFromBonus }
           }
         }),
@@ -96,25 +111,31 @@ export async function POST(req: Request) {
         })
       ]);
       exchange = transactionResult[1];
+    } else {
+      // При покупке USDT (TMT_TO_USDT):
+      // Списываем комиссию сейчас, а USDT зачислит админ при одобрении
+      const transactionResult = await prisma.$transaction([
+        prisma.wallet.update({
+          where: { userId },
+          data: { 
+            usdtBalance: { decrement: feeDeductionFromMain },
+            bonusBalance: { decrement: feeDeductionFromBonus }
+          }
+        }),
+        prisma.exchangeRequest.create({
+          data: { 
+            userId, 
+            direction, 
+            amountUsdt, 
+            amountTmt, 
+            status: 'PENDING',
+            commission: fee
+          }
+        })
+      ]);
+      exchange = transactionResult[1];
     }
 
-    // СЦЕНАРИЙ 2: TMT -> USDT (Баланс пополним при подтверждении админом, но комиссию считаем)
-    else if (direction === 'TMT_TO_USDT') {
-      // При покупке USDT комиссия обычно вычитается из зачисляемой суммы при одобрении,
-      // но мы запишем её в заявку сейчас.
-      exchange = await prisma.exchangeRequest.create({
-        data: { 
-          userId, 
-          direction, 
-          amountUsdt, 
-          amountTmt, 
-          status: 'PENDING',
-          commission: fee
-        }
-      });
-    }
-
-    // Уведомление админам
     const typeLabel = direction === 'USDT_TO_TMT' ? 'Продажа USDT' : 'Покупка USDT';
     await sendAdminNotification(
       `🚨 <b>Новая заявка на обмен!</b>\n\n` +
@@ -130,4 +151,4 @@ export async function POST(req: Request) {
     console.error('Exchange error:', error);
     return NextResponse.json({ error: 'Failed to create exchange' }, { status: 500 });
   }
-}
+}

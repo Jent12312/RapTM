@@ -1,18 +1,23 @@
 // src/app/api/wallet/addresses/route.ts
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getAuthUser } from '@/lib/getAuthUser';
+import { z } from 'zod';
+
+const addressSchema = z.object({
+  network: z.enum(['TRC20', 'BEP20', 'ERC20', 'APTOS']),
+  address: z.string().min(10),
+  label: z.string().optional().nullable(),
+  isDefault: z.boolean().optional().default(false),
+});
 
 export async function GET(req: Request) {
   try {
-    const { searchParams } = new URL(req.url);
-    const userId = searchParams.get('userId');
-
-    if (!userId) {
-      return NextResponse.json({ error: 'User ID required' }, { status: 400 });
-    }
+    const authUser = await getAuthUser();
+    if (!authUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const wallet = await prisma.wallet.findUnique({
-      where: { userId },
+      where: { userId: authUser.userId },
       include: {
         withdrawalAddresses: {
           orderBy: { isDefault: 'desc' },
@@ -33,26 +38,20 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const authUser = await getAuthUser();
+    if (!authUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const body = await req.json();
-    const { userId, network, address, label, isDefault } = body;
+    const parsed = addressSchema.safeParse(body);
 
-    if (!userId || !network || !address) {
-      return NextResponse.json(
-        { error: 'Missing required fields: userId, network, address' },
-        { status: 400 }
-      );
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Validation failed', details: parsed.error.flatten().fieldErrors }, { status: 400 });
     }
 
-    const validNetworks = ['TRC20', 'BEP20', 'ERC20', 'APTOS'];
-    if (!validNetworks.includes(network.toUpperCase())) {
-      return NextResponse.json(
-        { error: 'Invalid network. Use: TRC20, BEP20, ERC20, APTOS' },
-        { status: 400 }
-      );
-    }
+    const { network, address, label, isDefault } = parsed.data;
 
     const wallet = await prisma.wallet.findUnique({
-      where: { userId },
+      where: { userId: authUser.userId },
     });
 
     if (!wallet) {
@@ -85,11 +84,24 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
+    const authUser = await getAuthUser();
+    if (!authUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { searchParams } = new URL(req.url);
     const addressId = searchParams.get('id');
 
     if (!addressId) {
       return NextResponse.json({ error: 'Address ID required' }, { status: 400 });
+    }
+
+    // Check if address belongs to the user
+    const address = await prisma.withdrawalAddress.findUnique({
+        where: { id: addressId },
+        include: { wallet: true }
+    });
+
+    if (!address || address.wallet.userId !== authUser.userId) {
+        return NextResponse.json({ error: 'Address not found or unauthorized' }, { status: 404 });
     }
 
     await prisma.withdrawalAddress.delete({
