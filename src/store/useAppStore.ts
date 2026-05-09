@@ -67,9 +67,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({
           user: data.user,
           balances: {
-            tmt: data.user?.wallet?.tmtBalance || 0,
-            usdt: data.user?.wallet?.usdtBalance || 0,
-            bonus: data.user?.wallet?.bonusBalance || 0
+            tmt: Number(data.user?.wallet?.tmtBalance) || 0,
+            usdt: Number(data.user?.wallet?.usdtBalance) || 0,
+            bonus: Number(data.user?.wallet?.bonusBalance) || 0
           }
         });
       } else {
