@@ -12,7 +12,14 @@ export default function TelegramProvider({ children }: { children: React.ReactNo
       WebApp.ready();
       WebApp.expand();
       WebApp.setBackgroundColor('#f8fafc');
-      WebApp.setHeaderColor('#ffffff'); // Белая шапка
+
+      // В версии 6.0 и ниже hex цвета в setHeaderColor не поддерживались.
+      // Используем безопасный способ установки цвета.
+      if (WebApp.isVersionAtLeast('6.9')) {
+        WebApp.setHeaderColor('#ffffff');
+      } else {
+        WebApp.setHeaderColor('bg_color');
+      }
 
       if (WebApp.isVersionAtLeast('7.7')) {
         WebApp.setHeaderColor('bg_color');
@@ -26,7 +33,13 @@ export default function TelegramProvider({ children }: { children: React.ReactNo
     });
   }, []);
 
-  if (!isReady) return null;
+  if (!isReady) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return <>{children}</>;
 }

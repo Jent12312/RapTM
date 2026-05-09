@@ -57,7 +57,8 @@ export default function GlobalNotifications() {
     if (Object.keys(knownOrders).length === 0) checkForNewOrders();
     const interval = setInterval(checkForNewOrders, 5000);
     return () => clearInterval(interval);
-  }, [user?.id, knownOrders]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   return (
     <div className="fixed top-4 left-0 right-0 z-[9999] flex flex-col items-center gap-2 pointer-events-none px-4">

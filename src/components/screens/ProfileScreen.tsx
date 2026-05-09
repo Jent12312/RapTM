@@ -67,7 +67,8 @@ interface MenuBtnProps {
 import { haptic } from '@/lib/haptic';
 import PullToRefresh from '@/components/ui/PullToRefresh';
 
-const { 
+export default function ProfileScreen() {
+  const { 
     user, language, setLanguage, setActiveTab, 
     initUser, logout, addToast 
   } = useAppStore();
@@ -141,9 +142,6 @@ const {
       </div>
     </button>
   );
-
-export default function ProfileScreen() {
-  const { user, language, initUser, addToast } = useAppStore();
 
   // Состояния для открытия вложенных экранов
   const [isCreatingAd, setIsCreatingAd] = useState(false);
