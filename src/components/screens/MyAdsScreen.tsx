@@ -16,15 +16,22 @@ export default function MyAdsScreen({ onClose }: Props) {
 
   // Загружаем только объявления текущего юзера
   const loadMyAds = async () => {
+    if (!user || !user.id) return; // Защита от отсутствия юзера
+
     setIsLoading(true);
     try {
       const res = await fetch(`/api/p2p?userId=${user.id}`);
       if (res.ok) {
         const data = await res.json();
-        setMyAds(data);
+        // Умное извлечение массива (как мы делали в других местах)
+        const adsArray = Array.isArray(data) ? data : (data?.ads || data?.data || []);
+        setMyAds(adsArray);
+      } else {
+        setMyAds([]); // Если ответ не ok
       }
     } catch (error) {
-      console.error(error);
+      console.error('Ошибка загрузки моих объявлений:', error);
+      setMyAds([]); // При ошибке сети сбрасываем в пустой массив
     } finally {
       setIsLoading(false);
     }
@@ -32,12 +39,17 @@ export default function MyAdsScreen({ onClose }: Props) {
 
   useEffect(() => {
     if (user?.id) loadMyAds();
-  }, [user]);
+  }, [user?.id]); // Безопасная зависимость
+
+  // Гарантируем, что myAds всегда массив перед использованием
+  const safeMyAds = Array.isArray(myAds) ? myAds : [];
 
   // Функция переключения тумблера
   const toggleAdStatus = async (adId: string, currentStatus: boolean) => {
     const { addToast } = useAppStore.getState();
-    setMyAds(myAds.map(ad => ad.id === adId ? { ...ad, isActive: !currentStatus } : ad));
+    
+    // Используем safeMyAds
+    setMyAds(safeMyAds.map(ad => ad.id === adId ? { ...ad, isActive: !currentStatus } : ad));
 
     try {
       await fetch(`/api/p2p/${adId}`, {
@@ -48,7 +60,7 @@ export default function MyAdsScreen({ onClose }: Props) {
       addToast(t(language, 'success'), "info");
     } catch (error) {
       addToast(t(language, 'error'), "error");
-      loadMyAds();
+      loadMyAds(); // Перезагружаем при ошибке
     }
   };
 
@@ -59,7 +71,8 @@ export default function MyAdsScreen({ onClose }: Props) {
 
     try {
       await fetch(`/api/p2p/${adId}`, { method: 'DELETE' });
-      setMyAds(myAds.filter(ad => ad.id !== adId));
+      // Используем safeMyAds
+      setMyAds(safeMyAds.filter(ad => ad.id !== adId));
       addToast(t(language, 'success'), "success");
     } catch (error) {
       addToast(t(language, 'error'), "error");
@@ -83,14 +96,14 @@ export default function MyAdsScreen({ onClose }: Props) {
       <div className="p-4 space-y-4 pb-32">
         {isLoading ? (
           <div className="text-center py-10 text-slate-400 font-bold">{t(language, 'loading')}</div>
-        ) : myAds.length === 0 ? (
+        ) : safeMyAds.length === 0 ? (
           <div className="text-center py-20 text-slate-400 font-medium text-sm bg-white rounded-[2rem] ring-1 ring-slate-100">
             <div className="text-4xl mb-3 opacity-50">📭</div>
             {t(language, 'noAds')}<br/>
             {t(language, 'createAd')}!
           </div>
         ) : (
-          myAds.map((ad) => (
+          safeMyAds.map((ad) => (
             <div key={ad.id} className={`bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-slate-100 transition-all ${!ad.isActive ? 'opacity-70 grayscale-[30%]' : ''}`}>
               
               <div className="flex justify-between items-start mb-4">
@@ -118,7 +131,7 @@ export default function MyAdsScreen({ onClose }: Props) {
               <div className="flex justify-between items-end border-t border-slate-50 pt-4">
                 <div>
                   <div className="text-xl font-bold text-slate-800">
-                    {ad.price.toFixed(2)} <span className="text-xs font-medium text-slate-400">{ad.fiat}</span>
+                    {ad.price?.toFixed(2) || '0.00'} <span className="text-xs font-medium text-slate-400">{ad.fiat}</span>
                   </div>
                   <div className="text-[10px] text-slate-500 font-medium mt-1">
                     {t(language, 'p2pLimit')}: {ad.minLimit} - {ad.maxLimit} {ad.fiat}
