@@ -96,11 +96,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       const res = await fetch('/api/p2p');
       if (res.ok) {
         const data = await res.json();
-        set({ ads: data, isLoadingAds: false });
+  
+        const adsArray = Array.isArray(data) ? data : (data?.ads || data?.data || []);
+        
+        set({ ads: adsArray, isLoadingAds: false });
+      } else {
+        // Если ответ не OK (например 404 или 500)
+        set({ ads: [], isLoadingAds: false });
       }
     } catch (error) {
       console.error("Ошибка загрузки объявлений:", error);
-      set({ isLoadingAds: false });
+      // В случае ошибки сети обязательно сбрасываем в пустой массив
+      set({ ads: [], isLoadingAds: false });
     }
   },
 
