@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     }
 
     const { adId, amountAsset, amountFiat } = parsed.data;
-    const takerId = authUser.userId; // Тот, кто нажал кнопку "Создать сделку"
+    const takerId = authUser.userId;
 
     // 3. Поиск объявления
     const ad = await prisma.p2PAd.findUnique({ 
@@ -52,23 +52,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Объявление больше не активно' }, { status: 400 });
     }
 
-    // 4. ПРАВИЛЬНОЕ РАСПРЕДЕЛЕНИЕ РОЛЕЙ (Защита от регистра BUY/buy)
-    const isBuyAd = ad.type.toUpperCase() === 'BUY';
+    // 4. ПРАВИЛЬНОЕ РАСПРЕДЕЛЕНИЕ РОЛЕЙ
+    const isBuyAd = ad.type === 'BUY';
     
     let buyerId: string;
     let sellerId: string;
 
     if (isBuyAd) {
-      // Мейкер (создатель ad) хочет КУПИТЬ крипту. Тейкер (авторизованный юзер) ПРОДАЕТ ему.
       buyerId = ad.userId;
       sellerId = takerId;
     } else {
-      // Мейкер (создатель ad) хочет ПРОДАТЬ крипту. Тейкер (авторизованный юзер) ПОКУПАЕТ у него.
       buyerId = takerId;
       sellerId = ad.userId;
     }
 
-    // Проверка на торговлю с самим собой
     if (buyerId === sellerId) {
       return NextResponse.json({ error: 'Нельзя открыть сделку по собственному объявлению' }, { status: 400 });
     }
@@ -110,7 +107,7 @@ export async function POST(req: Request) {
         }
       });
 
-      // 6.2 Создаем сделку
+      // 6.2 Создаем сделку (БЕЗ поля price, так как его нет в базе данных)
       const newOrder = await tx.order.create({
         data: {
           adId,
@@ -118,10 +115,8 @@ export async function POST(req: Request) {
           sellerId,
           amountAsset,
           amountFiat,
-          status: 'PENDING',
-          price: ad.price
+          status: 'PENDING'
         },
-        // ВАЖНО: Подтягиваем все данные, чтобы фронтенд мог сразу отобразить окно
         include: { 
           ad: { include: { user: true } }, 
           seller: true, 
@@ -129,7 +124,7 @@ export async function POST(req: Request) {
         }
       });
 
-      // 6.3 Создаем стартовое системное сообщение в чате
+      // 6.3 Создаем стартовое системное сообщение
       let paymentInfo = '';
       if (ad.paymentMethods?.includes('Cash')) {
         paymentInfo = `🤝 Встреча (наличные). Город: ${ad.city || 'Уточняется в чате'}.`;
@@ -149,9 +144,8 @@ export async function POST(req: Request) {
       return newOrder;
     });
 
-    // 7. ОТПРАВКА УВЕДОМЛЕНИЙ В TELEGRAM (В блоке try/catch, чтобы ошибка не отменила сделку)
+    // 7. ОТПРАВКА УВЕДОМЛЕНИЙ В TELEGRAM
     try {
-      // Уведомление покупателю
       await notifyUser(buyerId, 'order_created', {
         orderId: order.id,
         amountFiat: order.amountFiat,
@@ -163,7 +157,6 @@ export async function POST(req: Request) {
         paymentTime: ad.paymentTime,
       });
 
-      // Уведомление продавцу
       await notifyUser(sellerId, 'order_created', {
         orderId: order.id,
         amountFiat: order.amountFiat,
@@ -178,7 +171,6 @@ export async function POST(req: Request) {
       console.error("Ошибка отправки Telegram-уведомлений:", e);
     }
 
-    // 8. Возвращаем успешный результат
     return NextResponse.json({ success: true, order });
 
   } catch (error) {
@@ -187,7 +179,7 @@ export async function POST(req: Request) {
   }
 }
 
-// GET-запрос для получения всех сделок пользователя (Для "Мои Заказы")
+// GET-запрос для получения всех сделок пользователя
 export async function GET(req: Request) {
   try {
     const authUser = await getAuthUser();
@@ -204,7 +196,6 @@ export async function GET(req: Request) {
           { sellerId: userId }
         ]
       },
-      // Подтягиваем связанные сущности для корректного отображения
       include: { 
         ad: { include: { user: true } }, 
         seller: true, 
