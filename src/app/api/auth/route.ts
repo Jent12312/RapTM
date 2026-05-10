@@ -100,9 +100,9 @@ export async function POST(req: Request) {
     const cookieStore = await cookies();
     cookieStore.set('auth_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 60 * 60 * 24,
+      secure: true, // Обязательно true для Телеграм
+      sameSite: 'none', // <-- КРИТИЧЕСКИ ВАЖНО ДЛЯ TELEGRAM WEB APP
+      maxAge: 60 * 60 * 24, // 24 часа
       path: '/',
     });
 
