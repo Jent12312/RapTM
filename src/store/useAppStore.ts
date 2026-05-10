@@ -1,5 +1,6 @@
 // src/store/useAppStore.ts
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { Language } from '../lib/dictionaries';
 import { haptic } from '../lib/haptic';
 
@@ -37,94 +38,103 @@ interface AppState {
   removeToast: (id: string) => void;
 }
 
-export const useAppStore = create<AppState>((set, get) => ({
-  language: 'ru',
-  activeTab: 'wallet',
-  isBalanceVisible: true,
-  user: null,
-  balances: { tmt: 0, usdt: 0, bonus: 0 },
-  
-  ads: [],
-  isLoadingAds: false,
-  toasts: [],
-
-  setLanguage: (lang) => set({ language: lang }),
-  setActiveTab: (tab) => set({ activeTab: tab }),
-  toggleBalance: () => {
-    haptic.light();
-    set((state) => ({ isBalanceVisible: !state.isBalanceVisible }));
-  },
-
-  initUser: async (initData: string) => {
-    try {
-      const res = await fetch('/api/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ initData }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        set({
-          user: data.user,
-          balances: {
-            tmt: Number(data.user?.wallet?.tmtBalance) || 0,
-            usdt: Number(data.user?.wallet?.usdtBalance) || 0,
-            bonus: Number(data.user?.wallet?.bonusBalance) || 0
-          }
-        });
-      } else {
-        console.error("Ошибка авторизации: ", data.error);
-        get().addToast("Ошибка авторизации. Пожалуйста, перезапустите приложение.", "error");
-      }
-    } catch (err) {
-      console.error("Ошибка авторизации:", err);
-      get().addToast("Ошибка сети при авторизации.", "error");
-    }
-  },
-
-  logout: () => {
-    set({
+export const useAppStore = create<AppState>()(
+  persist(
+    (set, get) => ({
+      language: 'ru',
+      activeTab: 'wallet',
+      isBalanceVisible: true,
       user: null,
       balances: { tmt: 0, usdt: 0, bonus: 0 },
-      ads: []
-    });
-  },
+      
+      ads: [],
+      isLoadingAds: false,
+      toasts: [],
 
-  fetchAds: async () => {
-    set({ isLoadingAds: true });
-    try {
-      const res = await fetch('/api/p2p');
-      if (res.ok) {
-        const data = await res.json();
-  
-        const adsArray = Array.isArray(data) ? data : (data?.ads || data?.data || []);
+      setLanguage: (lang) => set({ language: lang }),
+      setActiveTab: (tab) => set({ activeTab: tab }),
+      toggleBalance: () => {
+        haptic.light();
+        set((state) => ({ isBalanceVisible: !state.isBalanceVisible }));
+      },
+
+      initUser: async (initData: string) => {
+        try {
+          const res = await fetch('/api/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ initData }),
+          });
+          const data = await res.json();
+          if (data.success && data.user) {
+            set({
+              user: data.user,
+              balances: {
+                tmt: Number(data.user?.wallet?.tmtBalance) || 0,
+                usdt: Number(data.user?.wallet?.usdtBalance) || 0,
+                bonus: Number(data.user?.wallet?.bonusBalance) || 0
+              }
+            });
+          } else {
+            console.error("Ошибка авторизации: ", data.error);
+            get().addToast("Ошибка авторизации. Перезапустите приложение.", "error");
+          }
+        } catch (err) {
+          console.error("Ошибка авторизации:", err);
+          get().addToast("Ошибка сети при авторизации.", "error");
+        }
+      },
+
+      logout: () => {
+        set({
+          user: null,
+          balances: { tmt: 0, usdt: 0, bonus: 0 },
+          ads: []
+        });
+      },
+
+      fetchAds: async () => {
+        set({ isLoadingAds: true });
+        try {
+          const res = await fetch('/api/p2p');
+          if (res.ok) {
+            const data = await res.json();
+            // Безопасное извлечение массива
+            const adsArray = Array.isArray(data) ? data : (data?.ads || data?.data || []);
+            set({ ads: adsArray, isLoadingAds: false });
+          } else {
+            set({ ads: [], isLoadingAds: false });
+          }
+        } catch (error) {
+          console.error("Ошибка загрузки объявлений:", error);
+          set({ ads: [], isLoadingAds: false });
+        }
+      },
+
+      addToast: (message, type) => {
+        const id = Date.now().toString();
+        set((state) => ({ toasts: [...state.toasts, { id, message, type }] }));
         
-        set({ ads: adsArray, isLoadingAds: false });
-      } else {
-        // Если ответ не OK (например 404 или 500)
-        set({ ads: [], isLoadingAds: false });
-      }
-    } catch (error) {
-      console.error("Ошибка загрузки объявлений:", error);
-      // В случае ошибки сети обязательно сбрасываем в пустой массив
-      set({ ads: [], isLoadingAds: false });
+        if (type === 'success') haptic.success();
+        else if (type === 'error') haptic.error();
+        else haptic.medium();
+
+        setTimeout(() => {
+          set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }));
+        }, 3000);
+      },
+
+      removeToast: (id) => set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }))
+    }),
+    {
+      name: 'rapira-app-storage',
+      // Сохраняем в кэш телефона только настройки интерфейса, 
+      // чтобы юзер и балансы всегда загружались свежими с сервера
+      partialize: (state) => ({
+        language: state.language,
+        activeTab: state.activeTab,
+        isBalanceVisible: state.isBalanceVisible,
+      }),
     }
-  },
-
-  addToast: (message, type) => {
-    const id = Date.now().toString();
-    set((state) => ({ toasts: [...state.toasts, { id, message, type }] }));
-    
-    // Вибрация
-    if (type === 'success') haptic.success();
-    else if (type === 'error') haptic.error();
-    else haptic.medium();
-
-    // Автоудаление через 3 секунды
-    setTimeout(() => {
-      set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }));
-    }, 3000);
-  },
-
-  removeToast: (id) => set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }))
-}));
+  )
+);
