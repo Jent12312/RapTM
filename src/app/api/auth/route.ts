@@ -13,23 +13,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'initData is required' }, { status: 400 });
     }
 
-    // 1. Валидация подписи (убедитесь, что validateTelegramWebAppData возвращает true или объект)
-    const isValid = validateTelegramWebAppData(initData);
-    if (!isValid) {
+    // 1. Валидация подписи
+    const authData = validateTelegramWebAppData(initData);
+    if (!authData) {
       return NextResponse.json({ error: 'Invalid initData signature' }, { status: 401 });
     }
 
-    // 2. ПРАВИЛЬНОЕ ИЗВЛЕЧЕНИЕ ДАННЫХ ПОЛЬЗОВАТЕЛЯ
-    const urlParams = new URLSearchParams(initData);
-    const userJsonStr = urlParams.get('user');
-    const startParam = urlParams.get('start_param');
+    // 2. Извлечение данных пользователя и start_param
+    const userData = authData.user;
+    const startParam = authData.start_param || new URLSearchParams(initData).get('start_param');
     
-    if (!userJsonStr) {
+    if (!userData || !userData.id) {
       return NextResponse.json({ error: 'No user data found in initData' }, { status: 400 });
     }
-
-    // РАСПАКОВЫВАЕМ JSON (Именно здесь была ошибка!)
-    const userData = JSON.parse(userJsonStr);
 
     const telegramId = String(userData.id);
     const username = userData.username || null;
@@ -42,28 +38,42 @@ export async function POST(req: Request) {
       include: { wallet: true },
     });
 
+    // Helper for finding referrer
+    const getReferrerId = async (param: string | null, currentUserId?: string) => {
+      if (!param || !param.startsWith('ref_')) return null;
+      const refId = param.replace('ref_', '');
+      
+      // 1. Попробовать найти по internal UUID (если формат совпадает)
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(refId);
+      if (isUuid) {
+        const ref = await prisma.user.findUnique({ where: { id: refId } });
+        if (ref && ref.id !== currentUserId) return ref.id;
+      }
+
+      // 2. Попробовать найти по telegramId
+      const refByTg = await prisma.user.findUnique({ where: { telegramId: refId } });
+      if (refByTg && refByTg.id !== currentUserId) return refByTg.id;
+
+      return null;
+    };
+
     if (!user) {
       // ЛОГИКА ДЛЯ НОВОГО ПОЛЬЗОВАТЕЛЯ
       let level: 'Standard' | 'Pro' | 'Partner' = 'Standard';
       let bonus = 15.0;
 
-      if (startParam === 'partner' || startParam?.startsWith('partner_')) {
+      if (startParam === 'partner' || (typeof startParam === 'string' && startParam.startsWith('partner_'))) {
         level = 'Partner';
         bonus = 50.0;
       }
 
-      let referrerId = null;
-      if (startParam && startParam.startsWith('ref_')) {
-        const refId = startParam.replace('ref_', '');
-        const referrer = await prisma.user.findUnique({ where: { id: refId } });
-        if (referrer) referrerId = referrer.id;
-      }
+      const referrerId = await getReferrerId(startParam as string);
 
       user = await prisma.user.create({
         data: {
           telegramId,
           username,
-          firstName: firstName || lastName || 'User', // Резервное имя
+          firstName: firstName || lastName || 'User',
           language: languageCode === 'tm' ? 'TM' : languageCode === 'en' ? 'EN' : 'RU',
           level: level,
           depositAmount: 0,
@@ -79,13 +89,21 @@ export async function POST(req: Request) {
       });
     } else {
       // ОБНОВЛЕНИЕ ДАННЫХ ДЕЙСТВУЮЩЕГО ПОЛЬЗОВАТЕЛЯ
+      const updateData: any = {
+        username: username || user.username,
+        firstName: firstName || lastName || user.firstName,
+        lastSeen: new Date(),
+      };
+
+      // Если у пользователя еще нет реферера, пробуем установить его сейчас
+      if (!user.referrerId && startParam) {
+        const refId = await getReferrerId(startParam as string, user.id);
+        if (refId) updateData.referrerId = refId;
+      }
+
       user = await prisma.user.update({
         where: { telegramId },
-        data: {
-          username: username || user.username,
-          firstName: firstName || lastName || user.firstName,
-          lastSeen: new Date(),
-        },
+        data: updateData,
         include: { wallet: true },
       });
     }

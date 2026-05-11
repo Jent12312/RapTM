@@ -131,7 +131,7 @@ export default function MyAdsScreen({ onClose }: Props) {
               <div className="flex justify-between items-end border-t border-slate-50 pt-4">
                 <div>
                   <div className="text-xl font-bold text-slate-800">
-                    {ad.price?.toFixed(2) || '0.00'} <span className="text-xs font-medium text-slate-400">{ad.fiat}</span>
+                    {Number(ad.price)?.toFixed(2) || '0.00'} <span className="text-xs font-medium text-slate-400">{ad.fiat}</span>
                   </div>
                   <div className="text-[10px] text-slate-500 font-medium mt-1">
                     {t(language, 'p2pLimit')}: {ad.minLimit} - {ad.maxLimit} {ad.fiat}

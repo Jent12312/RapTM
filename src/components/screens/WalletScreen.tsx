@@ -317,7 +317,11 @@ export default function WalletScreen() {
   return (
     <PullToRefresh onRefresh={onPullRefresh}>
       <div className="px-5 py-2 space-y-6 pb-32 animate-in fade-in duration-500">
-        
+        {/* Brand Icon */}
+        <div className="flex justify-start items-center mb-[-8px]">
+          <img src="/init.png" alt="Logo" className="h-10 w-auto object-contain" />
+        </div>
+
         {/* Главная карточка */}
         <div className="bg-gradient-to-br from-slate-900 via-emerald-950 to-emerald-900 rounded-[3rem] p-9 text-white shadow-[0_20px_50px_rgba(16,185,129,0.2)] relative overflow-hidden group">
           {/* Декоративные элементы */}
@@ -392,28 +396,53 @@ export default function WalletScreen() {
         </div>
 
         {/* Детализация активов */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
-             <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-emerald-500 rounded-xl flex items-center justify-center text-[11px] font-black text-white shadow-lg shadow-emerald-100">U</div>
-                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">USDT</span>
-                </div>
-                <ArrowRightLeft className="w-3 h-3 text-slate-200" />
-             </div>
-             {isLoadingRates ? <Skeleton className="h-8 w-24 mb-2" /> : <div className="text-2xl font-black text-slate-800 tracking-tight mb-1">{isBalanceVisible ? balances.usdt.toFixed(2) : '****'}</div>}
-             {isLoadingRates ? <Skeleton className="h-5 w-32" /> : <div className="text-[10px] font-bold text-emerald-500 bg-emerald-50 px-2 py-1 rounded-lg inline-block">1 USDT ≈ {rates.usdtToTmt} TMT</div>}
+        <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+               <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-emerald-500 rounded-xl flex items-center justify-center text-[11px] font-black text-white shadow-lg shadow-emerald-100">U</div>
+                    <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">USDT</span>
+                  </div>
+                  <ArrowRightLeft className="w-3 h-3 text-slate-200" />
+               </div>
+               {isLoadingRates ? <Skeleton className="h-8 w-24 mb-2" /> : <div className="text-2xl font-black text-slate-800 tracking-tight mb-1">{isBalanceVisible ? balances.usdt.toFixed(2) : '****'}</div>}
+               {isLoadingRates ? <Skeleton className="h-5 w-32" /> : <div className="text-[10px] font-bold text-emerald-500 bg-emerald-50 px-2 py-1 rounded-lg inline-block">1 USDT ≈ {rates.usdtToTmt} TMT</div>}
+            </div>
+            <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+               <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-blue-500 rounded-xl flex items-center justify-center text-[11px] font-black text-white shadow-lg shadow-blue-100">T</div>
+                    <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">TMT</span>
+                  </div>
+                  <Zap className="w-3 h-3 text-slate-200" />
+               </div>
+               {isLoadingRates ? <Skeleton className="h-8 w-24 mb-2" /> : <div className="text-2xl font-black text-slate-800 tracking-tight mb-1">{isBalanceVisible ? balances.tmt.toFixed(2) : '****'}</div>}
+               {isLoadingRates ? <Skeleton className="h-5 w-32" /> : <div className="text-[10px] font-bold text-blue-500 bg-blue-50 px-2 py-1 rounded-lg inline-block">Местная валюта</div>}
+            </div>
           </div>
-          <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
-             <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-blue-500 rounded-xl flex items-center justify-center text-[11px] font-black text-white shadow-lg shadow-blue-100">T</div>
-                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">TMT</span>
+          
+          {/* Бонусный счет */}
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-6 rounded-[2.5rem] shadow-sm border border-amber-100 hover:shadow-md transition-all group overflow-hidden relative">
+            <div className="absolute -right-4 -top-4 w-24 h-24 bg-amber-200/20 rounded-full blur-2xl group-hover:bg-amber-200/40 transition-colors"></div>
+            <div className="flex items-center justify-between relative z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-amber-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-amber-200">
+                  <Star className="w-6 h-6" />
                 </div>
-                <Zap className="w-3 h-3 text-slate-200" />
-             </div>
-             {isLoadingRates ? <Skeleton className="h-8 w-24 mb-2" /> : <div className="text-2xl font-black text-slate-800 tracking-tight mb-1">{isBalanceVisible ? balances.tmt.toFixed(2) : '****'}</div>}
-             {isLoadingRates ? <Skeleton className="h-5 w-32" /> : <div className="text-[10px] font-bold text-blue-500 bg-blue-50 px-2 py-1 rounded-lg inline-block">Местная валюта</div>}
+                <div>
+                  <span className="text-[11px] font-black text-amber-600 uppercase tracking-widest block">Бонусный счет</span>
+                  <div className="text-2xl font-black text-slate-800 tracking-tight">
+                    {isBalanceVisible ? balances.bonus.toFixed(2) : '****'} <span className="text-sm font-bold text-slate-400">USDT</span>
+                  </div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-[10px] font-bold text-amber-600 bg-white/60 px-3 py-1.5 rounded-xl border border-amber-100 inline-block">
+                  Доступно для обмена
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

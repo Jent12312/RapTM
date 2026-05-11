@@ -53,10 +53,10 @@ export default function P2PScreen() {
     const basePrice = marketPrices[pair] || 0;
     
     if (ad.priceType === 'floating') {
-      const percent = ad.price || 0;
+      const percent = Number(ad.price) || 0;
       return basePrice * (1 + percent / 100);
     } else {
-      return ad.price || 0;
+      return Number(ad.price) || 0;
     }
   };
 
