@@ -17,6 +17,8 @@ export default function Home() {
   const [deepLinkMerchant, setDeepLinkMerchant] = useState<any>(null);
   // Стейт для заказа, если пришли по ссылке на сделку
   const [deepLinkOrder, setDeepLinkOrder] = useState<any>(null);
+  // Стейт для объявления, если пришли по ссылке на P2P объявление
+  const [deepLinkAd, setDeepLinkAd] = useState<any>(null);
   // Стейт для прямого перехода на экран (wallet, p2p, profile, my_orders и т.д.)
   const [deepLinkScreen, setDeepLinkScreen] = useState<string | null>(null);
 
@@ -51,7 +53,19 @@ export default function Home() {
               if (data) setDeepLinkOrder(data);
             });
         }
-        // 3. Прямой переход на экран
+        // 3. Объявление (share)
+        else if (startParam.startsWith('ad_')) {
+          const adId = startParam.replace('ad_', '');
+          fetch(`/api/p2p/${adId}`)
+            .then(res => res.json())
+            .then(data => {
+              if (data.ad) {
+                setDeepLinkAd(data.ad);
+                useAppStore.getState().setActiveTab('p2p');
+              }
+            });
+        }
+        // 4. Прямой переход на экран
         else if (['wallet', 'p2p', 'profile', 'my_orders', 'my_ads', 'create_ad', 'kyc'].includes(startParam)) {
           setDeepLinkScreen(startParam);
         }
@@ -94,7 +108,12 @@ export default function Home() {
 
       <div className="w-full max-w-md mx-auto">
         {activeTab === 'wallet' && <WalletScreen />}
-        {activeTab === 'p2p' && <P2PScreen />}
+        {activeTab === 'p2p' && (
+          <P2PScreen 
+            initialAd={deepLinkAd} 
+            onAdClose={() => setDeepLinkAd(null)} 
+          />
+        )}
         {activeTab === 'exchange' && <ExchangeScreen />}
         {activeTab === 'profile' && <ProfileScreen />}
       </div>

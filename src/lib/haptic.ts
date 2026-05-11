@@ -38,7 +38,7 @@ export const haptic = {
     }
   },
 
-  // Shortcuts
+  // Быстрые вызовы
   success: () => haptic.notification('success'),
   error: () => haptic.notification('error'),
   warning: () => haptic.notification('warning'),

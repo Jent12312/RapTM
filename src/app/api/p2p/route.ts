@@ -45,21 +45,32 @@ export async function GET(req: Request) {
     const city = searchParams.get('city');
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = {};
+    const where: any = { isDeleted: false };
 
     if (userId) {
-      // Все объявления этого юзера (и активные, и выключенные, кроме удалённых)
+      const authUser = await getAuthUser();
+      const isOwner = authUser?.userId === userId;
+
       where.userId = userId;
-      where.isDeleted = false;
+      
+      if (!isOwner) {
+        // Если смотрит не владелец — только активные и публичные
+        where.isActive = true;
+        where.isPrivate = false;
+      }
+      // Если владелец — показываем всё (isActive true/false, isPrivate true/false)
     } else {
-      // Общий маркет — только активные и не удалённые
+      // Общий маркет — только активные и публичные
       where.isActive = true;
-      where.isDeleted = false;
+      where.isPrivate = false;
     }
 
     if (type === 'BUY' || type === 'SELL') where.type = type;
     if (asset) where.asset = asset;
     if (city) where.city = city;
+    
+    const adId = searchParams.get('adId');
+    if (adId) where.id = adId;
 
     const [ads, total] = await Promise.all([
       prisma.p2PAd.findMany({

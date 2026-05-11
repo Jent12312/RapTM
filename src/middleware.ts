@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
-import { rateLimit } from './lib/rate-limit';
+import { rateLimit } from './lib/rate-limiter';
 
 const JWT_SECRET = process.env.JWT_SECRET || process.env.TELEGRAM_BOT_TOKEN || 'default-secret-key-change-in-prod';
 const encodedSecret = new TextEncoder().encode(JWT_SECRET);
@@ -19,7 +19,7 @@ export async function middleware(request: NextRequest) {
 
   // 1. Rate Limiting (Simple protection for all API routes)
   if (pathname.startsWith('/api')) {
-    const { success, remaining, reset } = await rateLimit(`rl_${ip}`, {
+    const { success, remaining, reset } = rateLimit(`rl_${ip}`, {
       limit: 100, // 100 requests
       window: 60 * 1000, // per minute
     });

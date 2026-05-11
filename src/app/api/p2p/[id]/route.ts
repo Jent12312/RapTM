@@ -2,6 +2,28 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
+// Получить одно объявление (для deep links)
+export async function GET(
+  req: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await context.params;
+    const ad = await prisma.p2PAd.findUnique({
+      where: { id, isDeleted: false },
+      include: { user: { select: { id: true, username: true, firstName: true, avatarUrl: true, tradesCount: true, level: true, isVerified: true, rating: true, telegramId: true } } }
+    });
+    
+    if (!ad) {
+      return NextResponse.json({ error: 'Ad not found' }, { status: 404 });
+    }
+    
+    return NextResponse.json({ success: true, ad });
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to fetch ad' }, { status: 500 });
+  }
+}
+
 // Обновить статус (Вкл/Выкл)
 export async function PATCH(
   req: Request,

@@ -10,14 +10,20 @@ import {
 import { haptic } from '@/lib/haptic';
 import Skeleton from '@/components/ui/Skeleton';
 import PullToRefresh from '@/components/ui/PullToRefresh';
+import { Share, Copy } from 'lucide-react';
 
 // Импортируем дочерние экраны
 import MerchantProfileModal from './MerchantProfileModal';
 import MyOrdersScreen from './MyOrdersScreen';
 import OrderScreen from './OrderScreen';
 
-export default function P2PScreen() {
-  const { language, ads, isLoadingAds, fetchAds, user } = useAppStore();
+interface P2PScreenProps {
+  initialAd?: any;
+  onAdClose?: () => void;
+}
+
+export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
+  const { language, ads, isLoadingAds, fetchAds, user, addToast } = useAppStore();
 
   // Состояния для рыночных цен
   const [marketPrices, setMarketPrices] = useState<Record<string, number>>({});
@@ -80,19 +86,54 @@ export default function P2PScreen() {
     fetchAds();
   }, [fetchAds]);
 
+  // Обработка прямого открытия объявления (Deep Link)
+  useEffect(() => {
+    if (initialAd) {
+      setSelectedAd(initialAd);
+      // Устанавливаем фильтры под это объявление, чтобы оно соответствовало текущему виду (опционально)
+      setAsset(initialAd.asset);
+      setFiat(initialAd.fiat);
+      setTradeType(initialAd.type.toLowerCase() === 'buy' ? 'sell' : 'buy');
+    }
+  }, [initialAd]);
+
 
   const targetAdType = tradeType === 'buy' ? 'sell' : 'buy';
   const filteredAds = (Array.isArray(ads) ? ads : []).filter(ad => {
-    const matchBase = ad.type === targetAdType && ad.asset === asset && ad.fiat === fiat;
+    const matchBase = ad.type.toLowerCase() === targetAdType && ad.asset === asset && ad.fiat === fiat;
     if (!filterAmount) return matchBase;
     const amount = Number(filterAmount);
     return matchBase && amount >= ad.minLimit && amount <= ad.maxLimit;
   });
 
+  const handleCopyLink = (ad: any) => {
+    haptic.medium();
+    const link = `https://t.me/rapira_tm_bot/app?startapp=ad_${ad.id}`;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(link).then(() => {
+        addToast(language === 'ru' ? "Ссылка скопирована" : language === 'tm' ? "Salgysy kopiýalandy" : "Link copied", "success");
+      });
+    } else {
+      // fallback
+      const textArea = document.createElement("textarea");
+      textArea.value = link;
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        addToast(language === 'ru' ? "Ссылка скопирована" : language === 'tm' ? "Salgysy kopiýalandy" : "Link copied", "success");
+      } catch (err) {
+        console.error('Fallback copy failed', err);
+      }
+      document.body.removeChild(textArea);
+    }
+  };
+
   const closeModal = () => {
     haptic.light();
     setSelectedAd(null);
     setTradeAmount('');
+    if (onAdClose) onAdClose();
   };
 
   useEffect(() => {
@@ -305,8 +346,16 @@ export default function P2PScreen() {
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 text-[10px] font-semibold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg ring-1 ring-slate-100">
-                    <Clock className="w-3 h-3" /> {ad.paymentTime || 15} {t(language, 'time')}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleCopyLink(ad); }}
+                      className="p-1.5 bg-slate-50 text-slate-400 rounded-lg hover:text-blue-500 transition-colors"
+                    >
+                      <Share className="w-3.5 h-3.5" />
+                    </button>
+                    <div className="flex items-center gap-1 text-[10px] font-semibold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg ring-1 ring-slate-100">
+                      <Clock className="w-3 h-3" /> {ad.paymentTime || 15} {t(language, 'time')}
+                    </div>
                   </div>
                 </div>
 
@@ -360,9 +409,14 @@ export default function P2PScreen() {
                 <h3 className="text-xl font-bold text-slate-800">
                   {selectedAd.type === 'buy' ? `${t(language, 'buy')} ${selectedAd.asset}` : `${t(language, 'sell')} ${selectedAd.asset}`}
                 </h3>
-                <button onClick={closeModal} className="p-2 bg-slate-100 rounded-full text-slate-500 active:scale-95">
-                  <X className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => handleCopyLink(selectedAd)} className="p-2 bg-blue-50 text-blue-500 rounded-full active:scale-95">
+                    <Share className="w-5 h-5" />
+                  </button>
+                  <button onClick={closeModal} className="p-2 bg-slate-100 rounded-full text-slate-500 active:scale-95">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
               <div className="bg-slate-50 p-4 rounded-2xl mb-4 ring-1 ring-slate-100 flex justify-between items-center">

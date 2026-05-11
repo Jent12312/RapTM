@@ -15,12 +15,12 @@ export interface BlockchainTransaction {
 
 class BlockchainService {
   /**
-   * Generates a new deposit address for a user.
-   * In production, this would call a provider (e.g., Tatum, Moralis) 
-   * or use a BIP44 derivation logic from a master public key (XPUB).
+   * Генерирует новый адрес для депозита пользователя.
+   * В рабочей среде здесь будет вызов провайдера (например, Tatum, Moralis)
+   * или использование логики деривации BIP44 из мастер-ключа (XPUB).
    */
   async generateAddress(network: BlockchainNetwork, userId: string): Promise<string> {
-    // Check if address already exists
+    // Проверяем, существует ли уже адрес
     const existing = await prisma.depositAddress.findUnique({
       where: {
         walletId_network: {
@@ -32,7 +32,7 @@ class BlockchainService {
 
     if (existing) return existing.address;
 
-    // MOCK IMPLEMENTATION: Deterministic random address based on user and network
+    // ЗАГЛУШКА: Детерминированный случайный адрес на основе пользователя и сети
     const prefixMap: Record<string, string> = {
       TRC20: 'T',
       BEP20: '0x',
@@ -43,7 +43,7 @@ class BlockchainService {
     const hash = Buffer.from(`${userId}-${network}-salt`).toString('hex').slice(0, 40);
     const address = prefix + hash;
 
-    // Save to DB
+    // Сохраняем в БД
     const walletId = await this.getWalletId(userId);
     await prisma.depositAddress.create({
       data: {
@@ -57,17 +57,17 @@ class BlockchainService {
   }
 
   /**
-   * Verifies a transaction on-chain.
-   * In production, this would fetch data from a blockchain explorer API or RPC node.
+   * Проверяет транзакцию в блокчейне.
+   * В рабочей среде здесь будут запрашиваться данные из API обозревателя блокчейна или через RPC-узел.
    */
   async verifyTransaction(txId: string, network: BlockchainNetwork): Promise<BlockchainTransaction | null> {
-    // MOCK IMPLEMENTATION
+    // ЗАГЛУШКА
     console.log(`Verifying tx ${txId} on ${network}...`);
     
-    // Simulate API delay
+    // Симулируем задержку API
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // For demo purposes, we return a successful transaction if txId starts with 'test_'
+    // Для демонстрационных целей возвращаем успешную транзакцию, если txId начинается с 'test_'
     if (txId.startsWith('test_')) {
       return {
         txId,

@@ -3,39 +3,39 @@ import prisma from './prisma';
 import { Decimal } from '@prisma/client/runtime/library';
 
 /**
- * Performs a financial consistency check.
- * Sum(Deposits) - Sum(Withdrawals) - Sum(System Fees) == Sum(User Balances)
+ * Выполняет проверку финансовой согласованности.
+ * Сумма(Депозиты) - Сумма(Выводы) - Сумма(Комиссии системы) == Сумма(Балансы пользователей)
  */
 export async function performReconciliation() {
   try {
     console.log('[Reconciliation] Starting financial check...');
 
-    // 1. Sum of all completed deposits
+    // 1. Сумма всех завершенных депозитов
     const deposits = await prisma.transaction.aggregate({
       where: { type: 'DEPOSIT', status: 'COMPLETED' },
       _sum: { amount: true }
     });
 
-    // 2. Sum of all completed withdrawals (includes fees)
+    // 2. Сумма всех завершенных выводов (включая комиссии)
     const withdrawals = await prisma.transaction.aggregate({
       where: { type: 'WITHDRAWAL', status: 'COMPLETED' },
       _sum: { amount: true }
     });
 
-    // 3. Sum of all bonuses (add to balance)
+    // 3. Сумма всех бонусов (добавляются к балансу)
     const bonuses = await prisma.transaction.aggregate({
       where: { type: 'BONUS', status: 'COMPLETED' },
       _sum: { amount: true }
     });
 
-    // 4. Sum of all fees collected by system
+    // 4. Сумма всех комиссий, собранных системой
     const fees = await prisma.transaction.aggregate({
       where: { status: 'COMPLETED' },
       _sum: { fee: true }
     });
 
-    // 5. Sum of all current wallet balances (USDT + TMT converted or separately)
-    // For simplicity, let's check USDT and TMT separately
+    // 5. Сумма всех текущих балансов кошельков (USDT + TMT конвертированные или отдельно)
+    // Для простоты давайте проверим USDT и TMT отдельно
     const wallets = await prisma.wallet.aggregate({
       _sum: {
         usdtBalance: true,
@@ -50,22 +50,22 @@ export async function performReconciliation() {
     const totalFees = fees._sum.fee || new Decimal(0);
 
     const expectedUsdtBalance = totalDeposits.minus(totalWithdrawals); 
-    // This is a simplified model. In reality, you'd track per asset.
+    // Это упрощенная модель. В реальности нужно отслеживать по каждому активу.
     
-    // For now, let's just log the sums and check if any massive discrepancy exists
+    // На данный момент просто логируем суммы и проверяем наличие значительных расхождений
     const actualTotalBalance = (wallets._sum.usdtBalance || new Decimal(0))
       .add(wallets._sum.tmtBalance || new Decimal(0))
       .add(wallets._sum.frozenBalance || new Decimal(0))
       .add(wallets._sum.bonusBalance || new Decimal(0));
 
-    // Log the result
+    // Логируем результат
     const log = await prisma.reconciliationLog.create({
       data: {
         totalDeposits,
         totalWithdrawals,
         totalFees,
         totalBalance: actualTotalBalance,
-        isMatch: true, // We'll refine the matching logic based on per-asset tracking
+        isMatch: true, // Мы уточним логику сопоставления на основе отслеживания каждого актива
         details: JSON.stringify({
           usdt: wallets._sum.usdtBalance,
           tmt: wallets._sum.tmtBalance,

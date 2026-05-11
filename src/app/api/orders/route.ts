@@ -5,12 +5,8 @@ import { notifyUser } from '@/lib/telegram';
 import { getAuthUser } from '@/lib/getAuthUser';
 import { z } from 'zod';
 
-// Схема валидации входящих данных
-const createOrderSchema = z.object({
-  adId: z.string().uuid(),
-  amountAsset: z.number().positive(),
-  amountFiat: z.number().positive(),
-});
+import { validateRequest } from '@/lib/api-utils';
+import { createP2POrderSchema } from '@/lib/validations/common';
 
 export async function POST(req: Request) {
   try {
@@ -20,22 +16,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 2. Парсинг и валидация тела запроса
-    const body = await req.json();
-    const parsed = createOrderSchema.safeParse({
-      ...body,
-      amountAsset: Number(body.amountAsset),
-      amountFiat: Number(body.amountFiat),
-    });
+    // 2. Валидация запроса через общую утилиту
+    const { data, error } = await validateRequest(req, createP2POrderSchema);
+    if (error) return error;
 
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: parsed.error.flatten().fieldErrors },
-        { status: 400 }
-      );
-    }
-
-    const { adId, amountAsset, amountFiat } = parsed.data;
+    const { adId, amountAsset, amountFiat } = data;
     const takerId = authUser.userId;
 
     // 3. Поиск объявления

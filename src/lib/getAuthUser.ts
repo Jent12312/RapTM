@@ -11,9 +11,9 @@ export interface AuthUser {
 }
 
 /**
- * Extracts and verifies the authenticated user from the JWT cookie.
- * Returns the user payload or null if not authenticated.
- * @param checkDb If true, fetches the user from the database to check status (blocked, etc)
+ * Извлекает и проверяет аутентифицированного пользователя из куки JWT.
+ * Возвращает полезную нагрузку пользователя или null, если он не аутентифицирован.
+ * @param checkDb Если true, получает пользователя из базы данных для проверки статуса (заблокирован и т. д.)
  */
 export async function getAuthUser(checkDb = false): Promise<AuthUser | null> {
   try {
@@ -42,7 +42,7 @@ export async function getAuthUser(checkDb = false): Promise<AuthUser | null> {
       
       if (!user || user.isBlocked) return null;
       
-      // If token has a sessionVersion, it must match the database
+      // Если токен имеет sessionVersion, она должна совпадать с базой данных
       if (sessionVersion !== undefined && user.sessionVersion !== sessionVersion) {
         console.warn(`Session mismatch for user ${authUser.userId}: Token(${sessionVersion}) != DB(${user.sessionVersion})`);
         return null;

@@ -2,19 +2,19 @@
 
 export interface AmlCheckResult {
   isSafe: boolean;
-  riskScore: number; // 0 to 100
+  riskScore: number; // от 0 до 100
   reason?: string;
 }
 
 /**
- * Mock AML screening service.
- * In production, this would call an API like Crystal, Elliptic, or Chainalysis.
+ * Заглушка сервиса AML-проверки.
+ * В рабочей среде здесь будет вызов API, например Crystal, Elliptic или Chainalysis.
  */
 export async function checkAddressAml(address: string, network: string): Promise<AmlCheckResult> {
   console.log(`[AML Check] Checking address ${address} on ${network}`);
   
-  // Simulated logic:
-  // Addresses starting with '0x000' or 'T000' are flagged as suspicious in this mock
+  // Симуляция логики:
+  // Адреса, начинающиеся с '0x000' или 'T000', в этой заглушке помечаются как подозрительные
   const isSuspicious = address.startsWith('0x000') || address.startsWith('T000') || address.includes('bad');
   
   if (isSuspicious) {
@@ -32,7 +32,7 @@ export async function checkAddressAml(address: string, network: string): Promise
 }
 
 /**
- * Validates a transaction for AML compliance
+ * Проверяет транзакцию на соответствие требованиям AML
  */
 export async function validateTransactionAml(params: {
   userId: string;
@@ -43,7 +43,7 @@ export async function validateTransactionAml(params: {
   const result = await checkAddressAml(params.address, params.network);
   
   if (!result.isSafe) {
-    // Here we could automatically flag the transaction or notify admins
+    // Здесь мы можем автоматически пометить транзакцию или уведомить администраторов
     console.warn(`[AML ALERT] Suspicious transaction for user ${params.userId}: ${params.amount} on ${params.network}. Reason: ${result.reason}`);
   }
   

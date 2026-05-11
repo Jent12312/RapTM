@@ -31,16 +31,22 @@ const MIN_WITHDRAWAL_AMOUNTS: Record<string, number> = {
 
 const CASH_CITIES = ['Ашхабад', 'Туркменабад', 'Мары', 'Дашогуз', 'Балканабад'];
 
+import { validateRequest } from '@/lib/api-utils';
+import { paginationSchema } from '@/lib/validations/common';
+
 export async function GET(req: Request) {
   try {
     const authUser = await getAuthUser(true); // Check if blocked
     if (!authUser) return NextResponse.json({ error: 'Unauthorized or Blocked' }, { status: 401 });
 
+    // Валидация пагинации через общую утилиту
+    const { data: query, error } = await validateRequest(req, paginationSchema, 'query');
+    if (error) return error;
+
+    const { limit, offset } = query;
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status');
     const type = searchParams.get('type');
-    const limit = Math.min(100, parseInt(searchParams.get('limit') || '50'));
-    const offset = Math.max(0, parseInt(searchParams.get('offset') || '0'));
 
     const where: any = { userId: authUser.userId };
     if (status) where.status = status;

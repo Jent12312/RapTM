@@ -173,11 +173,6 @@ export default function ProfileScreen() {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Редактирование контактов
-  const [isEditingContacts, setIsEditingContacts] = useState(false);
-  const [phone, setPhone] = useState(user?.phone || '');
-  const [email, setEmail] = useState(user?.email || '');
-
   const fetchStats = async () => {
     if (!user?.id) return;
     try {
@@ -265,22 +260,7 @@ export default function ProfileScreen() {
     reader.readAsDataURL(file);
   };
 
-  // Сохранение контактов
-  const handleSaveContacts = async () => {
-    if (!user?.id) return;
-    const res = await fetch(`/api/user/${user.id}/contact`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, email })
-    });
-    if (res.ok) {
-      setIsEditingContacts(false);
-      WebApp.HapticFeedback.notificationOccurred('success');
-      initUser(WebApp.initData);
-    } else {
-      addToast('Ошибка сохранения контактов', 'error');
-    }
-  };
+
 
   // Удаление аккаунта
   const handleDeleteAccount = async () => {
@@ -607,25 +587,7 @@ export default function ProfileScreen() {
             />
           )}
 
-          {/* Привязка телефона */}
-          <MenuBtn
-            icon={Phone}
-            label={phone ? `+${phone}` : 'Привязать телефон'}
-            color={phone ? 'text-emerald-600' : 'text-amber-500'}
-            bg={phone ? 'bg-emerald-50' : 'bg-amber-50'}
-            badge={phone ? 'Привязан' : undefined}
-            onClick={() => setIsEditingContacts(true)}
-          />
 
-          {/* Привязка почты */}
-          <MenuBtn
-            icon={Mail}
-            label={email || 'Привязать почту'}
-            color={email ? 'text-emerald-600' : 'text-blue-500'}
-            bg={email ? 'bg-emerald-50' : 'bg-blue-50'}
-            badge={email ? 'Привязана' : undefined}
-            onClick={() => setIsEditingContacts(true)}
-          />
 
           {/* Уведомления */}
           <MenuBtn
@@ -767,62 +729,7 @@ export default function ProfileScreen() {
         </div>
       )}
 
-      {/* Модальное окно редактирования контактов */}
-      {isEditingContacts && (
-        <div className="fixed inset-0 z-[200] bg-black/50 flex items-end justify-center animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-lg rounded-t-[2.5rem] p-6 animate-in slide-in-from-bottom duration-300">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-black text-slate-800">{t(language, 'phone')}</h3>
-              <button onClick={() => setIsEditingContacts(false)} className="p-2 bg-slate-100 rounded-full">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">
-                  {t(language, 'phone')}
-                </label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+99360000000"
-                  className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 placeholder-slate-500"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">
-                  {t(language, 'email')}
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="example@mail.com"
-                  className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 placeholder-slate-500"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={() => setIsEditingContacts(false)}
-                  className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl active:scale-95 transition-transform"
-                >
-                  {t(language, 'cancel')}
-                </button>
-                <button
-                  onClick={handleSaveContacts}
-                  className="flex-[2] py-4 bg-emerald-500 text-white font-bold rounded-2xl shadow-lg shadow-emerald-200 active:scale-95 transition-transform"
-                >
-                  {t(language, 'save')}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

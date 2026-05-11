@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { t } from '@/lib/dictionaries';
-import { ChevronLeft, Trash2, Power } from 'lucide-react';
+import { ChevronLeft, Trash2, Power, Share } from 'lucide-react';
+import { haptic } from '@/lib/haptic';
 
 interface Props {
   onClose: () => void;
@@ -79,6 +80,27 @@ export default function MyAdsScreen({ onClose }: Props) {
     }
   };
 
+  const handleCopyLink = (ad: any) => {
+    const { addToast } = useAppStore.getState();
+    haptic.medium();
+    const link = `https://t.me/rapira_tm_bot/app?startapp=ad_${ad.id}`;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(link).then(() => {
+        addToast(language === 'ru' ? "Ссылка скопирована" : language === 'tm' ? "Salgysy kopiýalandy" : "Link copied", "success");
+      });
+    } else {
+      const textArea = document.createElement("textarea");
+      textArea.value = link;
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        addToast(language === 'ru' ? "Ссылка скопирована" : language === 'tm' ? "Salgysy kopiýalandy" : "Link copied", "success");
+      } catch (err) {}
+      document.body.removeChild(textArea);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[100] bg-slate-50 overflow-y-auto animate-in slide-in-from-right duration-300">
       
@@ -139,12 +161,20 @@ export default function MyAdsScreen({ onClose }: Props) {
                 </div>
 
                 {/* Кнопка удаления */}
-                <button 
-                  onClick={() => deleteAd(ad.id)}
-                  className="p-2.5 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-colors active:scale-95"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </button>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => handleCopyLink(ad)}
+                    className="p-2.5 bg-blue-50 text-blue-500 rounded-xl hover:bg-blue-100 transition-colors active:scale-95"
+                  >
+                    <Share className="w-5 h-5" />
+                  </button>
+                  <button 
+                    onClick={() => deleteAd(ad.id)}
+                    className="p-2.5 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-colors active:scale-95"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
             </div>

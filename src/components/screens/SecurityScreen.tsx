@@ -30,6 +30,19 @@ export default function SecurityScreen({ onClose }: Props) {
   const [isTwoFactorEnabled, setIsTwoFactorEnabled] = useState(false);
   const [twoFactorData, setTwoFactorData] = useState<any>(null);
 
+  // Phone & Email states
+  const [isEditingPhone, setIsEditingPhone] = useState(false);
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
+  const [phone, setPhone] = useState(user?.phone || '');
+  const [email, setEmail] = useState(user?.email || '');
+
+  useEffect(() => {
+    if (user) {
+      setPhone(user.phone || '');
+      setEmail(user.email || '');
+    }
+  }, [user]);
+
   useEffect(() => {
     // Calculate security score
     let score = 0;
@@ -140,6 +153,54 @@ export default function SecurityScreen({ onClose }: Props) {
     }
   };
 
+  const handleUpdatePhone = async () => {
+    if (!user?.id) return;
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/user/${user.id}/contact`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone })
+      });
+      if (res.ok) {
+        setIsEditingPhone(false);
+        addToast('Телефон обновлен', 'success');
+        initUser(WebApp.initData);
+        WebApp.HapticFeedback.notificationOccurred('success');
+      } else {
+        addToast('Ошибка сохранения', 'error');
+      }
+    } catch (e) {
+      addToast('Ошибка запроса', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdateEmail = async () => {
+    if (!user?.id) return;
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/user/${user.id}/contact`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      if (res.ok) {
+        setIsEditingEmail(false);
+        addToast('Email обновлен', 'success');
+        initUser(WebApp.initData);
+        WebApp.HapticFeedback.notificationOccurred('success');
+      } else {
+        addToast('Ошибка сохранения', 'error');
+      }
+    } catch (e) {
+      addToast('Ошибка запроса', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const MenuItem = ({ icon: Icon, label, value, onClick, isVerified, color }: any) => (
     <button 
       onClick={onClick}
@@ -208,7 +269,7 @@ export default function SecurityScreen({ onClose }: Props) {
             value={user?.phone ? `+${user.phone}` : 'Привязать для вывода'} 
             isVerified={!!user?.phone}
             color="bg-blue-500"
-            onClick={() => addToast('Редактирование телефона доступно через поддержку', 'info')}
+            onClick={() => setIsEditingPhone(true)}
           />
           <MenuItem 
             icon={Mail} 
@@ -216,7 +277,7 @@ export default function SecurityScreen({ onClose }: Props) {
             value={user?.email || 'Привязать для уведомлений'} 
             isVerified={user?.isEmailVerified}
             color="bg-indigo-500"
-            onClick={() => addToast('Функция в разработке', 'info')}
+            onClick={() => setIsEditingEmail(true)}
           />
           <MenuItem 
             icon={Smartphone} 
@@ -362,6 +423,95 @@ export default function SecurityScreen({ onClose }: Props) {
                  </button>
               </div>
            </div>
+        </div>
+      )}
+      {/* Phone Modal */}
+      {isEditingPhone && (
+        <div className="fixed inset-0 z-[120] bg-slate-900/40 backdrop-blur-sm flex items-end justify-center p-4">
+          <div className="bg-white w-full max-w-xl rounded-[2.5rem] p-8 shadow-2xl animate-in slide-in-from-bottom duration-500">
+            <div className="flex justify-between items-center mb-8">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+                  <Phone className="w-5 h-5 text-blue-500" />
+                </div>
+                <h3 className="text-xl font-black text-slate-800">Привязать телефон</h3>
+              </div>
+              <button onClick={() => setIsEditingPhone(false)} className="p-2 bg-slate-100 rounded-full">
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Номер телефона</label>
+                <input 
+                  type="tel" 
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full p-5 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-blue-500 focus:bg-white text-lg font-bold outline-none transition-all"
+                  placeholder="+993..."
+                />
+              </div>
+
+              <div className="bg-amber-50 p-4 rounded-2xl flex gap-3">
+                 <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
+                 <p className="text-[10px] text-amber-800 font-bold">После привязки или изменения номера вывод средств будет ограничен на 24 часа.</p>
+              </div>
+
+              <button 
+                disabled={isLoading}
+                onClick={handleUpdatePhone}
+                className="w-full py-5 bg-slate-900 text-white rounded-[1.5rem] font-black text-xs tracking-[0.2em] shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+              >
+                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'СОХРАНИТЬ НОМЕР'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Email Modal */}
+      {isEditingEmail && (
+        <div className="fixed inset-0 z-[120] bg-slate-900/40 backdrop-blur-sm flex items-end justify-center p-4">
+          <div className="bg-white w-full max-w-xl rounded-[2.5rem] p-8 shadow-2xl animate-in slide-in-from-bottom duration-500">
+            <div className="flex justify-between items-center mb-8">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
+                  <Mail className="w-5 h-5 text-indigo-500" />
+                </div>
+                <h3 className="text-xl font-black text-slate-800">Привязать Email</h3>
+              </div>
+              <button onClick={() => setIsEditingEmail(false)} className="p-2 bg-slate-100 rounded-full">
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Адрес электронной почты</label>
+                <input 
+                  type="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full p-5 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-indigo-500 focus:bg-white text-lg font-bold outline-none transition-all"
+                  placeholder="example@mail.com"
+                />
+              </div>
+
+              <div className="bg-blue-50 p-4 rounded-2xl flex gap-3">
+                 <CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" />
+                 <p className="text-[10px] text-blue-800 font-bold">Email используется для получения уведомлений и восстановления доступа.</p>
+              </div>
+
+              <button 
+                disabled={isLoading}
+                onClick={handleUpdateEmail}
+                className="w-full py-5 bg-slate-900 text-white rounded-[1.5rem] font-black text-xs tracking-[0.2em] shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+              >
+                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'СОХРАНИТЬ EMAIL'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

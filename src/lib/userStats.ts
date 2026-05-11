@@ -11,11 +11,11 @@ export async function updateUserStats(userId: string, volumeUsdt: number) {
   const newTradesCount = user.tradesCount + 1;
   const newVolumeTotal = Number(user.volumeTotal) + volumeUsdt;
 
-  // Referral Bonus Logic: +15 USDT for active referral (1st trade)
+  // Логика реферального бонуса: +15 USDT за активного реферала (первая сделка)
   if (user.tradesCount === 0 && user.referrerId) {
     try {
       await prisma.$transaction(async (tx) => {
-        // Award USDT and track bonus
+        // Начисляем USDT и отслеживаем бонус
         await tx.wallet.update({
           where: { userId: user.referrerId! },
           data: { 
@@ -24,7 +24,7 @@ export async function updateUserStats(userId: string, volumeUsdt: number) {
           }
         });
 
-        // Create transaction record
+        // Создаем запись о транзакции
         await tx.transaction.create({
           data: {
             userId: user.referrerId!,
@@ -38,7 +38,7 @@ export async function updateUserStats(userId: string, volumeUsdt: number) {
         });
       });
 
-      // Notify Referrer
+      // Уведомляем реферера
       const { notifyUser } = await import('./telegram');
       await notifyUser(user.referrerId, 'referral_reward', {
         amount: 15,
@@ -50,7 +50,7 @@ export async function updateUserStats(userId: string, volumeUsdt: number) {
     }
   }
 
-  // Calculate rating
+  // Рассчитываем рейтинг
   let averageRating = 0;
   if (user.reviewsReceived && user.reviewsReceived.length > 0) {
     const ratingValues = { EXCELLENT: 5, NEUTRAL: 3, BAD: 1 };

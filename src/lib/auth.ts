@@ -9,16 +9,16 @@ const encodedSecret = new TextEncoder().encode(JWT_SECRET);
 
 export interface TelegramAuthData {
   query_id?: string;
-  user: string; // JSON string
+  user: string; // JSON-строка
   auth_date: string;
   hash: string;
   [key: string]: string | undefined;
 }
 
 /**
- * Validates Telegram Web App initData using HMAC-SHA256
- * @param initData - raw initData string from Telegram WebApp
- * @returns Parsed user data and other fields if valid, otherwise null
+ * Проверяет initData Telegram Web App с помощью HMAC-SHA256
+ * @param initData - необработанная строка initData из Telegram WebApp
+ * @returns Разобранные данные пользователя и другие поля, если они валидны, иначе null
  */
 export function validateTelegramWebAppData(initData: string): { user: any; [key: string]: any } | null {
   if (!TELEGRAM_BOT_TOKEN) {
@@ -34,16 +34,16 @@ export function validateTelegramWebAppData(initData: string): { user: any; [key:
 
     params.delete('hash');
     
-    // Sort keys and create data check string
+    // Сортируем ключи и создаем строку для проверки данных
     const dataCheckString = Array.from(params.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, value]) => `${key}=${value}`)
       .join('\n');
 
-    // Create secret key using "WebAppData" and bot token
+    // Создаем секретный ключ, используя "WebAppData" и токен бота
     const secretKey = crypto.createHmac('sha256', 'WebAppData').update(TELEGRAM_BOT_TOKEN).digest();
     
-    // Calculate hash
+    // Вычисляем хеш
     const calculatedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
 
     if (calculatedHash !== hash) {
@@ -51,7 +51,7 @@ export function validateTelegramWebAppData(initData: string): { user: any; [key:
       return null;
     }
 
-    // Check expiration (24 hours is standard for WebApps)
+    // Проверяем срок действия (24 часа — стандарт для WebApps)
     const authDate = parseInt(params.get('auth_date') || '0', 10);
     const now = Math.floor(Date.now() / 1000);
     
@@ -77,7 +77,7 @@ export function validateTelegramWebAppData(initData: string): { user: any; [key:
 }
 
 /**
- * Signs a JWT token with the user payload
+ * Подписывает JWT-токен с полезной нагрузкой пользователя
  */
 export async function signJwt(payload: { userId: string; telegramId: string; role?: string; sessionVersion?: number }): Promise<string> {
   const jwt = await new SignJWT(payload)
@@ -90,7 +90,7 @@ export async function signJwt(payload: { userId: string; telegramId: string; rol
 }
 
 /**
- * Verifies a JWT token
+ * Проверяет JWT-токен
  */
 export async function verifyJwt(token: string): Promise<any> {
   try {

@@ -1,33 +1,55 @@
-// src/app/api/market-price/route.ts
 import { NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
 
-// Кэширование цен (чтобы не делать запрос к внешнему API каждый раз)
+// Кэширование цен
 let cachedPrices: Record<string, { price: number; timestamp: number }> = {};
 const CACHE_TTL = 5 * 60 * 1000; // 5 минут
 
-// Функция получения курса USD/TMT из внешнего API
+// Функция получения курса USD/TMT
 async function fetchUSDTMT(): Promise<number> {
   try {
-    // Используем бесплатный Exchange Rate API
+    // 1. Пытаемся взять актуальный рыночный курс из базы данных (устанавливается админом)
+    const dbSetting = await prisma.systemSetting.findUnique({
+      where: { key: 'EXCHANGE_RATE' }
+    });
+
+    if (dbSetting && dbSetting.value) {
+      const rate = parseFloat(dbSetting.value);
+      if (rate > 10) return rate; // Если курс похож на рыночный ( > 10), используем его
+    }
+
+    // 2. Fallback на официальный курс через API
     const res = await fetch('https://open.er-api.com/v6/latest/USD', {
       cache: 'no-store',
     });
     const data = await res.json();
-    return data.rates?.TMT || 3.50; // Fallback на мокаемую цену
+    const officialRate = data.rates?.TMT || 3.50;
+
+    // Если API вернуло официальный курс (3.5), но в БД ничего нет, 
+    // возвращаем усредненный рыночный fallback для демо-целей
+    if (officialRate <= 5.0) {
+      return 19.50;
+    }
+
+    return officialRate;
   } catch (error) {
     console.error('Failed to fetch USD/TMT:', error);
-    return 3.50; // Fallback
+    return 19.50; // Глобальный fallback
   }
 }
 
-// Функция получения курса USDT/USD (всегда ~1, но можно взять с Binance)
+// Функция получения курса USDT/USD
 async function fetchUSDTUSD(): Promise<number> {
   try {
-    const res = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=USDTUSD', {
+    // На Binance нет пары USDTUSD, используем USDCUSDT как наиболее точный прокси (USDC ≈ 1 USD)
+    const res = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=USDCUSDT', {
       cache: 'no-store',
     });
     const data = await res.json();
-    return parseFloat(data.price) || 1.00;
+    const price = parseFloat(data.price) || 1.00;
+    
+    // USDC/USDT = 0.999 -> 1 USD = 1 / 0.999 USDT
+    return 1 / price;
   } catch (error) {
     return 1.00; // Fallback
   }

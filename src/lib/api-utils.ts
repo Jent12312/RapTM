@@ -3,8 +3,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 /**
- * Validates request body or search params against a Zod schema.
- * Returns the parsed data or a NextResponse error.
+ * Проверяет тело запроса или параметры поиска на соответствие схеме Zod.
+ * Возвращает проанализированные данные или ошибку NextResponse.
  */
 export async function validateRequest<T>(
   req: Request,

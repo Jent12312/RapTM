@@ -24,11 +24,11 @@ export async function logAction(params: {
     });
   } catch (error) {
     console.error('Failed to write log:', error);
-    // Don't throw, we don't want logger failure to break the app
+    // Не выбрасываем ошибку, чтобы сбой логгера не нарушил работу приложения
   }
 }
 
-// Shortcut for security alerts
+// Быстрый вызов для алертов безопасности
 export async function logSecurityAlert(userId: string, action: string, details: string) {
   return logAction({
     userId,

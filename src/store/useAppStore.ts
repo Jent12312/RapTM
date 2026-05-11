@@ -132,7 +132,6 @@ export const useAppStore = create<AppState>()(
       // чтобы юзер и балансы всегда загружались свежими с сервера
       partialize: (state) => ({
         language: state.language,
-        activeTab: state.activeTab,
         isBalanceVisible: state.isBalanceVisible,
       }),
     }

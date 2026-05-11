@@ -4,7 +4,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { sendAdminNotification } from './telegram';
 
 /**
- * Checks Hot Wallets and performs automated sweep to Cold storage if threshold is reached.
+ * Проверяет горячие кошельки и выполняет автоматический перевод в холодное хранилище при достижении порога.
  */
 export async function manageHotColdStorage() {
   try {
@@ -19,7 +19,7 @@ export async function manageHotColdStorage() {
       if (balance.gt(threshold)) {
         const sweepAmount = balance.minus(threshold);
         
-        // Find corresponding cold wallet
+        // Находим соответствующий холодный кошелек
         const coldWallet = await prisma.systemWallet.findFirst({
           where: { type: 'COLD', network: wallet.network }
         });
@@ -31,7 +31,7 @@ export async function manageHotColdStorage() {
 
         console.log(`[Hot/Cold] Threshold reached on ${wallet.network}. Sweeping ${sweepAmount} to cold storage ${coldWallet.address}`);
 
-        // Atomic update of balances
+        // Атомарное обновление балансов
         await prisma.$transaction([
           prisma.systemWallet.update({
             where: { id: wallet.id },
@@ -41,7 +41,7 @@ export async function manageHotColdStorage() {
             where: { id: coldWallet.id },
             data: { balance: { increment: sweepAmount } }
           }),
-          // Log the movement
+          // Логируем перемещение
           prisma.log.create({
             data: {
               action: 'HOT_COLD_SWEEP',
