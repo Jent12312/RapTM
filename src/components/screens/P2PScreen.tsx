@@ -10,9 +10,8 @@ import {
 import { haptic } from '@/lib/haptic';
 import Skeleton from '@/components/ui/Skeleton';
 import PullToRefresh from '@/components/ui/PullToRefresh';
-import { Share, Copy } from 'lucide-react';
+import { Share } from 'lucide-react';
 
-// Импортируем дочерние экраны
 import MerchantProfileModal from './MerchantProfileModal';
 import MyOrdersScreen from './MyOrdersScreen';
 import OrderScreen from './OrderScreen';
@@ -25,79 +24,60 @@ interface P2PScreenProps {
 export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
   const { language, ads, isLoadingAds, fetchAds, user, addToast } = useAppStore();
 
-  // Состояния для рыночных цен
   const [marketPrices, setMarketPrices] = useState<Record<string, number>>({});
-  const [isRefreshing, setIsRefreshing] = useState(false); // ✅ Локальный флаг обновления
 
-  // Загрузка рыночных цен при загрузке компонента
   useEffect(() => {
     const fetchMarketPrices = async () => {
       try {
         const pairs = ['USDT/TMT', 'USDT/USD', 'TMT/USDT', 'TMT/USD'];
         const prices: Record<string, number> = {};
-        
         for (const pair of pairs) {
           const [asset, fiat] = pair.split('/');
           const res = await fetch(`/api/market-price?asset=${asset}&fiat=${fiat}`);
           const data = await res.json();
-          if (data.basePrice) {
-            prices[pair] = data.basePrice;
-          }
+          if (data.basePrice) prices[pair] = data.basePrice;
         }
-        
         setMarketPrices(prices);
       } catch (error) {
         console.error('Failed to fetch market prices:', error);
       }
     };
-
     fetchMarketPrices();
   }, []);
 
-  // Функция для вычисления цены объявления
   const getAdPrice = (ad: any) => {
     const pair = `${ad.asset}/${ad.fiat}`;
     const basePrice = marketPrices[pair] || 0;
-    
     if (ad.priceType === 'floating') {
       const percent = Number(ad.price) || 0;
       return basePrice * (1 + percent / 100);
-    } else {
-      return Number(ad.price) || 0;
     }
+    return Number(ad.price) || 0;
   };
 
-  const tradeTypeLabel = (type: 'buy' | 'sell') => {
-    return type === 'buy' ? t(language, 'buy') : t(language, 'sell');
-  };
-  
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
   const [asset, setAsset] = useState<'USDT' | 'TMT'>('USDT');
   const [fiat, setFiat] = useState<'TMT' | 'USD'>('TMT');
-  
+
   const [selectedAd, setSelectedAd] = useState<any>(null);
   const [activeOrder, setActiveOrder] = useState<any>(null);
   const [viewingMerchant, setViewingMerchant] = useState<any>(null);
   const [isViewingChats, setIsViewingChats] = useState(false);
   const [filterAmount, setFilterAmount] = useState('');
-  
   const [tradeAmount, setTradeAmount] = useState('');
 
   useEffect(() => {
     fetchAds();
   }, [fetchAds]);
 
-  // Обработка прямого открытия объявления (Deep Link)
   useEffect(() => {
     if (initialAd) {
       setSelectedAd(initialAd);
-      // Устанавливаем фильтры под это объявление, чтобы оно соответствовало текущему виду (опционально)
       setAsset(initialAd.asset);
       setFiat(initialAd.fiat);
       setTradeType(initialAd.type.toLowerCase() === 'buy' ? 'sell' : 'buy');
     }
   }, [initialAd]);
-
 
   const targetAdType = tradeType === 'buy' ? 'sell' : 'buy';
   const filteredAds = (Array.isArray(ads) ? ads : []).filter(ad => {
@@ -115,7 +95,6 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
         addToast(language === 'ru' ? "Ссылка скопирована" : language === 'tm' ? "Salgysy kopiýalandy" : "Link copied", "success");
       });
     } else {
-      // fallback
       const textArea = document.createElement("textarea");
       textArea.value = link;
       document.body.appendChild(textArea);
@@ -141,7 +120,6 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
     if (selectedAd && user) {
       const { addToast } = useAppStore.getState();
       const sellerId = selectedAd.type === 'sell' ? selectedAd.userId : user.id;
-      
       if (selectedAd.asset === 'USDT' && selectedAd.type === 'sell') {
         fetch(`/api/wallet/balance?userId=${sellerId}`)
           .then(res => res.json())
@@ -159,29 +137,22 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
     if (!tradeAmount || !selectedAd) return '0.00';
     const amount = Number(tradeAmount);
     const price = getAdPrice(selectedAd);
-    
-    if (selectedAd.type === 'buy') {
-      return (amount / price).toFixed(2);
-    } else {
-      return (amount * price).toFixed(2);
-    }
+    if (selectedAd.type === 'buy') return (amount / price).toFixed(2);
+    return (amount * price).toFixed(2);
   };
 
   const handleStartOrder = async () => {
     haptic.medium();
     const { addToast } = useAppStore.getState();
     const inputAmount = Number(tradeAmount);
-
     if (!inputAmount) {
       addToast("Введите сумму", "error");
       return;
     }
-
     if (inputAmount < selectedAd.minLimit || inputAmount > selectedAd.maxLimit) {
       addToast(`Лимит: от ${selectedAd.minLimit} до ${selectedAd.maxLimit}`, "error");
       return;
     }
-
     let amountAsset, amountFiat;
     if (tradeType === 'buy') {
       amountFiat = inputAmount;
@@ -190,14 +161,11 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
       amountAsset = inputAmount;
       amountFiat = Number(calculateReceiveAmount());
     }
-
     if (selectedAd.asset === 'USDT') {
       const sellerId = selectedAd.type === 'buy' ? user.id : selectedAd.userId;
-      
       try {
         const res = await fetch(`/api/wallet/balance?userId=${sellerId}`);
         const data = await res.json();
-        
         if (data.usdtBalance < amountAsset) {
           addToast('Недостаточно USDT на балансе', 'error');
           return;
@@ -207,18 +175,11 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
         return;
       }
     }
-
     const res = await fetch('/api/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        adId: selectedAd.id,
-        takerId: user.id,
-        amountAsset,
-        amountFiat
-      })
+      body: JSON.stringify({ adId: selectedAd.id, takerId: user.id, amountAsset, amountFiat })
     });
-
     const data = await res.json();
     if (data.success) {
       haptic.success();
@@ -231,17 +192,9 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
     }
   };
 
-  // ✅ Исправленная функция обновления
   const onPullRefresh = async () => {
     haptic.impact('heavy');
-    setIsRefreshing(true);
-    try {
-      await fetchAds();
-    } catch (e) {
-      console.error('Refresh failed:', e);
-    } finally {
-      setIsRefreshing(false);
-    }
+    await fetchAds();
   };
 
   if (activeOrder) {
@@ -257,9 +210,7 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
   return (
     <PullToRefresh onRefresh={onPullRefresh}>
       <div className="pb-32 animate-in fade-in duration-300">
-        
         <div className="bg-white px-4 pt-2 pb-4 shadow-sm sticky top-[72px] z-30 border-b border-slate-100 space-y-4">
-          
           <div className="flex justify-between items-center gap-3">
             <div className="flex bg-slate-100 p-1 rounded-2xl flex-1">
               <button
@@ -326,14 +277,13 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
               </div>
             </div>
             <button onClick={() => { haptic.medium(); onPullRefresh(); }} className="p-2 bg-slate-100 text-slate-500 rounded-xl active:rotate-180 transition-all duration-300">
-              <RefreshCw className={`w-4 h-4 ${isLoadingAds || isRefreshing ? 'animate-spin text-emerald-500' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${isLoadingAds ? 'animate-spin text-emerald-500' : ''}`} />
             </button>
           </div>
         </div>
 
         <div className="px-4 py-4 space-y-4 relative z-10">
-          {/* ✅ Показываем скелетоны и при isRefreshing */}
-          {isLoadingAds || isRefreshing ? (
+          {isLoadingAds ? (
             [1, 2, 3].map(i => <Skeleton key={i} className="h-40 w-full rounded-[2rem]" />)
           ) : filteredAds.length > 0 ? (
             filteredAds.map((ad) => (
@@ -414,7 +364,6 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
             <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] transition-opacity" onClick={closeModal}></div>
 
             <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[2.5rem] p-6 z-[70] animate-in slide-in-from-bottom duration-300 shadow-2xl mx-auto max-w-md max-h-[90vh] overflow-y-auto pb-12">
-              
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-bold text-slate-800">
                   {selectedAd.type === 'buy' ? `${t(language, 'buy')} ${selectedAd.asset}` : `${t(language, 'sell')} ${selectedAd.asset}`}
@@ -500,7 +449,6 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
 
               {(() => {
                 const userTrades = user.ordersAsBuyer?.length || 0;
-
                 if (selectedAd.reqKyc && !user.isVerified) {
                   return (
                     <div className="w-full py-4 text-center rounded-[2rem] font-bold text-sm bg-slate-100 text-slate-400 border border-slate-200">
@@ -515,7 +463,6 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
                     </div>
                   );
                 }
-
                 return (
                   <button
                     onClick={handleStartOrder}

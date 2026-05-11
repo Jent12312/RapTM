@@ -68,14 +68,14 @@ export default function WalletScreen() {
   const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
   const [isLoadingAddresses, setIsLoadingAddresses] = useState(false);
 
-  // Состояние для кнопки Claim
   const [isClaiming, setIsClaiming] = useState(false);
-
-  // Локальный флаг для pull-to-refresh
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const claimFaucet = async () => {
     haptic.medium();
+    if (!user?.id) {
+      addToast('Пользователь не авторизован', 'error');
+      return;
+    }
     setIsClaiming(true);
     try {
       const res = await fetch('/api/wallet/claim-test-usdt', {
@@ -296,7 +296,6 @@ export default function WalletScreen() {
     }
   };
 
-  // Исправленная функция pull-to-refresh
   const onPullRefresh = async () => {
     haptic.impact('heavy');
     await Promise.all([
@@ -305,7 +304,6 @@ export default function WalletScreen() {
       loadHistory()
     ]);
   };
-
 
   const TransactionCard = ({ tx }: { tx: any }) => (
     <div
