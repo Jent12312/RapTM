@@ -5,7 +5,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { t } from '@/lib/dictionaries';
 import {
   Eye, EyeOff, Plus, ArrowDownToLine, RefreshCcw, X, Copy, CheckCircle2, Clock,
-  MapPin, Zap, Star, AlertTriangle, ArrowRightLeft, QrCode, Loader2, ShieldCheck
+  MapPin, Zap, Star, AlertTriangle, ArrowRightLeft, QrCode, Loader2, ShieldCheck, Gift
 } from 'lucide-react';
 import WebApp from '@twa-dev/sdk';
 import { QRCodeSVG } from 'qrcode.react';
@@ -67,6 +67,35 @@ export default function WalletScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
   const [isLoadingAddresses, setIsLoadingAddresses] = useState(false);
+
+  // Состояние для кнопки Claim
+  const [isClaiming, setIsClaiming] = useState(false);
+
+  // Локальный флаг для pull-to-refresh
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const claimFaucet = async () => {
+    haptic.medium();
+    setIsClaiming(true);
+    try {
+      const res = await fetch('/api/wallet/claim-test-usdt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        addToast('🎉 1000 USDT зачислены на ваш счёт!', 'success');
+        await initUser(WebApp.initData);
+      } else {
+        addToast(data.error || 'Ошибка получения USDT', 'error');
+      }
+    } catch (e) {
+      addToast('Ошибка сети', 'error');
+    } finally {
+      setIsClaiming(false);
+    }
+  };
 
   const fetchDepositAddress = async (net: string) => {
     setIsLoadingAddress(true);
@@ -267,6 +296,7 @@ export default function WalletScreen() {
     }
   };
 
+  // Исправленная функция pull-to-refresh
   const onPullRefresh = async () => {
     haptic.impact('heavy');
     await Promise.all([
@@ -275,6 +305,7 @@ export default function WalletScreen() {
       loadHistory()
     ]);
   };
+
 
   const TransactionCard = ({ tx }: { tx: any }) => (
     <div
@@ -316,7 +347,6 @@ export default function WalletScreen() {
     <PullToRefresh onRefresh={onPullRefresh}>
       <div className="px-5 py-2 space-y-6 pb-32 animate-in fade-in duration-500">
         {/* Brand Icon */}
-
 
         {/* Главная карточка */}
         <div className="bg-gradient-to-br from-slate-900 via-emerald-950 to-emerald-900 rounded-[3rem] p-9 text-white shadow-[0_20px_50px_rgba(16,185,129,0.2)] relative overflow-hidden group">
@@ -372,7 +402,6 @@ export default function WalletScreen() {
                 setActiveTab('profile');
                 return;
               }
-              // Mandatory 2FA for Pro/Partner
               if ((user?.level === 'Pro' || user?.level === 'Partner') && !user?.twoFactorEnabled) {
                 addToast('Для вашего уровня доступа (Pro/Partner) обязательно наличие 2FA для вывода средств.', 'error');
                 setActiveTab('profile');
@@ -407,6 +436,19 @@ export default function WalletScreen() {
               </div>
               {isLoadingRates ? <Skeleton className="h-8 w-24 mb-2" /> : <div className="text-2xl font-black text-slate-800 tracking-tight mb-1">{isBalanceVisible ? balances.usdt.toFixed(2) : '****'}</div>}
               {isLoadingRates ? <Skeleton className="h-5 w-32" /> : <div className="text-[10px] font-bold text-emerald-500 bg-emerald-50 px-2 py-1 rounded-lg inline-block">1 USDT ≈ {rates.usdtToTmt.toFixed(2)} TMT</div>}
+              {/* Кнопка получения тестовых USDT */}
+              <button
+                onClick={claimFaucet}
+                disabled={isClaiming}
+                className="mt-4 w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-2xl font-black text-xs tracking-wider flex items-center justify-center gap-2 active:scale-[0.97] transition-all disabled:opacity-60 shadow-lg shadow-emerald-200"
+              >
+                {isClaiming ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Gift className="w-4 h-4" />
+                )}
+                Получить 1000 USDT
+              </button>
             </div>
             <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-3">

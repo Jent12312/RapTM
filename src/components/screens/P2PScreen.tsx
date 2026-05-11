@@ -27,6 +27,7 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
 
   // Состояния для рыночных цен
   const [marketPrices, setMarketPrices] = useState<Record<string, number>>({});
+  const [isRefreshing, setIsRefreshing] = useState(false); // ✅ Локальный флаг обновления
 
   // Загрузка рыночных цен при загрузке компонента
   useEffect(() => {
@@ -230,9 +231,17 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
     }
   };
 
+  // ✅ Исправленная функция обновления
   const onPullRefresh = async () => {
     haptic.impact('heavy');
-    await fetchAds();
+    setIsRefreshing(true);
+    try {
+      await fetchAds();
+    } catch (e) {
+      console.error('Refresh failed:', e);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   if (activeOrder) {
@@ -316,14 +325,15 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
                 <Filter className="w-3 h-3 text-slate-400" />
               </div>
             </div>
-            <button onClick={() => { haptic.medium(); fetchAds(); }} className="p-2 bg-slate-100 text-slate-500 rounded-xl active:rotate-180 transition-all duration-300">
-              <RefreshCw className={`w-4 h-4 ${isLoadingAds ? 'animate-spin text-emerald-500' : ''}`} />
+            <button onClick={() => { haptic.medium(); onPullRefresh(); }} className="p-2 bg-slate-100 text-slate-500 rounded-xl active:rotate-180 transition-all duration-300">
+              <RefreshCw className={`w-4 h-4 ${isLoadingAds || isRefreshing ? 'animate-spin text-emerald-500' : ''}`} />
             </button>
           </div>
         </div>
 
         <div className="px-4 py-4 space-y-4 relative z-10">
-          {isLoadingAds ? (
+          {/* ✅ Показываем скелетоны и при isRefreshing */}
+          {isLoadingAds || isRefreshing ? (
             [1, 2, 3].map(i => <Skeleton key={i} className="h-40 w-full rounded-[2rem]" />)
           ) : filteredAds.length > 0 ? (
             filteredAds.map((ad) => (
