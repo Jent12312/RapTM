@@ -37,7 +37,7 @@ class SimpleCache {
 }
 
 // Global instance to persist across HMR in dev if needed
-const globalCache = (global as any)._simpleCache || new SimpleCache();
+const globalCache: SimpleCache = (global as any)._simpleCache || new SimpleCache();
 if (process.env.NODE_ENV !== 'production') {
   (global as any)._simpleCache = globalCache;
 }
