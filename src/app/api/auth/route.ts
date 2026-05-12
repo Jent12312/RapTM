@@ -119,6 +119,11 @@ export async function POST(req: Request) {
       });
     }
 
+    // Проверка блокировки
+    if (user.isBlocked) {
+      return NextResponse.json({ error: 'Ваш аккаунт заблокирован' }, { status: 403 });
+    }
+
     // Если это новый реферал (был создан только что с referrerId)
     const isNewReferral = !!(user.referrerId && (new Date().getTime() - new Date(user.createdAt).getTime() < 60000));
     const referrerName = user.referrer?.firstName || null;

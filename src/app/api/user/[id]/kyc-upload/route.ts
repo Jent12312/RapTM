@@ -23,15 +23,14 @@ export async function POST(
     }
 
     // Конвертируем картинку в Base64 для сохранения напрямую в PostgreSQL
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const base64Image = `data:${file.type};base64,${buffer.toString('base64')}`;
+    const { saveFile } = await import('@/lib/upload');
+    const imageUrl = await saveFile(file);
 
     // Обновляем пользователя: сохраняем фото и ставим статус "на проверке"
     const user = await prisma.user.update({
       where: { id },
       data: { 
-        kycPhotoUrl: base64Image,
+        kycPhotoUrl: imageUrl,
         kycStatus: 'PENDING'
       }
     });

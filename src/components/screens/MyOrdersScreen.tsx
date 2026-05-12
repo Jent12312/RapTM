@@ -20,7 +20,7 @@ export default function MyOrdersScreen({ onClose }: { onClose: () => void }) {
 
     fetch(`/api/orders?userId=${user.id}`)
       .then(res => {
-        if (!res.ok) throw new Error('Ошибка сети');
+        if (!res.ok) throw new Error(t(language, 'networkError'));
         return res.json();
       })
       .then(data => {
@@ -79,7 +79,7 @@ export default function MyOrdersScreen({ onClose }: { onClose: () => void }) {
       {showFilter && (
         <div className="bg-white border-b border-slate-100 p-4 space-y-3 animate-in slide-in-from-top duration-300">
           <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">{t(language, 'statusPaid')}</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">{t(language, 'statusLabel')}</label>
             <div className="flex gap-2 flex-wrap">
               {['all', 'PENDING', 'PAID', 'COMPLETED', 'CANCELLED'].map(status => (
                 <button
@@ -91,13 +91,13 @@ export default function MyOrdersScreen({ onClose }: { onClose: () => void }) {
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
-                  {status === 'all' ? t(language, 'adminAllOps') : status}
+                  {status === 'all' ? t(language, 'all') : status}
                 </button>
               ))}
             </div>
           </div>
           <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">{t(language, 'navAlys')}</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">{t(language, 'typeLabel')}</label>
             <div className="flex gap-2">
               <button
                 onClick={() => setFilterType('all')}
@@ -105,7 +105,7 @@ export default function MyOrdersScreen({ onClose }: { onClose: () => void }) {
                   filterType === 'all' ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
-                {t(language, 'adminAllOps')}
+                {t(language, 'all')}
               </button>
               <button
                 onClick={() => setFilterType('buy')}
@@ -131,7 +131,7 @@ export default function MyOrdersScreen({ onClose }: { onClose: () => void }) {
       <div className="p-5 space-y-4">
         {filteredOrders.length === 0 ? (
           <div className="text-center text-slate-400 font-medium text-sm mt-10">
-            {t(language, 'noAds')}
+            {t(language, 'noOrders')}
           </div>
         ) : (
           filteredOrders.map(order => (

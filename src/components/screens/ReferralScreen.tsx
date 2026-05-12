@@ -90,10 +90,10 @@ export default function ReferralScreen({ onClose }: { onClose: () => void }) {
               <Gift className="w-6 h-6 text-white" />
             </div>
             <h3 className="text-2xl font-black tracking-tight leading-tight">
-              +15 USDT <br/> <span className="text-white/80 text-lg">за каждого друга</span>
+              {t(language, 'refBonusPerFriend')}
             </h3>
             <p className="text-[11px] font-bold text-white/90 leading-relaxed max-w-[200px]">
-              Бонус начисляется после того, как ваш друг совершит свою первую сделку.
+              {t(language, 'refBonusDesc')}
             </p>
           </div>
           <div className="absolute bottom-6 right-6 opacity-20">
@@ -170,7 +170,7 @@ export default function ReferralScreen({ onClose }: { onClose: () => void }) {
             {isLoading ? (
               <div className="p-10 flex flex-col items-center justify-center gap-3">
                  <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Загрузка...</p>
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t(language, 'loading')}</p>
               </div>
             ) : data && data.referrals.length > 0 ? (
               <div className="divide-y divide-slate-50">
@@ -181,9 +181,9 @@ export default function ReferralScreen({ onClose }: { onClose: () => void }) {
                         {(ref.nickname || ref.firstName || ref.username || '?').charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <div className="text-sm font-bold text-slate-700">
-                          {ref.nickname || ref.firstName || ref.username || 'Anonymous'}
-                        </div>
+                        <p className="text-xs font-black text-slate-800">
+                          {ref.firstName || t(language, 'anonymous')}
+                        </p>
                         <div className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
                           <Clock className="w-3 h-3" /> {new Date(ref.createdAt).toLocaleDateString()}
                         </div>
@@ -212,7 +212,7 @@ export default function ReferralScreen({ onClose }: { onClose: () => void }) {
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm font-bold text-slate-400">{t(language, 'referralNoData')}</p>
-                  <p className="text-[10px] font-medium text-slate-300 px-6">Пригласите друзей, чтобы начать зарабатывать вместе с RapTM</p>
+                  <p className="text-[10px] font-medium text-slate-300 px-6">{t(language, 'refInviteFriends')}</p>
                 </div>
               </div>
             )}
@@ -220,17 +220,21 @@ export default function ReferralScreen({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Info */}
-        <div className="bg-blue-50/50 p-6 rounded-[2.5rem] border border-blue-100 flex gap-4">
-           <div className="p-2.5 bg-blue-100 text-blue-500 h-fit rounded-xl">
-             <Info className="w-4 h-4" />
-           </div>
-           <div className="space-y-1">
-             <h4 className="text-[11px] font-black text-blue-700 uppercase tracking-widest">Правила программы</h4>
-             <p className="text-[10px] font-bold text-blue-600/70 leading-relaxed">
-               Бонусы начисляются мгновенно после первой успешной сделки вашего реферала. 
-               Максимальное количество рефералов не ограничено.
-             </p>
-           </div>
+        <div className="bg-white/80 backdrop-blur-md rounded-[2.5rem] p-7 shadow-[0_15px_40px_rgba(0,0,0,0.04)] border border-white">
+          <h3 className="text-lg font-black text-slate-800 mb-5 flex items-center gap-3">
+            <div className="w-8 h-8 bg-indigo-500 rounded-xl flex items-center justify-center">
+              <Info className="w-4 h-4 text-white" />
+            </div>
+            {t(language, 'refRules')}
+          </h3>
+          <div className="space-y-4">
+            <div className="flex gap-4">
+              <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-1.5 shrink-0" />
+              <p className="text-xs font-bold text-slate-500 leading-relaxed">
+                {t(language, 'refRulesDesc')}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

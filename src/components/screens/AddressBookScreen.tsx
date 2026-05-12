@@ -46,7 +46,7 @@ export default function AddressBookScreen({ onClose }: Props) {
   }, []);
 
   const handleAddAddress = async () => {
-    if (!address) return addToast('Введите адрес', 'error');
+    if (!address) return addToast(t(language, 'enterAddress'), 'error');
     
     setIsSubmitting(true);
     try {
@@ -57,7 +57,7 @@ export default function AddressBookScreen({ onClose }: Props) {
       });
 
       if (res.ok) {
-        addToast('Адрес добавлен', 'success');
+        addToast(t(language, 'addressAdded'), 'success');
         setIsAdding(false);
         setAddress('');
         setLabel('');
@@ -65,17 +65,17 @@ export default function AddressBookScreen({ onClose }: Props) {
         WebApp.HapticFeedback.notificationOccurred('success');
       } else {
         const data = await res.json();
-        addToast(data.error || 'Ошибка при добавлении', 'error');
+        addToast(data.error || t(language, 'requestError'), 'error');
       }
     } catch (e) {
-      addToast('Ошибка запроса', 'error');
+      addToast(t(language, 'requestError'), 'error');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleDeleteAddress = async (id: string) => {
-    if (!confirm('Удалить этот адрес?')) return;
+    if (!confirm(t(language, 'deleteAddressConfirm'))) return;
 
     try {
       const res = await fetch(`/api/wallet/addresses?id=${id}`, {
@@ -83,12 +83,12 @@ export default function AddressBookScreen({ onClose }: Props) {
       });
 
       if (res.ok) {
-        addToast('Адрес удален', 'info');
+        addToast(t(language, 'addressDeleted'), 'info');
         fetchAddresses();
         WebApp.HapticFeedback.notificationOccurred('warning');
       }
     } catch (e) {
-      addToast('Ошибка при удалении', 'error');
+      addToast(t(language, 'requestError'), 'error');
     }
   };
 
@@ -99,7 +99,7 @@ export default function AddressBookScreen({ onClose }: Props) {
         <button onClick={onClose} className="p-2 -ml-2 bg-slate-50 rounded-full">
           <ChevronLeft className="w-6 h-6 text-slate-600" />
         </button>
-        <h2 className="text-lg font-black text-slate-800 tracking-tight">Адресная книга</h2>
+        <h2 className="text-lg font-black text-slate-800 tracking-tight">{t(language, 'addressBookTitle')}</h2>
         <button 
           onClick={() => setIsAdding(true)} 
           className="ml-auto p-2 bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-100 active:scale-90 transition-all"
@@ -112,7 +112,7 @@ export default function AddressBookScreen({ onClose }: Props) {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Загрузка адресов...</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t(language, 'loadingAddresses')}</p>
           </div>
         ) : addresses.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
@@ -120,14 +120,14 @@ export default function AddressBookScreen({ onClose }: Props) {
               <Wallet className="w-10 h-10 text-slate-200" />
             </div>
             <div className="space-y-1">
-              <p className="text-sm font-bold text-slate-800">Список пуст</p>
-              <p className="text-xs text-slate-400 max-w-[200px]">Добавьте часто используемые адреса для быстрого вывода</p>
+              <p className="text-sm font-bold text-slate-800">{t(language, 'emptyAddressBook')}</p>
+              <p className="text-xs text-slate-400 max-w-[200px]">{t(language, 'addAddressDesc')}</p>
             </div>
             <button 
               onClick={() => setIsAdding(true)}
               className="px-6 py-3 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest active:scale-95 transition-all"
             >
-              Добавить адрес
+              {t(language, 'addAddressBtn')}
             </button>
           </div>
         ) : (
@@ -142,7 +142,7 @@ export default function AddressBookScreen({ onClose }: Props) {
                     {item.network.slice(0, 3)}
                   </div>
                   <div>
-                    <h4 className="text-sm font-black text-slate-800">{item.label || 'Без метки'}</h4>
+                    <h4 className="text-sm font-black text-slate-800">{item.label || t(language, 'noLabel')}</h4>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{item.network}</p>
                   </div>
                 </div>
@@ -150,7 +150,7 @@ export default function AddressBookScreen({ onClose }: Props) {
                   <button 
                     onClick={() => {
                       navigator.clipboard.writeText(item.address);
-                      addToast('Скопировано', 'info');
+                      addToast(t(language, 'copied'), 'info');
                     }}
                     className="p-2 bg-slate-50 text-slate-400 rounded-xl hover:text-emerald-500 hover:bg-emerald-50 transition-all"
                   >
@@ -171,7 +171,7 @@ export default function AddressBookScreen({ onClose }: Props) {
 
               {item.isDefault && (
                 <div className="flex items-center gap-1.5 text-[10px] font-black text-emerald-600 uppercase">
-                  <CheckCircle2 className="w-3 h-3" /> По умолчанию
+                  <CheckCircle2 className="w-3 h-3" /> {t(language, 'defaultLabel')}
                 </div>
               )}
             </div>
@@ -184,7 +184,7 @@ export default function AddressBookScreen({ onClose }: Props) {
         <div className="fixed inset-0 z-[110] bg-slate-900/40 backdrop-blur-md flex items-end justify-center p-4">
           <div className="bg-white w-full max-w-xl rounded-[2.5rem] p-6 shadow-2xl animate-in slide-in-from-bottom duration-500">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-black text-slate-800">Новый адрес</h3>
+              <h3 className="text-xl font-black text-slate-800">{t(language, 'newAddressTitle')}</h3>
               <button onClick={() => setIsAdding(false)} className="p-2 bg-slate-100 rounded-full active:scale-90 transition-all">
                 <X className="w-5 h-5 text-slate-400" />
               </button>
@@ -192,7 +192,7 @@ export default function AddressBookScreen({ onClose }: Props) {
 
             <div className="space-y-5">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Сеть</label>
+                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">{t(language, 'networkLabel')}</label>
                 <div className="flex bg-slate-50 p-1 rounded-2xl border border-slate-100">
                   {['TRC20', 'BEP20', 'APTOS'].map(n => (
                     <button 
@@ -209,23 +209,23 @@ export default function AddressBookScreen({ onClose }: Props) {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Адрес</label>
+                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">{t(language, 'walRecipientAddr')}</label>
                 <input 
                   type="text" 
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Вставьте адрес"
+                  placeholder={t(language, 'addressPlaceholder')}
                   className="w-full p-4 bg-slate-50 rounded-2xl border border-slate-100 text-xs font-mono font-bold focus:ring-2 focus:ring-emerald-500/20 focus:bg-white outline-none transition-all"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Метка (Название)</label>
+                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">{t(language, 'labelTitle')}</label>
                 <input 
                   type="text" 
                   value={label}
                   onChange={(e) => setLabel(e.target.value)}
-                  placeholder="Например: Мой Ledger"
+                  placeholder={t(language, 'labelPlaceholder')}
                   className="w-full p-4 bg-slate-50 rounded-2xl border border-slate-100 text-xs font-bold focus:ring-2 focus:ring-emerald-500/20 focus:bg-white outline-none transition-all"
                 />
               </div>
@@ -239,7 +239,7 @@ export default function AddressBookScreen({ onClose }: Props) {
                 }`}>
                   {isDefault && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
                 </div>
-                <span className="text-[11px] font-bold text-slate-500 group-active:text-slate-800 transition-colors">Сделать основным для этой сети</span>
+                <span className="text-[11px] font-bold text-slate-500 group-active:text-slate-800 transition-colors">{t(language, 'setAsDefault')}</span>
               </button>
 
               <button 
@@ -247,7 +247,7 @@ export default function AddressBookScreen({ onClose }: Props) {
                 onClick={handleAddAddress}
                 className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs tracking-[0.2em] shadow-xl active:scale-[0.98] transition-all disabled:opacity-50 mt-4"
               >
-                {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'СОХРАНИТЬ АДРЕС'}
+                {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : t(language, 'saveAddressBtn')}
               </button>
             </div>
           </div>

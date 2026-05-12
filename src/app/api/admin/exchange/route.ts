@@ -30,12 +30,14 @@ export async function PATCH(req: Request) {
     }
 
     if (action === 'approve') {
+      const { updateUserStats } = await import('@/lib/userStats');
       if (exchange.direction === 'USDT_TO_TMT') {
         // USDT и комиссия уже списаны при создании заявки
         await prisma.exchangeRequest.update({
           where: { id },
           data: { status: 'COMPLETED' }
         });
+        await updateUserStats(exchange.userId, Number(exchange.amountUsdt));
       } else if (exchange.direction === 'TMT_TO_USDT') {
         // Зачисляем пользователю USDT (комиссия была списана при создании)
         await prisma.$transaction([
@@ -48,6 +50,7 @@ export async function PATCH(req: Request) {
             data: { status: 'COMPLETED' }
           })
         ]);
+        await updateUserStats(exchange.userId, Number(exchange.amountUsdt));
       }
     } 
     

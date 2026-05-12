@@ -195,21 +195,85 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         return NextResponse.json({ error: 'Only admin can resolve a dispute' }, { status: 403 });
       }
 
-      // Execute resolution and log it
-      const [updatedOrder] = await prisma.$transaction([
+      const amount = order.amountAsset;
+      const fee = order.feeAmount || 0;
+      const totalToSubtract = Number(amount) + Number(fee);
+
+      const transactions = [];
+
+      // 1. Update Order status
+      transactions.push(
         prisma.order.update({
           where: { id },
           data: { status, isDisputed: false },
           include: { ad: true, seller: true, buyer: true }
-        }),
+        })
+      );
+
+      // 2. Wallet updates
+      if (status === 'COMPLETED') {
+        // From seller's frozen to buyer's balance
+        transactions.push(
+          prisma.wallet.update({
+            where: { userId: order.sellerId },
+            data: { usdtFrozen: { decrement: totalToSubtract } }
+          }),
+          prisma.wallet.update({
+            where: { userId: order.buyerId },
+            data: { usdtBalance: { increment: amount } }
+          })
+        );
+      } else {
+        // Return to seller's balance
+        transactions.push(
+          prisma.wallet.update({
+            where: { userId: order.sellerId },
+            data: { 
+              usdtFrozen: { decrement: totalToSubtract },
+              usdtBalance: { increment: totalToSubtract }
+            }
+          })
+        );
+      }
+
+      // 3. Admin action log
+      transactions.push(
         prisma.adminAction.create({
           data: {
             adminId: authUser.userId,
             action: 'DISPUTE_RESOLVE',
             targetId: id,
-            details: `Спор разрешен: ${status}`
+            details: `Спор разрешен: ${status}. Сумма: ${amount} ${order.ad.asset}`
           }
         })
+      );
+
+      const results = await prisma.$transaction(transactions);
+      const updatedOrder = results[0] as any;
+
+      // 4. Update stats if completed
+      if (status === 'COMPLETED') {
+        const { updateUserStats } = await import('@/lib/userStats');
+        await Promise.all([
+          updateUserStats(order.sellerId, Number(amount)),
+          updateUserStats(order.buyerId, Number(amount))
+        ]);
+      }
+
+      // 5. Notify users
+      await Promise.all([
+        notifyUser(order.buyerId, status === 'COMPLETED' ? 'order_completed' : 'order_cancelled', {
+          orderId: order.id,
+          amountFiat: order.amountFiat,
+          fiat: order.ad.fiat,
+          reason: 'Решение арбитража',
+        }),
+        notifyUser(order.sellerId, status === 'COMPLETED' ? 'order_completed' : 'order_cancelled', {
+          orderId: order.id,
+          amountFiat: order.amountFiat,
+          fiat: order.ad.fiat,
+          reason: 'Решение арбитража',
+        }),
       ]);
 
       return NextResponse.json({ success: true, order: updatedOrder });

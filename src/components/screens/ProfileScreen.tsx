@@ -80,7 +80,7 @@ export default function ProfileScreen() {
     setIsRefreshing(true);
     await initUser(WebApp.initData);
     setIsRefreshing(false);
-    addToast('Профиль обновлён', 'info');
+    addToast(t(language, 'profileUpdated'), 'info');
   };
 
   const handleCopyId = () => {
@@ -223,7 +223,7 @@ export default function ProfileScreen() {
     if (!file || !user?.id) return;
 
     if (!file.type.startsWith('image/')) {
-      addToast('Пожалуйста, выберите изображение', 'error');
+      addToast(t(language, 'selectImage'), 'error');
       return;
     }
 
@@ -248,10 +248,10 @@ export default function ProfileScreen() {
           });
           WebApp.HapticFeedback.notificationOccurred('success');
         } else {
-          addToast('Ошибка загрузки аватара', 'error');
+          addToast(t(language, 'avatarUploadError'), 'error');
         }
       } catch (error) {
-        addToast('Ошибка загрузки аватара', 'error');
+        addToast(t(language, 'avatarUploadError'), 'error');
       } finally {
         setIsUploadingAvatar(false);
         setAvatarPreview(null);
@@ -271,11 +271,11 @@ export default function ProfileScreen() {
         method: 'DELETE'
       });
       if (res.ok) {
-        addToast('Аккаунт деактивирован. Прощайте!', 'info');
+        addToast(t(language, 'accountDeleted'), 'info');
         WebApp.close();
       }
     } catch (e) {
-      addToast('Ошибка при удалении', 'error');
+      addToast(t(language, 'requestError'), 'error');
     } finally {
       setIsLoadingReviews(false);
       setIsDeletingAccount(false);
@@ -431,7 +431,7 @@ export default function ProfileScreen() {
       {/* Список отзывов */}
       {reviews.length > 0 && (
         <div className="space-y-3">
-          <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-4">Последние отзывы</h3>
+          <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-4">{t(language, 'lastReviews')}</h3>
           <div className="bg-white rounded-[2.5rem] p-6 shadow-sm ring-1 ring-slate-100 space-y-4">
             {reviews.slice(0, 3).map((review) => (
               <div key={review.id} className="border-b border-slate-50 last:border-0 pb-4 last:pb-0">
@@ -462,7 +462,7 @@ export default function ProfileScreen() {
             ))}
             {reviews.length > 3 && (
               <button className="w-full text-center text-[10px] font-black text-blue-500 uppercase tracking-widest pt-2">
-                Смотреть все ({reviews.length})
+                {t(language, 'seeAllReviews')} ({reviews.length})
               </button>
             )}
           </div>
@@ -475,7 +475,7 @@ export default function ProfileScreen() {
         
         <div className="flex justify-between items-center relative z-10">
           <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Ваш текущий уровень</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">{t(language, 'currentLevel')}</p>
             <div className="flex items-center gap-2">
               <h3 className={`text-2xl font-black tracking-tight ${
                 user?.level === 'Partner' ? 'text-amber-400' : 
@@ -494,15 +494,15 @@ export default function ProfileScreen() {
                 const res = await fetch('/api/user/apply-pro', { method: 'POST' });
                 const data = await res.json();
                 if (res.ok) {
-                  addToast('Заявка отправлена поддержке', 'success');
+                  addToast(t(language, 'proRequestSent'), 'success');
                   WebApp.HapticFeedback.notificationOccurred('success');
                 } else {
-                  addToast(data.error || 'Ошибка при подаче заявки', 'error');
+                  addToast(data.error || t(language, 'proRequestError'), 'error');
                 }
               }}
               className="px-5 py-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-2xl text-[11px] font-black text-white uppercase tracking-widest transition-all ring-1 ring-white/20 active:scale-95"
             >
-              Стать Pro
+              {t(language, 'becomePro')}
             </button>
           )}
         </div>
@@ -510,7 +510,7 @@ export default function ProfileScreen() {
         {user?.level === 'Standard' && (
           <div className="mt-5 pt-5 border-t border-white/5 space-y-4">
             <div className="flex justify-between items-center">
-              <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Прогресс до Pro</p>
+              <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">{t(language, 'proProgress')}</p>
               <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest bg-indigo-500/10 px-2 py-0.5 rounded-md">Level 1</span>
             </div>
             
@@ -518,7 +518,7 @@ export default function ProfileScreen() {
               {/* Trades Progress */}
               <div className="space-y-1.5">
                 <div className="flex justify-between text-[10px] font-bold">
-                  <span className="text-slate-400">Сделки: {stats.trades}/30</span>
+                  <span className="text-slate-400">{t(language, 'trades')}: {stats.trades}/30</span>
                   <span className="text-white">{Math.min(100, Math.round((stats.trades / 30) * 100))}%</span>
                 </div>
                 <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
@@ -532,7 +532,7 @@ export default function ProfileScreen() {
               {/* Volume Progress */}
               <div className="space-y-1.5">
                 <div className="flex justify-between text-[10px] font-bold">
-                  <span className="text-slate-400">Объем: {stats.volume.toFixed(0)}/3000 USDT</span>
+                  <span className="text-slate-400">{t(language, 'adminVolume')}: {stats.volume.toFixed(0)}/3000 USDT</span>
                   <span className="text-white">{Math.min(100, Math.round((stats.volume / 3000) * 100))}%</span>
                 </div>
                 <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
@@ -546,10 +546,10 @@ export default function ProfileScreen() {
 
             <div className="flex gap-4">
                <div className={`text-[9px] font-bold flex items-center gap-1 ${stats.averageRating >= 4.8 ? 'text-emerald-400' : 'text-slate-500'}`}>
-                 <CheckCircle2 className="w-2.5 h-2.5" /> 4.8+ Rating
+                 <CheckCircle2 className="w-2.5 h-2.5" /> {t(language, 'ratingText')}
                </div>
                <div className={`text-[9px] font-bold flex items-center gap-1 text-slate-500`}>
-                 <CheckCircle2 className="w-2.5 h-2.5" /> 14 Days
+                 <CheckCircle2 className="w-2.5 h-2.5" /> {t(language, 'daysText')}
                </div>
             </div>
           </div>
@@ -580,14 +580,12 @@ export default function ProfileScreen() {
           {user?.isAdmin && (
             <MenuBtn
               icon={ShieldAlert}
-              label="Админ-Панель (Арбитраж)"
+              label={t(language, 'adminPanel')}
               color="text-red-500"
               bg="bg-red-50"
               onClick={() => setIsViewingAdmin(true)}
             />
           )}
-
-
 
           {/* Уведомления */}
           <MenuBtn
@@ -607,10 +605,10 @@ export default function ProfileScreen() {
                 });
                 if (res.ok) {
                   initUser(WebApp.initData);
-                  addToast(newStatus ? 'Уведомления отключены' : 'Уведомления включены', 'info');
+                  addToast(newStatus ? t(language, 'notificationsDisabled') : t(language, 'notificationsEnabled'), 'info');
                 }
               } catch (e) {
-                addToast('Ошибка при обновлении', 'error');
+                addToast(t(language, 'updateError'), 'error');
               }
             }}
           />
@@ -641,10 +639,10 @@ export default function ProfileScreen() {
               user?.isVerified || user?.kycStatus === 'VERIFIED'
                 ? t(language, 'verified')
                 : user?.kycStatus === 'PENDING'
-                ? 'На проверке'
+                ? t(language, 'kycOnCheck')
                 : user?.kycStatus === 'REJECTED'
-                ? 'Отклонено'
-                : 'Пройти'
+                ? t(language, 'kycRejected')
+                : t(language, 'kycPass')
             }
             onClick={() => setIsViewingKyc(true)}
           />
@@ -652,7 +650,7 @@ export default function ProfileScreen() {
           {/* Адресная книга */}
           <MenuBtn
             icon={ListOrdered}
-            label="Адресная книга"
+            label={t(language, 'addressBookTitle')}
             color="text-emerald-600"
             bg="bg-emerald-50"
             onClick={() => setIsViewingAddressBook(true)}
@@ -661,7 +659,7 @@ export default function ProfileScreen() {
           {/* Безопасность */}
           <MenuBtn
             icon={ShieldCheck}
-            label="Безопасность и PIN"
+            label={t(language, 'securityPin')}
             color="text-indigo-600"
             bg="bg-indigo-50"
             onClick={() => setIsViewingSecurity(true)}
@@ -670,7 +668,7 @@ export default function ProfileScreen() {
           {/* API */}
           <MenuBtn
             icon={PlusCircle}
-            label="API Управление"
+            label={t(language, 'apiManagement')}
             color="text-blue-600"
             bg="bg-blue-50"
             onClick={() => setIsViewingApi(true)}
@@ -689,14 +687,14 @@ export default function ProfileScreen() {
       </div>
 
       {/* Удаление аккаунта */}
-      <div className="pt-4 pb-10">
-        <button 
-          onClick={() => setIsDeletingAccount(true)}
-          className="w-full py-5 flex items-center justify-center gap-3 text-red-500 font-black text-xs uppercase tracking-[0.2em] bg-red-50 rounded-[2rem] border border-red-100 active:scale-95 transition-all"
-        >
-          <Trash2 className="w-4 h-4" /> Удалить аккаунт
-        </button>
-      </div>
+       <div className="pt-4 pb-10">
+         <button 
+           onClick={() => setIsDeletingAccount(true)}
+           className="w-full py-5 flex items-center justify-center gap-3 text-red-500 font-black text-sm uppercase tracking-[0.2em] bg-red-50 rounded-[2rem] border border-red-100 active:scale-95 transition-all"
+         >
+           <Trash2 className="w-4 h-4" /> {t(language, 'deleteAccount')}
+         </button>
+       </div>
 
       {/* Модалка удаления */}
       {isDeletingAccount && (
@@ -706,9 +704,9 @@ export default function ProfileScreen() {
                <AlertTriangle className="w-8 h-8" />
             </div>
             <div className="text-center space-y-2">
-              <h3 className="text-xl font-black text-slate-800 tracking-tight">Вы уверены?</h3>
+              <h3 className="text-xl font-black text-slate-800 tracking-tight">{t(language, 'deleteAccountConfirmTitle')}</h3>
               <p className="text-xs text-slate-400 font-bold leading-relaxed">
-                Это действие деактивирует ваш профиль и скроет все объявления. Ваши транзакции останутся в базе для отчетности.
+                {t(language, 'deleteAccountConfirmDesc')}
               </p>
             </div>
             <div className="flex flex-col gap-3">
@@ -716,14 +714,14 @@ export default function ProfileScreen() {
                 onClick={handleDeleteAccount}
                 className="w-full py-4 bg-red-500 text-white rounded-2xl font-black text-xs tracking-widest shadow-xl shadow-red-100 active:scale-95 transition-all"
               >
-                ДА, УДАЛИТЬ
+                {t(language, 'deleteAccountBtn')}
               </button>
               <button 
-                onClick={() => setIsDeletingAccount(false)}
-                className="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-xs tracking-widest active:scale-95 transition-all"
-              >
-                ОТМЕНА
-              </button>
+                 onClick={() => setIsDeletingAccount(false)}
+                 className="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-xs tracking-widest active:scale-95 transition-all"
+               >
+                 {t(language, 'cancelBtn')}
+               </button>
             </div>
           </div>
         </div>

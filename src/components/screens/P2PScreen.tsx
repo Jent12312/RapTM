@@ -93,13 +93,19 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
     const targetAdType = tradeType === 'buy' ? 'sell' : 'buy';
     const amount = Number(filterAmount);
     
-    return (Array.isArray(ads) ? ads : []).filter(ad => {
-      const matchBase = ad.type.toLowerCase() === targetAdType && ad.asset === asset && ad.fiat === fiat;
-      if (!matchBase) return false;
-      if (amount > 0) return amount >= ad.minLimit && amount <= ad.maxLimit;
-      return true;
-    });
-  }, [ads, tradeType, asset, fiat, filterAmount]);
+    return (Array.isArray(ads) ? ads : [])
+      .filter(ad => {
+        const matchBase = ad.type.toLowerCase() === targetAdType && ad.asset === asset && ad.fiat === fiat;
+        if (!matchBase) return false;
+        if (amount > 0) return amount >= ad.minLimit && amount <= ad.maxLimit;
+        return true;
+      })
+      .sort((a, b) => {
+        const priceA = getAdPrice(a);
+        const priceB = getAdPrice(b);
+        return tradeType === 'buy' ? priceA - priceB : priceB - priceA;
+      });
+  }, [ads, tradeType, asset, fiat, filterAmount, getAdPrice]);
 
   const calculateReceiveAmount = useMemo(() => {
     if (!tradeAmount || !selectedAd) return '0.00';
@@ -134,7 +140,7 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
         document.execCommand('copy');
         notifySuccess();
       } catch (err) {
-        addToast("Ошибка копирования", "error");
+        addToast(t(language, 'error'), "error");
       }
       document.body.removeChild(textArea);
     }
@@ -151,9 +157,9 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
     haptic.medium();
     const inputAmount = Number(tradeAmount);
     
-    if (!inputAmount) return addToast("Введите сумму", "error");
+    if (!inputAmount) return addToast(t(language, 'enterAmount'), "error");
     if (inputAmount < selectedAd.minLimit || inputAmount > selectedAd.maxLimit) {
-      return addToast(`Лимит: от ${selectedAd.minLimit} до ${selectedAd.maxLimit}`, "error");
+      return addToast(`${t(language, 'limit')}: ${selectedAd.minLimit} - ${selectedAd.maxLimit}`, "error");
     }
 
     setIsProcessing(true);
@@ -168,7 +174,7 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
         const data = await res.json();
         
         if (data.usdtBalance < amountAsset) {
-          addToast('Недостаточно USDT на балансе продавца', 'error');
+          addToast(t(language, 'insufficientUsdtSeller'), 'error');
           setIsProcessing(false);
           return;
         }
@@ -184,15 +190,15 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
       
       if (data.success) {
         haptic.success();
-        addToast("Сделка успешно создана!", "success");
+        addToast(t(language, 'orderCreated'), "success");
         setActiveOrder(data.order);
         setSelectedAd(null);
       } else {
         haptic.error();
-        addToast(data.error || "Ошибка при создании сделки", "error");
+        addToast(data.error || t(language, 'orderUpdateError'), "error");
       }
     } catch (e) {
-      addToast('Ошибка соединения', 'error');
+      addToast(t(language, 'exConnectionError'), 'error');
     } finally {
       setIsProcessing(false);
     }
@@ -213,7 +219,7 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
       <div className="pb-32 min-h-screen bg-slate-50/50 animate-in fade-in duration-300">
         
         {/* --- HEADER --- */}
-        <div className="bg-white px-4 pt-3 pb-4 shadow-sm shadow-slate-200/50 sticky top-[64px] z-30 border-b border-slate-100 space-y-4 rounded-b-3xl">
+        <div className="bg-white px-4 pt-1 pb-3 shadow-sm shadow-slate-200/50 sticky top-[63px] z-30 border-b border-slate-100 space-y-3 rounded-b-3xl">
           
           {/* Top Actions: Buy/Sell Toggle & Icons */}
           <div className="flex justify-between items-center gap-4">
@@ -287,72 +293,93 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
         {/* --- AD LIST --- */}
         <div className="px-4 py-6 space-y-4">
           {isLoadingAds ? (
-            [1, 2, 3].map(i => <Skeleton key={i} className="h-44 w-full rounded-[2rem]" />)
+            [1, 2, 3].map(i => <Skeleton key={i} className="h-48 w-full rounded-[2rem]" />)
           ) : filteredAds.length > 0 ? (
             filteredAds.map((ad) => (
-              <div key={ad.id} className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 hover:border-blue-200 transition-colors group">
+              <div key={ad.id} className="bg-white p-4 rounded-[2rem] shadow-sm border border-slate-100 hover:border-blue-200 hover:shadow-md transition-all group">
                 
-                {/* User Info */}
-                <div className="flex justify-between items-start mb-4">
+                {/* Header: Merchant Info & Stats */}
+                <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <div className="relative">
                       {ad.user?.avatarUrl ? (
-                        <img src={ad.user.avatarUrl} alt="Avatar" className="w-10 h-10 rounded-full object-cover" />
+                        <img src={ad.user.avatarUrl} alt="Avatar" className="w-10 h-10 rounded-full object-cover ring-2 ring-slate-50" />
                       ) : (
-                        <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold text-sm">
+                        <div className="w-10 h-10 bg-gradient-to-br from-slate-50 to-slate-100 rounded-full flex items-center justify-center text-slate-400 font-bold text-sm ring-2 ring-slate-50">
                           {(ad.user?.nickname || ad.user?.firstName || 'U').charAt(0)}
                         </div>
                       )}
                       {ad.user?.isVerified && (
-                        <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5">
+                        <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
                           <BadgeCheck className="w-4 h-4 text-blue-500" />
                         </div>
                       )}
                     </div>
                     <div>
-                      <button onClick={() => { haptic.light(); setViewingMerchant(ad.user); }} className="font-bold text-slate-900 text-sm hover:text-blue-600">
+                      <button 
+                        onClick={() => { haptic.light(); setViewingMerchant(ad.user); }}
+                        className="font-bold text-slate-900 text-sm hover:text-blue-600 transition-colors flex items-center gap-1"
+                      >
                         {ad.user?.nickname || ad.user?.firstName || t(language, 'userLabel')}
+                        <TrendingUp className="w-3 h-3 text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                       </button>
-                      <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500 font-medium">
-                        <span>{ad.user?.tradesCount || 0} {t(language, 'trades')}</span>
-                        <div className="w-1 h-1 rounded-full bg-slate-300"></div>
-                        <span className="text-emerald-600 font-bold">{(ad.user?.rating || 0).toFixed(1)}%</span>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+                          {ad.user?.tradesCount || 0} {t(language, 'trades')}
+                        </span>
+                        <div className="w-1 h-1 rounded-full bg-slate-200"></div>
+                        <span className="text-[10px] font-black text-emerald-600">
+                          {(ad.user?.rating || 0).toFixed(1)}%
+                        </span>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100">
-                    <Clock className="w-3.5 h-3.5" /> {ad.paymentTime || 15}m
+                  
+                  <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 text-[10px] font-bold text-slate-500 rounded-xl border border-slate-100/50">
+                    <Clock className="w-3 h-3" /> {ad.paymentTime || 15}m
                   </div>
                 </div>
 
-                {/* Price and Limits */}
-                <div className="grid grid-cols-[1fr_auto] gap-4 items-end">
-                  <div>
-                    <div className="flex items-baseline gap-1.5 mb-2">
-                      <span className="text-2xl font-black text-slate-900 tracking-tight">
-                        {getAdPrice(ad).toFixed(2)}
-                      </span>
-                      <span className="text-sm font-bold text-slate-500">{ad.fiat}</span>
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-400">{t(language, 'limit')}</span>
-                        <span className="font-bold text-slate-700">{ad.minLimit.toLocaleString()} - {ad.maxLimit.toLocaleString()} {ad.fiat}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 mt-2">
-                        <span className="px-2 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded uppercase tracking-wide flex items-center gap-1">
-                          <MapPin className="w-3 h-3" /> {t(language, 'cash')} • {ad.city}
+                {/* Body: Price and Trade Details */}
+                <div className="flex items-end justify-between gap-4">
+                  <div className="space-y-3">
+                    <div>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t(language, 'price')}</div>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-2xl font-black text-slate-900 tracking-tight leading-none">
+                          {getAdPrice(ad).toFixed(2)}
                         </span>
+                        <span className="text-xs font-bold text-slate-400">{ad.fiat}</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <div className="text-[10px] font-medium text-slate-400">{t(language, 'limit')}</div>
+                        <div className="text-[10px] font-bold text-slate-700">
+                          {ad.minLimit.toLocaleString()} - {ad.maxLimit.toLocaleString()} {ad.fiat}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-700 text-[9px] font-black rounded-lg uppercase tracking-wider">
+                          <MapPin className="w-2.5 h-2.5" /> {ad.city || t(language, 'cash')}
+                        </span>
+                        {ad.paymentMethods?.map((pm: any, idx: number) => (
+                          <span key={idx} className="px-2 py-1 bg-blue-50 text-blue-700 text-[9px] font-black rounded-lg uppercase tracking-wider">
+                            {pm}
+                          </span>
+                        ))}
                       </div>
                     </div>
                   </div>
 
                   <button
                     onClick={() => { haptic.medium(); setSelectedAd(ad); }}
-                    className={`px-8 py-3 rounded-xl font-bold text-sm text-white transition-transform active:scale-95 ${
-                      tradeType === 'buy' ? 'bg-emerald-500 hover:bg-emerald-600 shadow-sm shadow-emerald-200' : 'bg-red-500 hover:bg-red-600 shadow-sm shadow-red-200'
-                    }`}
+                    className={`h-12 px-8 rounded-2xl font-black text-sm text-white transition-all active:scale-95 shadow-lg shadow-opacity-20
+                      ${tradeType === 'buy' 
+                        ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-200' 
+                        : 'bg-red-500 hover:bg-red-600 shadow-red-200'
+                      }`}
                   >
                     {tradeType === 'buy' ? t(language, 'buyBtn') : t(language, 'sellBtn')}
                   </button>
@@ -365,7 +392,7 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
                 <Filter className="w-8 h-8 text-slate-300" />
               </div>
               <h3 className="text-lg font-bold text-slate-800 mb-1">{t(language, 'noAds')}</h3>
-              <p className="text-sm text-slate-500">Попробуйте изменить сумму или валюту ({asset}/{fiat})</p>
+              <p className="text-sm text-slate-500">{t(language, 'noAdsDesc').replace('{asset}', asset).replace('{fiat}', fiat)}</p>
             </div>
           )}
         </div>
@@ -387,7 +414,7 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
                     <h3 className="text-lg font-black text-slate-900">
                       {selectedAd.type === 'buy' ? `${t(language, 'buy')} ${selectedAd.asset}` : `${t(language, 'sell')} ${selectedAd.asset}`}
                     </h3>
-                    <p className="text-xs text-slate-500 font-medium">Цена: {getAdPrice(selectedAd).toFixed(2)} {selectedAd.fiat}</p>
+                    <p className="text-xs text-slate-500 font-medium">{t(language, 'price')}: {getAdPrice(selectedAd).toFixed(2)} {selectedAd.fiat}</p>
                   </div>
                 </div>
                 <button onClick={closeModal} className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors">
@@ -402,8 +429,8 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
                 <div className="space-y-3 relative">
                   <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 focus-within:border-blue-500 focus-within:bg-white transition-colors">
                     <div className="flex justify-between text-xs text-slate-500 mb-2 font-medium">
-                      <span>{selectedAd.type === 'buy' ? 'Я плачу' : 'Я продаю'}</span>
-                      <span>Лимит: {selectedAd.minLimit} - {selectedAd.maxLimit}</span>
+                      <span>{selectedAd.type === 'buy' ? t(language, 'exYouPay') : t(language, 'exYouGive')}</span>
+                      <span>{t(language, 'limit')}: {selectedAd.minLimit} - {selectedAd.maxLimit}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <input
@@ -452,10 +479,12 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
                   const userTrades = (user?.ordersAsBuyer || []).length || 0;
                   
                   if (selectedAd.reqKyc && !user?.isVerified) {
-                    return <div className="w-full py-4 text-center rounded-xl font-bold text-sm bg-red-50 text-red-500">Требуется верификация (KYC)</div>;
+                    return <div className="w-full py-4 text-center rounded-xl font-bold text-sm bg-red-50 text-red-500">{t(language, 'kycRequired')}</div>;
                   }
                   if (selectedAd.reqMinTrades > userTrades) {
-                    return <div className="w-full py-4 text-center rounded-xl font-bold text-sm bg-red-50 text-red-500">Минимум сделок: {selectedAd.reqMinTrades} (У вас: {userTrades})</div>;
+                    return <div className="w-full py-4 text-center rounded-xl font-bold text-sm bg-red-50 text-red-500">
+                      {t(language, 'minTradesRequired').replace('{min}', selectedAd.reqMinTrades.toString()).replace('{current}', userTrades.toString())}
+                    </div>;
                   }
                   
                   return (
@@ -466,7 +495,7 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
                         ${!tradeAmount ? 'bg-slate-300' : selectedAd.type === 'buy' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600'}
                       `}
                     >
-                      {isProcessing ? <RefreshCw className="w-5 h-5 animate-spin" /> : 'Открыть сделку'}
+                      {isProcessing ? <RefreshCw className="w-5 h-5 animate-spin" /> : t(language, 'openOrderBtn')}
                     </button>
                   );
                 })()}

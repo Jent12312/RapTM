@@ -102,18 +102,18 @@ export default function ExchangeScreen() {
     if (direction === 'USDT_TO_TMT') {
       const totalUsdtNeeded = amountNum + Math.max(0, feeNum - balances.bonus);
       if (totalUsdtNeeded > balances.usdt) {
-        addToast('Недостаточно USDT для обмена и комиссии', 'error');
+        addToast(t(language, 'exInsufficientUsdt'), 'error');
         return;
       }
       if (!phone || phone.length < 8) {
-        addToast('Введите номер телефона', 'error');
+        addToast(t(language, 'exEnterPhone'), 'error');
         return;
       }
     } else {
       // Для покупки USDT проверяем, хватит ли на комиссию (бонус + usdt)
       const totalUsdtForFee = balances.usdt + balances.bonus;
       if (totalUsdtForFee < feeNum) {
-        addToast('Недостаточно баланса для оплаты комиссии', 'error');
+        addToast(t(language, 'exInsufficientBalanceFee'), 'error');
         return;
       }
     }
@@ -142,10 +142,10 @@ export default function ExchangeScreen() {
         await initUser(WebApp.initData);
         loadData();
       } else {
-        addToast(data.error || 'Ошибка', 'error');
+        addToast(data.error || t(language, 'error'), 'error');
       }
     } catch (e) {
-      addToast('Ошибка соединения', 'error');
+      addToast(t(language, 'exConnectionError'), 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -210,7 +210,7 @@ export default function ExchangeScreen() {
         <div className="space-y-3.5">
           <div className="flex justify-between items-end px-2">
             <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
-              {direction === 'USDT_TO_TMT' ? 'Вы отдаете' : 'Вы платите'}
+              {direction === 'USDT_TO_TMT' ? t(language, 'exYouGive') : t(language, 'exYouPay')}
             </label>
             <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-50 rounded-full ring-1 ring-slate-100">
               <WalletIcon className="w-3 h-3 text-slate-400" />
@@ -260,7 +260,7 @@ export default function ExchangeScreen() {
               <p className={`text-4xl font-black tracking-tight ${direction === 'USDT_TO_TMT' ? 'text-slate-800' : 'text-indigo-600'}`}>
                 {calculated.receive}
               </p>
-              <p className="text-[11px] font-black text-indigo-400 uppercase mt-1 tracking-widest">~ {direction === 'USDT_TO_TMT' ? 'Туркменский Манат' : 'Tether USDT'}</p>
+              <p className="text-[11px] font-black text-indigo-400 uppercase mt-1 tracking-widest">~ {direction === 'USDT_TO_TMT' ? t(language, 'exTMTName') : t(language, 'exUSDTName')}</p>
             </div>
             <div className="relative z-10 bg-white/80 backdrop-blur-md px-4 py-2 rounded-2xl shadow-sm ring-1 ring-indigo-100 font-black text-sm text-indigo-600">
               {direction === 'USDT_TO_TMT' ? 'TMT' : 'USDT'}
@@ -278,12 +278,12 @@ export default function ExchangeScreen() {
           <div className="flex justify-between text-xs items-center">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-emerald-400 rounded-full" />
-              <span className="text-slate-500 font-bold">Бонусный счет</span>
+              <span className="text-slate-500 font-bold">{t(language, 'walBonusAccount')}</span>
             </div>
             <span className="font-black text-slate-700">{balances.bonus.toFixed(2)} USDT</span>
           </div>
           <p className="text-[10px] text-slate-400 font-medium leading-relaxed italic">
-            * Комиссия списывается сначала с бонусного счета, затем с основного баланса USDT.
+            {t(language, 'exFeeNote')}
           </p>
         </div>
 
@@ -291,7 +291,7 @@ export default function ExchangeScreen() {
         {direction === 'USDT_TO_TMT' && (
           <div className="space-y-3.5 pt-1">
             <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-2">
-              Куда отправить Манаты?
+              {t(language, 'exWhereToSend')}
             </label>
             <div className="flex items-center gap-4 bg-slate-50/50 p-5 rounded-2xl ring-1 ring-slate-200/60 focus-within:ring-2 focus-within:ring-indigo-500/50 focus-within:bg-white transition-all duration-300">
               <Phone className="w-6 h-6 text-slate-300" />
@@ -299,7 +299,7 @@ export default function ExchangeScreen() {
                 type="tel" 
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="+993 6X XX-XX-XX"
+                placeholder={t(language, 'exPhonePlaceholder')}
                 className="w-full text-lg font-black text-slate-800 bg-transparent outline-none placeholder:text-slate-200" 
               />
             </div>
@@ -337,7 +337,7 @@ export default function ExchangeScreen() {
               <span className="text-[11px] font-black text-amber-700 uppercase tracking-widest">{t(language, 'whatToDo')}</span>
             </div>
             <p className="text-xs leading-relaxed text-amber-900/80 font-bold relative z-10">
-              Переведите <span className="text-amber-600 font-black underline underline-offset-4 decoration-2">{amount || '0'} TMT</span> на номер <span className="font-black text-slate-800">{ADMIN_PHONE_NUMBER}</span> и дождитесь подтверждения от администратора.
+              {t(language, 'exInstruction').replace('{amount}', amount || '0').replace('{phone}', ADMIN_PHONE_NUMBER)}
             </p>
           </div>
         )}
@@ -370,7 +370,7 @@ export default function ExchangeScreen() {
                         <Clock className="w-3.5 h-3.5" /> {new Date(req.createdAt).toLocaleDateString('ru-RU')}
                       </p>
                       <div className="w-1 h-1 bg-slate-200 rounded-full" />
-                      <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Комиссия: {req.commission} USDT</p>
+                      <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{t(language, 'exCommission')}: {req.commission} USDT</p>
                     </div>
                   </div>
                 </div>

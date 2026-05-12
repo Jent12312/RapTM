@@ -107,13 +107,13 @@ export default function CreateAdScreen({ onClose }: Props) {
 
   const handlePublish = async () => {
     if ((priceType === 'fixed' && !price) || (priceType === 'floating' && !pricePercent)) {
-      addToast('Укажите цену или процент', 'error'); return;
+      addToast(t(language, 'priceOrPercentError'), 'error'); return;
     }
     if (!minLimit || !maxLimit) {
-      addToast('Укажите лимиты', 'error'); return;
+      addToast(t(language, 'limitsError'), 'error'); return;
     }
     if (selectedMethods.length === 0) {
-      addToast('Выберите метод оплаты', 'error'); return;
+      addToast(t(language, 'paymentMethodError'), 'error'); return;
     }
 
     try {
@@ -148,7 +148,7 @@ export default function CreateAdScreen({ onClose }: Props) {
         addToast(t(language, 'error'), 'error');
       }
     } catch (e) {
-      addToast('Ошибка сервера', 'error');
+      addToast(t(language, 'serverError'), 'error');
     }
   };
 
@@ -162,7 +162,7 @@ export default function CreateAdScreen({ onClose }: Props) {
             <ChevronLeft className="w-6 h-6" />
           </button>
           <div>
-            <h2 className="text-lg font-black text-slate-800 tracking-tight">Создать объявление</h2>
+            <h2 className="text-lg font-black text-slate-800 tracking-tight">{t(language, 'createAd')}</h2>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">P2P Маркетплейс</p>
           </div>
         </div>
@@ -178,7 +178,7 @@ export default function CreateAdScreen({ onClose }: Props) {
               adDirection === 'buy' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-400'
             }`}
           >
-            Купить
+            {t(language, 'buy')}
           </button>
           <button
             onClick={() => setAdDirection('sell')}
@@ -186,7 +186,7 @@ export default function CreateAdScreen({ onClose }: Props) {
               adDirection === 'sell' ? 'bg-red-500 text-white shadow-lg' : 'text-slate-400'
             }`}
           >
-            Продать
+            {t(language, 'sell')}
           </button>
         </div>
 
@@ -194,7 +194,7 @@ export default function CreateAdScreen({ onClose }: Props) {
         <div className="bg-white p-5 rounded-[2.5rem] shadow-sm ring-1 ring-slate-100 space-y-5">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Криптовалюта</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t(language, 'cryptocurrency')}</label>
               <div className="relative">
                 <select value={asset} onChange={(e) => setAsset(e.target.value)} className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-2xl px-4 py-3 text-sm font-bold appearance-none outline-none">
                   <option value="USDT">USDT</option>
@@ -205,7 +205,7 @@ export default function CreateAdScreen({ onClose }: Props) {
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Фиатная валюта</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t(language, 'fiatCurrency')}</label>
               <div className="relative">
                 <select value={fiat} onChange={(e) => setFiat(e.target.value)} className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-2xl px-4 py-3 text-sm font-bold appearance-none outline-none">
                   <option value="TMT">TMT (Манат)</option>
@@ -221,15 +221,15 @@ export default function CreateAdScreen({ onClose }: Props) {
         {/* 3. Тип цены и расчет */}
         <div className="bg-white p-5 rounded-[2.5rem] shadow-sm ring-1 ring-slate-100 space-y-5">
           <div className="flex bg-slate-100 p-1 rounded-2xl">
-            <button onClick={() => setPriceType('fixed')} className={`flex-1 py-2.5 text-xs font-bold rounded-xl ${priceType === 'fixed' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400'}`}>Фиксированная</button>
-            <button onClick={() => setPriceType('floating')} className={`flex-1 py-2.5 text-xs font-bold rounded-xl ${priceType === 'floating' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400'}`}>Плавающая</button>
+            <button onClick={() => setPriceType('fixed')} className={`flex-1 py-2.5 text-xs font-bold rounded-xl ${priceType === 'fixed' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400'}`}>{t(language, 'fixed')}</button>
+            <button onClick={() => setPriceType('floating')} className={`flex-1 py-2.5 text-xs font-bold rounded-xl ${priceType === 'floating' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400'}`}>{t(language, 'floating')}</button>
           </div>
 
           {marketPrice && (
             <div className={`p-4 rounded-2xl flex items-center justify-between ${marketPrice.change24h >= 0 ? 'bg-emerald-50/50 border border-emerald-100' : 'bg-red-50/50 border border-red-100'}`}>
               <div className="flex items-center gap-2">
                 {marketPrice.change24h >= 0 ? <TrendingUp className="w-4 h-4 text-emerald-500" /> : <TrendingDown className="w-4 h-4 text-red-500" />}
-                <span className="text-xs font-bold text-slate-600">Биржа: <span className="text-slate-900">{marketPrice.basePrice.toFixed(2)} {fiat}</span></span>
+                <span className="text-xs font-bold text-slate-600">{t(language, 'exchangePrice')}: <span className="text-slate-900">{marketPrice.basePrice.toFixed(2)} {fiat}</span></span>
               </div>
               <span className={`text-[10px] font-black ${marketPrice.change24h >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                 {marketPrice.change24h >= 0 ? '+' : ''}{marketPrice.change24h.toFixed(2)}%
@@ -240,7 +240,7 @@ export default function CreateAdScreen({ onClose }: Props) {
           <div className="space-y-4">
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">
-                {priceType === 'fixed' ? 'Цена за 1 единицу' : 'Процент от рынка (%)'}
+                {priceType === 'fixed' ? t(language, 'pricePerUnit') : t(language, 'percentFromMarket')}
               </label>
               <div className="flex items-center gap-3 bg-slate-50 p-4 rounded-2xl ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-slate-800 transition-all">
                 <input 
@@ -257,11 +257,11 @@ export default function CreateAdScreen({ onClose }: Props) {
             <div className="bg-slate-900 p-5 rounded-3xl text-white shadow-xl shadow-slate-200">
               <div className="flex items-center gap-2 mb-1 opacity-60">
                 <Calculator className="w-3.5 h-3.5" />
-                <span className="text-[10px] font-bold uppercase tracking-widest">Итоговая стоимость</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest">{t(language, 'totalCost')}</span>
               </div>
               <div className="flex items-baseline gap-2">
                 <span className="text-3xl font-black tracking-tight">{calculatedPrice}</span>
-                <span className="text-sm font-bold text-slate-400">{fiat} за 1 {asset}</span>
+                <span className="text-sm font-bold text-slate-400">{fiat} {t(language, 'perUnit')} 1 {asset}</span>
               </div>
             </div>
           </div>
@@ -270,23 +270,23 @@ export default function CreateAdScreen({ onClose }: Props) {
         {/* 4. Лимиты */}
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-slate-100">
-            <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Мин. лимит</label>
+            <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">{t(language, 'minLimit')}</label>
             <input type="number" placeholder="50" value={minLimit} onChange={(e) => setMinLimit(e.target.value)} className="w-full text-lg font-black text-slate-800 outline-none" />
           </div>
           <div className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-slate-100">
-            <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">Макс. лимит</label>
+            <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">{t(language, 'maxLimit')}</label>
             <input type="number" placeholder="10000" value={maxLimit} onChange={(e) => setMaxLimit(e.target.value)} className="w-full text-lg font-black text-slate-800 outline-none" />
           </div>
         </div>
 
         {/* 5. Метод оплаты */}
         <div className="bg-white p-5 rounded-[2.5rem] shadow-sm ring-1 ring-slate-100 space-y-4">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Способы оплаты</label>
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t(language, 'paymentMethods')}</label>
           <div className="space-y-2">
             {[
-              { id: 'card', label: 'Банковская карта', icon: CreditCard, color: 'text-blue-500' },
-              { id: 'cash', label: 'Наличные в городе', icon: Banknote, color: 'text-emerald-500' },
-              { id: 'tmcell', label: 'Tmcell (Номер телефона)', icon: Smartphone, color: 'text-amber-500' },
+              { id: 'card', label: t(language, 'card'), icon: CreditCard, color: 'text-blue-500' },
+              { id: 'cash', label: t(language, 'cash'), icon: Banknote, color: 'text-emerald-500' },
+              { id: 'tmcell', label: t(language, 'tmcell'), icon: Smartphone, color: 'text-amber-500' },
             ].map((m) => (
               <button
                 key={m.id}
@@ -303,16 +303,16 @@ export default function CreateAdScreen({ onClose }: Props) {
               </button>
             ))}
           </div>
-
+ 
           {selectedMethods.includes('cash') && (
             <div className="pt-2 animate-in slide-in-from-top-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase block mb-2 ml-1">Укажите город</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase block mb-2 ml-1">{t(language, 'city')}</label>
               <select value={city} onChange={(e) => setCity(e.target.value)} className="w-full bg-slate-50 ring-1 ring-slate-200 p-3.5 rounded-xl text-sm font-bold outline-none">
-                <option value="Ашхабад">Ашхабад</option>
-                <option value="Мары">Мары</option>
-                <option value="Туркменабад">Туркменабад</option>
-                <option value="Дашогуз">Дашогуз</option>
-                <option value="Балканабад">Балканабад</option>
+                <option value="Ашхабад">{t(language, 'ashgabat')}</option>
+                <option value="Мары">{t(language, 'mary')}</option>
+                <option value="Туркменабад">{t(language, 'turkmenabat')}</option>
+                <option value="Дашогуз">{t(language, 'dashoguz')}</option>
+                <option value="Балканабад">{t(language, 'balkanabat')}</option>
               </select>
             </div>
           )}
@@ -321,27 +321,27 @@ export default function CreateAdScreen({ onClose }: Props) {
         {/* 6 & 7. Условия и Время */}
         <div className="bg-white p-5 rounded-[2.5rem] shadow-sm ring-1 ring-slate-100 space-y-5">
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Условия сделки</label>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t(language, 'tradeConditions')}</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Напишите детали (например: только на карту Халкбанк)"
+              placeholder={t(language, 'tradeConditionsPlaceholder')}
               className="w-full bg-slate-50 p-4 rounded-2xl ring-1 ring-slate-100 text-sm font-medium min-h-[100px] outline-none"
             />
           </div>
 
           <div className="flex items-center justify-between">
             <span className="text-sm font-bold text-slate-700 flex items-center gap-2">
-              <Clock className="w-4 h-4 text-slate-400" /> Окно оплаты
+              <Clock className="w-4 h-4 text-slate-400" /> {t(language, 'paymentWindow')}
             </span>
             <div className="flex bg-slate-100 p-1 rounded-xl">
-              {['15', '30', '45'].map(t => (
+              {['15', '30', '45'].map(time => (
                 <button
-                  key={t}
-                  onClick={() => setPaymentTime(t)}
-                  className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${paymentTime === t ? 'bg-white shadow-sm' : 'text-slate-400'}`}
+                  key={time}
+                  onClick={() => setPaymentTime(time)}
+                  className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${paymentTime === time ? 'bg-white shadow-sm' : 'text-slate-400'}`}
                 >
-                  {t} мин
+                  {time} {t(language, 'min')}
                 </button>
               ))}
             </div>
@@ -351,14 +351,14 @@ export default function CreateAdScreen({ onClose }: Props) {
         {/* 8. Требования к контрагенту */}
         <div className="bg-white p-5 rounded-[2.5rem] shadow-sm ring-1 ring-slate-100 space-y-5">
           <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-blue-500" /> Настройки защиты
+            <ShieldCheck className="w-4 h-4 text-blue-500" /> {t(language, 'protectionSettings')}
           </h3>
 
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-50 rounded-xl text-blue-500"><ShieldCheck className="w-4 h-4" /></div>
-                <span className="text-sm font-bold text-slate-700">Только с KYC</span>
+                <span className="text-sm font-bold text-slate-700">{t(language, 'onlyWithKyc')}</span>
               </div>
               <button onClick={() => setReqKyc(!reqKyc)} className={`w-10 h-6 rounded-full relative transition-colors ${reqKyc ? 'bg-emerald-500' : 'bg-slate-200'}`}>
                 <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${reqKyc ? 'right-1' : 'left-1'}`} />
@@ -367,11 +367,11 @@ export default function CreateAdScreen({ onClose }: Props) {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <span className="text-[10px] font-bold text-slate-400 uppercase ml-1 flex items-center gap-1"><Users className="w-3 h-3" /> Мин. сделок</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase ml-1 flex items-center gap-1"><Users className="w-3 h-3" /> {t(language, 'minTrades')}</span>
                 <input type="number" value={reqMinTrades} onChange={(e) => setReqMinTrades(e.target.value)} placeholder="0" className="w-full bg-slate-50 p-3 rounded-xl text-sm font-bold outline-none" />
               </div>
               <div className="space-y-1.5">
-                <span className="text-[10px] font-bold text-slate-400 uppercase ml-1 flex items-center gap-1"><Star className="w-3 h-3" /> Рейтинг (%)</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase ml-1 flex items-center gap-1"><Star className="w-3 h-3" /> {t(language, 'rating')}</span>
                 <input type="number" value={reqMinRating} onChange={(e) => setReqMinRating(e.target.value)} placeholder="0" className="w-full bg-slate-50 p-3 rounded-xl text-sm font-bold outline-none" />
               </div>
             </div>
@@ -379,7 +379,7 @@ export default function CreateAdScreen({ onClose }: Props) {
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-purple-50 rounded-xl text-purple-500"><Zap className="w-4 h-4" /></div>
-                <span className="text-sm font-bold text-slate-700">Быстрое подтверждение</span>
+                <span className="text-sm font-bold text-slate-700">{t(language, 'fastConfirm')}</span>
               </div>
               <button onClick={() => setReqFastConfirm(!reqFastConfirm)} className={`w-10 h-6 rounded-full relative transition-colors ${reqFastConfirm ? 'bg-purple-500' : 'bg-slate-200'}`}>
                 <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${reqFastConfirm ? 'right-1' : 'left-1'}`} />
@@ -397,7 +397,7 @@ export default function CreateAdScreen({ onClose }: Props) {
             }`}
           >
             <Globe className="w-4 h-4" />
-            <span className="text-[10px] font-black uppercase">Публичное</span>
+            <span className="text-[10px] font-black uppercase">{t(language, 'public')}</span>
           </button>
           <button
             onClick={() => setIsPrivate(true)}
@@ -406,14 +406,14 @@ export default function CreateAdScreen({ onClose }: Props) {
             }`}
           >
             <Lock className="w-4 h-4" />
-            <span className="text-[10px] font-black uppercase">Приватное</span>
+            <span className="text-[10px] font-black uppercase">{t(language, 'private')}</span>
           </button>
         </div>
 
         <div className="flex items-start gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-100 mb-4">
           <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
           <p className="text-[11px] font-medium text-amber-800 leading-relaxed">
-            Внимательно проверьте все данные. Изменение объявления после публикации возможно в разделе "Мои объявления".
+            {t(language, 'createAdWarning')}
           </p>
         </div>
 
@@ -425,7 +425,7 @@ export default function CreateAdScreen({ onClose }: Props) {
           onClick={handlePublish}
           className="w-full bg-slate-900 text-white font-black py-5 rounded-[2rem] shadow-xl active:scale-[0.98] transition-all text-lg tracking-tight"
         >
-          Опубликовать объявление
+          {t(language, 'publishAd')}
         </button>
       </div>
 

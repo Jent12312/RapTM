@@ -22,25 +22,28 @@ export default function ChatScreen({ orderId, partnerName, onClose }: Props) {
   const [partnerOnline, setPartnerOnline] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Загружаем статус заказа
-  useEffect(() => {
-    fetch(`/api/orders/${orderId}`)
-      .then(res => res.json())
-      .then(data => setOrderStatus(data.status))
-      .catch(console.error);
-  }, [orderId]);
-
-  // Получаем партнера по сделке
   const [partnerId, setPartnerId] = useState<string>('');
-  
+
+  // Объединенная загрузка начальных данных заказа
   useEffect(() => {
-    fetch(`/api/orders/${orderId}`)
-      .then(res => res.json())
-      .then(data => {
+    let isMounted = true;
+    
+    const fetchOrderData = async () => {
+      try {
+        const res = await fetch(`/api/orders/${orderId}`);
+        const data = await res.json();
+        if (!isMounted) return;
+        
+        setOrderStatus(data.status);
         const pid = data.buyerId === user.id ? data.sellerId : data.buyerId;
         setPartnerId(pid);
-      })
-      .catch(console.error);
+      } catch (e) {
+        console.error('Order fetch error:', e);
+      }
+    };
+
+    fetchOrderData();
+    return () => { isMounted = false; };
   }, [orderId, user.id]);
 
   // Обновляем lastSeen при активности в чате
@@ -95,11 +98,34 @@ export default function ChatScreen({ orderId, partnerName, onClose }: Props) {
     }
   };
 
-  // Загружаем сообщения при открытии чата и ставим "таймер" для проверки новых
+  // Улучшенный лонг-поллинг сообщений
   useEffect(() => {
-    fetchMessages();
-    const interval = setInterval(fetchMessages, 3000); // Проверяем новые сообщения каждые 3 сек (long-polling)
-    return () => clearInterval(interval);
+    let timer: NodeJS.Timeout;
+    let isFetching = false;
+    let isMounted = true;
+
+    const poll = async () => {
+      if (isFetching || !isMounted || document.hidden) {
+        timer = setTimeout(poll, 3000);
+        return;
+      }
+
+      isFetching = true;
+      try {
+        await fetchMessages();
+      } finally {
+        isFetching = false;
+        if (isMounted) {
+          timer = setTimeout(poll, 3000);
+        }
+      }
+    };
+
+    poll();
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
   }, [orderId]);
 
   // Автоскролл вниз при новом сообщении
@@ -156,7 +182,7 @@ export default function ChatScreen({ orderId, partnerName, onClose }: Props) {
         });
       }
     } catch (error) {
-      alert("Ошибка отправки");
+      alert(t(language, 'chatSendError'));
     }
   };
 
@@ -165,7 +191,7 @@ export default function ChatScreen({ orderId, partnerName, onClose }: Props) {
     const file = e.target.files?.[0];
     if (file) {
       if (!file.type.startsWith('image/')) {
-        alert('Пожалуйста, выберите изображение');
+        alert(t(language, 'chatSelectImage'));
         return;
       }
       setSelectedImage(file);
@@ -198,7 +224,7 @@ export default function ChatScreen({ orderId, partnerName, onClose }: Props) {
           <h2 className="text-lg font-bold text-slate-800 tracking-tight">{partnerName}</h2>
           <p className={`text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 ${partnerOnline ? 'text-emerald-500' : 'text-slate-400'}`}>
             <span className={`w-2 h-2 rounded-full ${partnerOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
-            {partnerOnline ? 'В сети' : 'Был(а) недавно'}
+            {partnerOnline ? t(language, 'online') : t(language, 'chatRecently')}
           </p>
         </div>
       </div>
@@ -224,11 +250,11 @@ export default function ChatScreen({ orderId, partnerName, onClose }: Props) {
                    body: JSON.stringify({ isDisputed: true })
                  });
                  // Отправляем системное сообщение
-                 await fetch(`/api/orders/${orderId}/messages`, {
-                   method: 'POST',
-                   headers: { 'Content-Type': 'application/json' },
-                   body: JSON.stringify({ senderId: user.id, text: "🚨 Сделка приостановлена. Ожидайте решения администратора.", isSystem: true })
-                 });
+                  await fetch(`/api/orders/${orderId}/messages`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ senderId: user.id, text: t(language, 'orderSystemDisputeMsg'), isSystem: true })
+                  });
               }
             }}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-bold active:scale-95"

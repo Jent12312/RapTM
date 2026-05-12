@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChevronLeft, MessageCircle, ShieldCheck, Clock, MapPin, CheckCircle2, Smile, Meh, Frown, AlertTriangle, Gavel, XCircle } from 'lucide-react';
+import { ChevronLeft, MessageCircle, ShieldCheck, Clock, MapPin, CheckCircle2, Smile, Meh, Frown, AlertTriangle, Gavel, XCircle, Camera, RefreshCw } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { t } from '@/lib/dictionaries';
 import ChatScreen from './ChatScreen';
@@ -12,7 +12,7 @@ interface Props {
 }
 
 export default function OrderScreen({ order: initialOrder, onClose }: Props) {
-  const { user, language } = useAppStore();
+  const { user, language, addToast } = useAppStore();
   const [order, setOrder] = useState(initialOrder);
   const [status, setStatus] = useState(initialOrder.status);
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -23,6 +23,10 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
   const [selectedRating, setSelectedRating] = useState<string | null>(myReview?.rating || null);
   const [comment, setComment] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [paymentPhoto, setPaymentPhoto] = useState<File | null>(null);
+  const [paymentPhotoPreview, setPaymentPhotoPreview] = useState<string | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [timeLeft, setTimeLeft] = useState<number>(0);
 
   // РОЛИ ТЕПЕРЬ ЖЕЛЕЗОБЕТОННЫЕ:
   const isBuyer = user.id === order.buyerId; // Тот кто ПОЛУЧАЕТ крипту
@@ -32,20 +36,37 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
   const partnerId = isBuyer ? order.sellerId : order.buyerId;
 
   useEffect(() => {
-    if (status === 'COMPLETED' && hasReviewed) return;
+    if (status === 'COMPLETED' || status === 'CANCELLED') {
+      setTimeLeft(0);
+      return;
+    }
 
-    const interval = setInterval(async () => {
+    const calculateTimeLeft = () => {
+      const createdAt = new Date(order.createdAt).getTime();
+      const limitMs = (order.ad.paymentTime || 15) * 60 * 1000;
+      const now = new Date().getTime();
+      const diff = Math.max(0, (createdAt + limitMs) - now);
+      setTimeLeft(diff);
+      
+      // Auto-cancel if expired on client-side (backend should handle this too)
+      if (diff === 0 && status === 'PENDING') {
+        // updateOrderStatus('CANCELLED'); // Optional: auto-trigger cancel
+      }
+    };
+
+    calculateTimeLeft();
+    const timer = setInterval(calculateTimeLeft, 1000);
+
+    const updateInterval = setInterval(async () => {
       try {
         const res = await fetch(`/api/orders/${order.id}`);
         const freshOrder = await res.json();
         
-        // Проверяем изменения статуса или флага спора
         if (freshOrder.status !== status || freshOrder.isDisputed !== order.isDisputed) {
           setStatus(freshOrder.status);
           setOrder(freshOrder);
         }
         
-        // Проверяем наличие МОЕГО нового отзыва
         if (freshOrder.reviews) {
            const newMyReview = freshOrder.reviews.find((r: any) => r.authorId === user.id);
            if (newMyReview && !hasReviewed) {
@@ -58,11 +79,39 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
       }
     }, 3000);
 
-    return () => clearInterval(interval);
-  }, [order.id, status, hasReviewed, user.id, order.isDisputed]);
+    return () => {
+      clearInterval(timer);
+      clearInterval(updateInterval);
+    };
+  }, [order.id, status, hasReviewed, user.id, order.isDisputed, order.createdAt, order.ad.paymentTime]);
+
+  const formatTime = (ms: number) => {
+    const mins = Math.floor(ms / 60000);
+    const secs = Math.floor((ms % 60000) / 1000);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const updateOrderStatus = async (newStatus: string) => {
+    if (newStatus === 'PAID' && isBuyer && !paymentPhoto) {
+      alert(t(language, 'orderAttachPhoto'));
+      return;
+    }
+
+    setIsUploadingPhoto(true);
     try {
+      if (newStatus === 'PAID' && paymentPhoto) {
+        const formData = new FormData();
+        formData.append('image', paymentPhoto);
+        formData.append('senderId', user.id);
+        formData.append('text', t(language, 'orderPaidMsg'));
+        formData.append('isSystem', 'false');
+
+        await fetch(`/api/orders/${order.id}/messages/upload`, {
+          method: 'POST',
+          body: formData
+        });
+      }
+
       const res = await fetch(`/api/orders/${order.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -70,29 +119,29 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
       });
       const data = await res.json();
       
-      // ЗАЩИТА: Обновляем стейт ТОЛЬКО если бэкенд прислал объект ордера
-      if (data.success && data.order) {
+      if (res.ok) {
+        setOrder(data);
+        addToast(t(language, 'success'), 'success');
         setStatus(newStatus);
-        setOrder(data.order);
-        
-        // Немедленно обновляем данные через 500мс для всех пользователей
-        setTimeout(async () => {
-          try {
-            const freshRes = await fetch(`/api/orders/${order.id}`);
-            const freshOrder = await freshRes.json();
-            if (freshOrder.status !== status) {
-              setStatus(freshOrder.status);
-              setOrder(freshOrder);
-            }
-          } catch (e) {
-            console.error('Failed to refresh order data:', e);
-          }
-        }, 500);
       } else {
-        alert('Ошибка: Сервер не вернул данные ордера');
+        alert(data.error || t(language, 'orderUpdateError'));
       }
     } catch (e) {
-      alert('Ошибка при обновлении статуса');
+      alert(t(language, 'orderUpdateError'));
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPaymentPhoto(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPaymentPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -110,12 +159,15 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
         })
       });
       
+      const data = await res.json();
       if (res.ok) {
+        addToast(t(language, 'success'), 'success');
+        setComment('');
         setSelectedRating(rating);
         setHasReviewed(true);
+        setOrder(data);
       } else {
-        const data = await res.json();
-        alert(data.error || 'Ошибка при отправке отзыва');
+        alert(data.error || t(language, 'orderReviewError'));
       }
     } catch (e) {
       alert(t(language, 'error'));
@@ -125,7 +177,7 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
   };
 
   const handleDispute = async () => {
-    if (!confirm('Вы уверены, что хотите вызвать арбитра? Сделка будет заморожена до решения спора.')) return;
+    if (!confirm(t(language, 'orderDisputeConfirm'))) return;
 
     try {
       const res = await fetch(`/api/orders/${order.id}/dispute`, {
@@ -133,41 +185,24 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
         headers: { 'Content-Type': 'application/json' }
       });
       
+      const data = await res.json();
       if (res.ok) {
-        alert('Апелляция отправлена! Админ будет уведомлен.');
-        // Обновляем статус локально
-        setOrder({ ...order, isDisputed: true });
+        setOrder(data);
+        alert(t(language, 'orderDisputeSent'));
         setStatus('DISPUTED');
-        
-        // Немедленно обновляем данные через 500мс для всех пользователей
-        setTimeout(async () => {
-          try {
-            const freshRes = await fetch(`/api/orders/${order.id}`);
-            const freshOrder = await freshRes.json();
-            if (freshOrder.isDisputed !== order.isDisputed) {
-              setOrder(freshOrder);
-            }
-          } catch (e) {
-            console.error('Failed to refresh order data:', e);
-          }
-        }, 500);
       } else {
-        alert('Ошибка при отправке апелляции');
+        alert(data.error || t(language, 'orderDisputeError'));
       }
     } catch (e) {
-      alert('Ошибка при отправке апелляции');
+      alert(t(language, 'orderDisputeError'));
     }
   };
 
-  // Проверяем, можно ли показать кнопку апелляции (через 10 минут после PAID)
   const canShowDisputeButton = () => {
     if (status !== 'PAID') return false;
-    
     const paidTime = new Date(order.updatedAt);
-    const oneMinuteLater = new Date(paidTime.getTime() + 1 * 60 * 1000); // Изменено с 10 минут на 1 минуту
-    const now = new Date();
-    
-    return now >= oneMinuteLater;
+    const oneMinuteLater = new Date(paidTime.getTime() + 1 * 60 * 1000);
+    return new Date() >= oneMinuteLater;
   };
 
   return (
@@ -181,8 +216,6 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
       )}
 
       <div className="fixed inset-0 z-[150] bg-slate-50 overflow-y-auto animate-in fade-in duration-300">
-
-        {/* Шапка */}
         <div className="bg-white px-5 py-4 flex justify-between items-center sticky top-0 z-10 border-b border-slate-100 shadow-sm">
           <button onClick={onClose} className="p-2 -ml-2 bg-slate-50 rounded-full text-slate-500">
             <ChevronLeft className="w-6 h-6" />
@@ -208,8 +241,6 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
         </div>
 
         <div className="p-5 space-y-6 pb-32">
-
-          {/* Проверка на замороженную сделку - показываем только если статус не COMPLETED и не CANCELLED */}
           {order.isDisputed && !['COMPLETED', 'CANCELLED'].includes(status) && (
             <div className="bg-red-50 p-4 rounded-2xl border border-red-200 text-center mb-6">
               <AlertTriangle className="w-8 h-8 text-red-500 mx-auto mb-2" />
@@ -218,13 +249,12 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
             </div>
           )}
 
-          {/* Главный блок Статуса */}
           <div className={`p-6 rounded-[2rem] shadow-sm ring-1 ring-slate-100 text-center transition-all ${status === 'COMPLETED' ? 'bg-gradient-to-b from-emerald-50 to-white' : status === 'CANCELLED' ? 'bg-gradient-to-b from-red-50 to-white' : 'bg-white'}`}>
 
             {status === 'PENDING' && (
               <>
-                <div className="inline-flex items-center gap-2 bg-amber-50 text-amber-600 px-4 py-1.5 rounded-full text-xs font-bold mb-4">
-                  <Clock className="w-4 h-4" /> {isBuyer ? t(language, 'iPay') : t(language, 'statusPending')}
+                <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold mb-4 ${timeLeft < 300000 ? 'bg-red-50 text-red-600 animate-pulse' : 'bg-amber-50 text-amber-600'}`}>
+                  <Clock className="w-4 h-4" /> {timeLeft > 0 ? formatTime(timeLeft) : t(language, 'statusCancelled')}
                 </div>
                 <h3 className="text-2xl font-black text-slate-800 mb-2">
                   {isBuyer ? `${t(language, 'adminSendAmount')} ${order.amountFiat} ${order.ad.fiat}` : `${t(language, 'adminReceiveAmount')} ${order.amountFiat} ${order.ad.fiat}`}
@@ -235,8 +265,11 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
 
             {status === 'PAID' && (
               <>
-                <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-xs font-bold mb-4 animate-pulse">
-                  {t(language, 'statusPaid')}
+                <div className="text-center py-12 px-6 border-2 border-dashed border-slate-200 rounded-3xl group-hover:border-emerald-300 transition-colors">
+                  <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-3 group-hover:bg-emerald-50 transition-colors">
+                    <Camera className="w-7 h-7 text-slate-300 group-hover:text-emerald-500 transition-colors" />
+                  </div>
+                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest group-hover:text-emerald-600 transition-colors">{t(language, 'orderUploadCheck')}</p>
                 </div>
                 <h3 className="text-2xl font-black text-slate-800 mb-2">{t(language, 'adminPending')}</h3>
                 <p className="text-sm text-slate-500 font-medium">
@@ -251,68 +284,30 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
                   <CheckCircle2 className="w-8 h-8" />
                 </div>
                 <h3 className="text-2xl font-black text-slate-800 mb-2">{t(language, 'statusCompleted')}</h3>
-                
-                {/* ИСПРАВЛЕНИЕ ЛОГИКИ + и - */}
                 <p className={`text-sm font-bold mb-6 ${isBuyer ? 'text-emerald-600' : 'text-red-500'}`}>
-                  {isBuyer ? '+' : '-'}{order.amountAsset} {order.ad.asset} {isBuyer ? 'зачислено на кошелек' : 'списано с кошелька'}
+                  {isBuyer ? '+' : '-'}{order.amountAsset} {order.ad.asset} {isBuyer ? t(language, 'adminCredited') : t(language, 'adminDebited')}
                 </p>
                 
                 <div className="border-t border-slate-100 pt-6">
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
                     {t(language, 'reviewTitle')} {partnerName}
                   </p>
-
                   <div className="flex justify-center gap-4">
-                    <button
-                      disabled={hasReviewed || isSubmittingReview}
-                      onClick={() => handleLeaveReview('EXCELLENT')}
-                      className={`p-4 rounded-2xl flex flex-col items-center gap-2 transition-all ${
-                        selectedRating === 'EXCELLENT' ? 'bg-blue-50 ring-2 ring-blue-500 scale-110' :
-                        hasReviewed ? 'opacity-30' : 'bg-slate-50 hover:bg-blue-50 active:scale-95'
-                      }`}
-                    >
-                      <Smile className={`w-8 h-8 ${selectedRating === 'EXCELLENT' ? 'text-blue-500' : 'text-slate-400'}`} />
-                      <span className={`text-[10px] font-bold ${selectedRating === 'EXCELLENT' ? 'text-blue-600' : 'text-slate-400'}`}>{t(language, 'excellent')}</span>
+                    <button onClick={() => handleLeaveReview('EXCELLENT')} className={`p-4 rounded-2xl flex flex-col items-center gap-2 transition-all ${selectedRating === 'EXCELLENT' ? 'bg-blue-50 ring-2 ring-blue-500 scale-110' : hasReviewed ? 'opacity-30' : 'bg-slate-50'}`}>
+                      <Smile className="w-8 h-8 text-blue-500" />
+                      <span className="text-[10px] font-bold text-blue-600">{t(language, 'excellent')}</span>
                     </button>
-
-                    <button
-                      disabled={hasReviewed || isSubmittingReview}
-                      onClick={() => handleLeaveReview('NEUTRAL')}
-                      className={`p-4 rounded-2xl flex flex-col items-center gap-2 transition-all ${
-                        selectedRating === 'NEUTRAL' ? 'bg-slate-100 ring-2 ring-slate-400 scale-110' :
-                        hasReviewed ? 'opacity-30' : 'bg-slate-50 hover:bg-slate-100 active:scale-95'
-                      }`}
-                    >
-                      <Meh className={`w-8 h-8 ${selectedRating === 'NEUTRAL' ? 'text-slate-500' : 'text-slate-400'}`} />
-                      <span className={`text-[10px] font-bold ${selectedRating === 'NEUTRAL' ? 'text-slate-600' : 'text-slate-400'}`}>{t(language, 'neutral')}</span>
+                    <button onClick={() => handleLeaveReview('NEUTRAL')} className={`p-4 rounded-2xl flex flex-col items-center gap-2 transition-all ${selectedRating === 'NEUTRAL' ? 'bg-slate-100 ring-2 ring-slate-400 scale-110' : hasReviewed ? 'opacity-30' : 'bg-slate-50'}`}>
+                      <Meh className="w-8 h-8 text-slate-500" />
+                      <span className="text-[10px] font-bold text-slate-600">{t(language, 'neutral')}</span>
                     </button>
-
-                    <button
-                      disabled={hasReviewed || isSubmittingReview}
-                      onClick={() => handleLeaveReview('BAD')}
-                      className={`p-4 rounded-2xl flex flex-col items-center gap-2 transition-all ${
-                        selectedRating === 'BAD' ? 'bg-red-50 ring-2 ring-red-500 scale-110' :
-                        hasReviewed ? 'opacity-30' : 'bg-slate-50 hover:bg-red-50 active:scale-95'
-                      }`}
-                    >
-                      <Frown className={`w-8 h-8 ${selectedRating === 'BAD' ? 'text-red-500' : 'text-slate-400'}`} />
-                      <span className={`text-[10px] font-bold ${selectedRating === 'BAD' ? 'text-red-600' : 'text-slate-400'}`}>{t(language, 'bad')}</span>
+                    <button onClick={() => handleLeaveReview('BAD')} className={`p-4 rounded-2xl flex flex-col items-center gap-2 transition-all ${selectedRating === 'BAD' ? 'bg-red-50 ring-2 ring-red-500 scale-110' : hasReviewed ? 'opacity-30' : 'bg-slate-50'}`}>
+                      <Frown className="w-8 h-8 text-red-500" />
+                      <span className="text-[10px] font-bold text-red-600">{t(language, 'bad')}</span>
                     </button>
                   </div>
-
                   {!hasReviewed && (
-                    <div className="mt-6 animate-in fade-in slide-in-from-top-2">
-                      <textarea
-                        value={comment}
-                        onChange={(e) => setComment(e.target.value)}
-                        placeholder="Напишите пару слов о сделке (необязательно)..."
-                        className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-2xl px-4 py-3 text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-400 min-h-[80px] resize-none"
-                      />
-                    </div>
-                  )}
-
-                  {hasReviewed && (
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-4">{t(language, 'reviewSuccess')}</p>
+                    <textarea value={comment} onChange={(e) => setComment(e.target.value)} placeholder="..." className="w-full mt-6 bg-slate-50 ring-1 ring-slate-200 rounded-2xl px-4 py-3 text-sm font-medium outline-none" />
                   )}
                 </div>
               </>
@@ -324,89 +319,19 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
                   <XCircle className="w-8 h-8" />
                 </div>
                 <h3 className="text-2xl font-black text-slate-800 mb-2">{t(language, 'statusCancelled')}</h3>
-
-                {/* Отображение информации о том, что произошло с криптой */}
                 <p className={`text-sm font-bold mb-6 ${isBuyer ? 'text-red-500' : 'text-emerald-600'}`}>
                   {isBuyer ? '-' : '+'}{order.amountAsset} {order.ad.asset} {isBuyer ? t(language, 'adminNoOps') : t(language, 'adminReturn')}
                 </p>
-                
-                <div className="border-t border-slate-100 pt-6">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
-                    {t(language, 'reviewTitle')} {partnerName}
-                  </p>
-
-                  <div className="flex justify-center gap-4">
-                    <button
-                      disabled={hasReviewed || isSubmittingReview}
-                      onClick={() => handleLeaveReview('EXCELLENT')}
-                      className={`p-4 rounded-2xl flex flex-col items-center gap-2 transition-all ${
-                        selectedRating === 'EXCELLENT' ? 'bg-blue-50 ring-2 ring-blue-500 scale-110' :
-                        hasReviewed ? 'opacity-30' : 'bg-slate-50 hover:bg-blue-50 active:scale-95'
-                      }`}
-                    >
-                      <Smile className={`w-8 h-8 ${selectedRating === 'EXCELLENT' ? 'text-blue-500' : 'text-slate-400'}`} />
-                      <span className={`text-[10px] font-bold ${selectedRating === 'EXCELLENT' ? 'text-blue-600' : 'text-slate-400'}`}>{t(language, 'excellent')}</span>
-                    </button>
-
-                    <button
-                      disabled={hasReviewed || isSubmittingReview}
-                      onClick={() => handleLeaveReview('NEUTRAL')}
-                      className={`p-4 rounded-2xl flex flex-col items-center gap-2 transition-all ${
-                        selectedRating === 'NEUTRAL' ? 'bg-slate-100 ring-2 ring-slate-400 scale-110' :
-                        hasReviewed ? 'opacity-30' : 'bg-slate-50 hover:bg-slate-100 active:scale-95'
-                      }`}
-                    >
-                      <Meh className={`w-8 h-8 ${selectedRating === 'NEUTRAL' ? 'text-slate-500' : 'text-slate-400'}`} />
-                      <span className={`text-[10px] font-bold ${selectedRating === 'NEUTRAL' ? 'text-slate-600' : 'text-slate-400'}`}>{t(language, 'neutral')}</span>
-                    </button>
-
-                    <button
-                      disabled={hasReviewed || isSubmittingReview}
-                      onClick={() => handleLeaveReview('BAD')}
-                      className={`p-4 rounded-2xl flex flex-col items-center gap-2 transition-all ${
-                        selectedRating === 'BAD' ? 'bg-red-50 ring-2 ring-red-500 scale-110' :
-                        hasReviewed ? 'opacity-30' : 'bg-slate-50 hover:bg-red-50 active:scale-95'
-                      }`}
-                    >
-                      <Frown className={`w-8 h-8 ${selectedRating === 'BAD' ? 'text-red-500' : 'text-slate-400'}`} />
-                      <span className={`text-[10px] font-bold ${selectedRating === 'BAD' ? 'text-red-600' : 'text-slate-400'}`}>{t(language, 'bad')}</span>
-                    </button>
-                  </div>
-
-                  {!hasReviewed && (
-                    <div className="mt-6 animate-in fade-in slide-in-from-top-2">
-                      <textarea
-                        value={comment}
-                        onChange={(e) => setComment(e.target.value)}
-                        placeholder="Напишите пару слов о сделке (необязательно)..."
-                        className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-2xl px-4 py-3 text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-400 min-h-[80px] resize-none"
-                      />
-                    </div>
-                  )}
-
-                  {hasReviewed && (
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-4">{t(language, 'reviewSuccess')}</p>
-                  )}
-                </div>
               </>
             )}
           </div>
 
-          {/* Детали платежа (скрываем если завершено) */}
           {status !== 'COMPLETED' && status !== 'CANCELLED' && (
             <div className="space-y-4">
               <div className="bg-white p-6 rounded-[2rem] shadow-sm ring-1 ring-slate-100 space-y-4">
                 <div className="flex justify-between items-center pb-4 border-b border-slate-50">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                    {isBuyer ? t(language, 'adminSendAmount') : t(language, 'adminReceiveAmount')}
-                  </span>
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t(language, 'adminSendAmount')}</span>
                   <span className="text-lg font-black text-slate-800">{order.amountFiat} {order.ad.fiat}</span>
-                </div>
-                <div className="flex justify-between items-center pb-4 border-b border-slate-50">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                    {isBuyer ? t(language, 'adminReceiveAmount') : t(language, 'adminSendAmount')}
-                  </span>
-                  <span className="text-lg font-black text-emerald-600">{order.amountAsset} {order.ad.asset}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t(language, 'meetingCity')}</span>
@@ -414,55 +339,101 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
                     <MapPin className="w-4 h-4 text-emerald-500" /> {order.ad.city}
                   </span>
                 </div>
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{isBuyer ? t(language, 'orderDebited') : t(language, 'orderCredited')}</p>
+                  <p className="text-sm font-black text-slate-800">RapTM Wallet</p>
+                </div>
               </div>
 
-              {/* Платёжные реквизиты для Покупателя */}
               {isBuyer && status === 'PENDING' && (
-                <div className="bg-blue-50 p-6 rounded-[2rem] ring-1 ring-blue-100 space-y-4 animate-in slide-in-from-top-4">
-                  <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">{t(language, 'adminSendAmount')} {t(language, 'fiat')}</p>
+                <div className="bg-blue-50 p-6 rounded-[2rem] ring-1 ring-blue-100 space-y-4">
+                  {order.ad.paymentMethods?.map((method: string) => (
+                    <div key={method} className="bg-white p-4 rounded-2xl border border-blue-100">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t(language, 'p2pMethod')}</p>
+                      <p className="text-sm font-black text-slate-800">
+                        {method === 'Cash' ? t(language, 'orderCash') : method === 'Card' ? t(language, 'orderCard') : t(language, 'orderTmcell')}
+                      </p>
+                      <p className="text-[11px] font-bold text-slate-400 mt-0.5">
+                        {method === 'Cash' ? order.ad.city : t(language, 'orderDetailsInChat')}
+                      </p>
+                    </div>
+                  ))}
                   
-                  <div className="space-y-3">
-                    {order.ad.paymentMethods?.map((method: string) => (
-                      <div key={method} className="bg-white/60 p-3 rounded-xl flex items-center justify-between border border-blue-200">
-                        <span className="text-xs font-bold text-blue-800">{method === 'Cash' ? '🤝 Наличные' : method === 'Card' ? '💳 Банковская карта' : '📱 Tmcell'}</span>
-                        <span className="text-[10px] font-bold text-blue-500 uppercase">{method === 'Cash' ? order.ad.city : 'Реквизиты в чате'}</span>
+                  {timeLeft > 0 && (
+                    <div className="pt-4 border-t border-blue-200 mt-4">
+                      <p className="text-xs font-bold text-blue-800 uppercase mb-3 flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4" /> {t(language, 'orderAttachCheck')}
+                      </p>
+                      <div className="flex gap-3">
+                        <div className="relative flex-1">
+                          <input 
+                            type="file" 
+                            id="payment-upload" 
+                            className="hidden" 
+                            accept="image/*" 
+                            onChange={handlePhotoSelect}
+                          />
+                          <label 
+                            htmlFor="payment-upload" 
+                            className={`flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-2xl cursor-pointer transition-all ${
+                              paymentPhotoPreview ? 'border-emerald-500 bg-emerald-50' : 'border-blue-300 bg-white hover:border-blue-500'
+                            }`}
+                          >
+                            {paymentPhotoPreview ? (
+                              <div className="flex items-center gap-3 w-full">
+                                <img src={paymentPhotoPreview} alt="Preview" className="w-12 h-12 rounded-lg object-cover" />
+                                <div className="flex-1 overflow-hidden">
+                                  <p className="text-[10px] font-bold text-emerald-700 truncate">{paymentPhoto?.name}</p>
+                                  <p className="text-[8px] text-emerald-500 uppercase">{t(language, 'orderClickToChange')}</p>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <AlertTriangle className="w-6 h-6 text-blue-400 mb-1" />
+                                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-tight">{t(language, 'orderUploadCheck')}</span>
+                              </>
+                            )}
+                          </label>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-
-                  <div className="text-xs text-blue-700 font-medium bg-blue-100/50 p-3 rounded-xl">
-                    💡 {order.ad.description || 'Свяжитесь с продавцом в чате для уточнения реквизитов или места встречи.'}
-                  </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           )}
         </div>
 
-        {/* Кнопки действий снизу */}
         <div className="fixed bottom-0 left-0 right-0 p-5 bg-white/90 backdrop-blur-xl border-t border-slate-100 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-20">
-          
-          {/* Блокировка кнопок при споре */}
-          {order.isDisputed && !['COMPLETED', 'CANCELLED'].includes(status) && (
-            <div className="text-center text-red-500 font-bold text-sm mb-4 bg-red-50 py-3 rounded-2xl ring-1 ring-red-100">
-              ⚠️ Сделка заморожена. Ждите решения арбитра.
+          {order.status === 'CANCELLED' && (
+            <div className="p-4 bg-rose-50 text-rose-600 rounded-2xl text-center text-xs font-black uppercase ring-1 ring-rose-100 mb-4">
+              {t(language, 'orderExpiredMsg')}
             </div>
           )}
 
           {status === 'PENDING' && isBuyer && !order.isDisputed && (
             <div className="flex gap-3">
               <button 
+                disabled={timeLeft === 0 || isUploadingPhoto}
                 onClick={() => {
-                  if (confirm('Вы уверены, что хотите отменить сделку?')) {
+                  if (confirm(t(language, 'confirmCancel'))) {
                     updateOrderStatus('CANCELLED');
                   }
                 }}
-                className="flex-1 py-4 text-slate-400 font-bold text-sm uppercase bg-slate-50 rounded-2xl active:scale-95"
+                className={`flex-1 py-4 font-bold text-sm uppercase rounded-2xl active:scale-95 transition-all ${
+                  timeLeft === 0 ? 'bg-slate-100 text-slate-300' : 'bg-slate-50 text-slate-400'
+                }`}
               >
                 {t(language, 'cancel')}
               </button>
-              <button onClick={() => updateOrderStatus('PAID')} className="flex-[2] bg-emerald-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-emerald-200 active:scale-95 transition-all uppercase tracking-wide">
-                {t(language, 'iPay')}
+              <button 
+                disabled={timeLeft === 0 || isUploadingPhoto}
+                onClick={() => updateOrderStatus('PAID')} 
+                className={`flex-[2] text-white font-bold py-4 rounded-2xl shadow-lg active:scale-95 transition-all uppercase tracking-wide flex items-center justify-center gap-2
+                  ${timeLeft === 0 ? 'bg-slate-300 shadow-none' : 'bg-emerald-600 shadow-emerald-200'}
+                `}
+              >
+                {isUploadingPhoto ? <RefreshCw className="w-5 h-5 animate-spin" /> : t(language, 'iPay')}
               </button>
             </div>
           )}

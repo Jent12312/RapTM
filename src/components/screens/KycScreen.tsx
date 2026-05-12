@@ -23,13 +23,13 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
     // Проверка типа
     const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
     if (!allowedTypes.includes(file.type)) {
-      addToast('Только JPEG и PNG изображения', 'error');
+      addToast(t(language, 'kycOnlyJpegPng'), 'error');
       return;
     }
 
     // Проверка размера (5MB)
     if (file.size > 5 * 1024 * 1024) {
-      addToast('Размер файла должен быть меньше 5MB', 'error');
+      addToast(t(language, 'kycMaxFileSize'), 'error');
       return;
     }
 
@@ -57,7 +57,7 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
 
   const handleSubmitKyc = async () => {
     if (!kycPhoto) {
-      addToast('Сначала загрузите фото документа', 'error');
+      addToast(t(language, 'kycPhotoRequired'), 'error');
       return;
     }
 
@@ -75,15 +75,15 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
       const data = await res.json();
 
       if (res.ok) {
-        addToast('Заявка отправлена! Ожидайте проверки администратором.', 'success');
+        addToast(t(language, 'kycSubmitSuccess'), 'success');
         // Обновляем пользователя в сторе
         await initUser(WebApp.initData);
       } else {
-        addToast(data.error || 'Ошибка при отправке заявки', 'error');
+        addToast(data.error || t(language, 'kycSubmitError'), 'error');
       }
     } catch (error) {
       console.error(error);
-      addToast('Ошибка сети', 'error');
+      addToast(t(language, 'networkError'), 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -148,7 +148,7 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
             <ul className="text-sm font-medium text-slate-500 space-y-2">
               <li>⏳ {t(language, 'kycStep1Wait')}</li>
               <li>📩 {t(language, 'kycStep2Check')}</li>
-              <li>✅ После одобрения вы получите галочку верификации</li>
+              <li>✅ {t(language, 'kycNextStepDone')}</li>
             </ul>
           </div>
         </div>
@@ -205,8 +205,8 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
           <ChevronLeft className="w-6 h-6" />
         </button>
         <div>
-          <h2 className="text-lg font-bold text-slate-800">Верификация (KYC)</h2>
-          <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Безопасность платформы</p>
+          <h2 className="text-lg font-bold text-slate-800">{t(language, 'kycTitle')}</h2>
+          <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">{t(language, 'kycSecurity')}</p>
         </div>
       </div>
 
@@ -292,7 +292,7 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
                 : 'bg-slate-200 text-slate-400 cursor-not-allowed'
             }`}
           >
-            {isSubmitting ? 'Отправка...' : 'Отправить на проверку'}
+            {isSubmitting ? t(language, 'kycSubmitting') : t(language, 'kycSubmitBtn')}
           </button>
         </div>
 

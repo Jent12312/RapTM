@@ -2,6 +2,7 @@
 
 import { ChevronLeft, Code, Lock, Cpu, Globe, Zap, ArrowRight } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
+import { t } from '@/lib/dictionaries';
 
 interface Props {
   onClose: () => void;
@@ -17,7 +18,7 @@ export default function ApiManagementScreen({ onClose }: Props) {
         <button onClick={onClose} className="p-2 bg-white/10 rounded-full backdrop-blur-md">
           <ChevronLeft className="w-6 h-6 text-white" />
         </button>
-        <h2 className="text-lg font-black text-white tracking-tight">API Управление</h2>
+        <h2 className="text-lg font-black text-white tracking-tight">{t(language, 'apiTitle')}</h2>
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-8">
@@ -29,9 +30,9 @@ export default function ApiManagementScreen({ onClose }: Props) {
         </div>
 
         <div className="space-y-3 relative z-10">
-           <h3 className="text-3xl font-black text-white tracking-tight">Coming Soon</h3>
+           <h3 className="text-3xl font-black text-white tracking-tight">{t(language, 'comingSoon')}</h3>
            <p className="text-slate-400 text-sm max-w-[280px] mx-auto leading-relaxed">
-             Мы работаем над мощным API для автоматизации вашей торговли и интеграции с внешними сервисами.
+             {t(language, 'apiDesc')}
            </p>
         </div>
 
@@ -56,7 +57,7 @@ export default function ApiManagementScreen({ onClose }: Props) {
           onClick={onClose}
           className="w-full max-w-sm py-5 bg-blue-500 text-white rounded-2xl font-black text-xs tracking-widest uppercase flex items-center justify-center gap-2 shadow-xl shadow-blue-500/20 active:scale-95 transition-all"
         >
-          Вернуться назад <ArrowRight className="w-4 h-4" />
+          {t(language, 'goBack')} <ArrowRight className="w-4 h-4" />
         </button>
       </div>
       

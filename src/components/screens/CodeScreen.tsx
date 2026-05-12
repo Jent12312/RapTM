@@ -110,7 +110,7 @@ export default function CodeScreen({ onClose }: { onClose: () => void }) {
   // Копирование кода
   const copyCode = (code: string) => {
     navigator.clipboard.writeText(code);
-    addToast('CodeScreen.tsx', 'info');
+    addToast(t(language, 'linkCopied'), 'info');
   };
 
   // Сброс генерации
@@ -129,10 +129,10 @@ export default function CodeScreen({ onClose }: { onClose: () => void }) {
       CANCELLED: 'bg-orange-100 text-orange-600'
     };
     const labels: Record<string, string> = {
-      ACTIVE: 'Активен',
-      USED: 'Использован',
-      EXPIRED: 'Истек',
-      CANCELLED: 'Отменен'
+      ACTIVE: t(language, 'codeActive'),
+      USED: t(language, 'codeUsed'),
+      EXPIRED: t(language, 'codeExpired'),
+      CANCELLED: t(language, 'codeCancelled')
     };
     return (
       <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg ${badges[status] || badges.ACTIVE}`}>
@@ -252,9 +252,9 @@ export default function CodeScreen({ onClose }: { onClose: () => void }) {
                       <div className="flex items-start gap-2">
                         <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5" />
                         <div className="text-[10px] text-amber-700 space-y-1">
-                          <p className="font-bold">Комиссия {user?.level === 'Partner' ? '0.2%' : '0%'}</p>
-                          <p>Срок действия: 24 часа</p>
-                          <p>Можно активировать только один раз</p>
+                          <p className="font-bold">{t(language, 'codeCommission')} {user?.level === 'Partner' ? '0.2%' : '0%'}</p>
+                          <p>{t(language, 'codeExpiresIn')}</p>
+                          <p>{t(language, 'codeOneTime')}</p>
                         </div>
                       </div>
                     </div>
@@ -305,7 +305,7 @@ export default function CodeScreen({ onClose }: { onClose: () => void }) {
 
                 <div className="flex items-center justify-center gap-2 text-[10px] text-slate-400 mb-4">
                   <Clock className="w-3 h-3" />
-                  <span>Действует до {new Date(codeData?.expiresAt).toLocaleString('ru-RU')}</span>
+                  <span>{t(language, 'codeValidUntil')} {new Date(codeData?.expiresAt).toLocaleString(language === 'ru' ? 'ru-RU' : 'en-US')}</span>
                 </div>
 
                 <button
@@ -403,7 +403,7 @@ export default function CodeScreen({ onClose }: { onClose: () => void }) {
                   </div>
 
                   <div className="bg-slate-50 p-3 rounded-xl mb-3">
-                    <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">ID Ключ</p>
+                    <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">{t(language, 'codeIdKey')}</p>
                     <code className="text-xs font-bold text-slate-600 tracking-wider break-all">
                       {code.code}
                     </code>

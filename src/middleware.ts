@@ -63,7 +63,32 @@ export async function middleware(request: NextRequest) {
 
   try {
     // 4. Verify token
-    await jwtVerify(token, encodedSecret);
+    const { payload } = await jwtVerify(token, encodedSecret);
+    const userId = payload.userId as string;
+
+    if (userId) {
+      // Import prisma and cache dynamically to avoid issues in some runtimes if possible
+      // or just use them if we are in Node.js
+      const { default: prisma } = await import('./lib/prisma');
+      const { cache } = await import('./lib/cache');
+
+      const cacheKey = `user_status_${userId}`;
+      let isBlocked = cache.get<boolean>(cacheKey);
+
+      if (isBlocked === null) {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { isBlocked: true }
+        });
+        isBlocked = user?.isBlocked || false;
+        cache.set(cacheKey, isBlocked, 300); // Cache for 5 mins
+      }
+
+      if (isBlocked) {
+        return NextResponse.json({ error: 'Ваш аккаунт заблокирован' }, { status: 403 });
+      }
+    }
+
     return NextResponse.next();
   } catch (error) {
     console.error('Middleware JWT Error:', error);

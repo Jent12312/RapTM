@@ -115,15 +115,27 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
   }, [activeTab]);
 
   useEffect(() => {
-    if (activeTab === 'stats') fetchDashboard();
+    if (activeTab === 'stats') fetchStats();
   }, [activeTab]);
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch('/api/admin/stats');
+      const data = await res.json();
+      if (res.ok) {
+        setStats(data);
+      }
+    } catch (e) {
+      console.error('Failed to fetch stats:', e);
+    }
+  };
 
   const fetchDashboard = async () => {
     try {
       const res = await fetch('/api/admin/dashboard');
       const data = await res.json();
       if (data.success) {
-        setStats(data.stats);
+        setStats(data.stats); // Partial stats for dashboard
         setSysSettings(prev => ({
           ...prev,
           EXCHANGE_RATE: data.rate?.rate || prev.EXCHANGE_RATE,
@@ -520,8 +532,8 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                 onClick={() => processKyc(selectedKyc.id, 'reject')}
                 disabled={kycLoading[selectedKyc.id]}
                 className={`flex flex-col items-center gap-2 p-4 rounded-xl font-bold text-sm transition-all ${kycLoading[selectedKyc.id]
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-red-50 text-red-600 hover:bg-red-100 active:scale-95'
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-red-50 text-red-600 hover:bg-red-100 active:scale-95'
                   }`}
               >
                 {kycLoading[selectedKyc.id] ? (
@@ -535,8 +547,8 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                 onClick={() => processKyc(selectedKyc.id, 'approve')}
                 disabled={kycLoading[selectedKyc.id]}
                 className={`flex flex-col items-center gap-2 p-4 rounded-xl font-bold text-sm transition-all ${kycLoading[selectedKyc.id]
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 active:scale-95'
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 active:scale-95'
                   }`}
               >
                 {kycLoading[selectedKyc.id] ? (
@@ -567,20 +579,8 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
           <div className="bg-white px-4 py-3 sticky top-[60px] z-20 border-b border-slate-100">
             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
               <button
-                onClick={() => setActiveTab('dashboard')}
-                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'dashboard'
-                    ? 'bg-slate-900 text-white shadow-lg'
-                    : 'bg-slate-50 text-slate-500'
-                  }`}
-              >
-                <TrendingUp className="w-4 h-4 inline mr-1" /> Панель
-              </button>
-              <button
                 onClick={() => setActiveTab('disputes')}
-                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'disputes'
-                    ? 'bg-red-50 text-red-600 ring-1 ring-red-200'
-                    : 'bg-slate-50 text-slate-500'
-                  }`}
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'disputes' ? 'bg-red-50 text-red-600 ring-1 ring-red-200' : 'bg-slate-50 text-slate-500'}`}
               >
                 <AlertTriangle className="w-4 h-4 inline mr-1" /> {t(language, 'adminDisputes')}
                 {disputes.length > 0 && (
@@ -591,10 +591,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
               </button>
               <button
                 onClick={() => setActiveTab('kyc')}
-                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'kyc'
-                    ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200'
-                    : 'bg-slate-50 text-slate-500'
-                  }`}
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'kyc' ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200' : 'bg-slate-50 text-slate-500'}`}
               >
                 <ShieldCheck className="w-4 h-4 inline mr-1" /> {t(language, 'adminKYC')}
                 {kycRequests.length > 0 && (
@@ -605,66 +602,57 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
               </button>
               <button
                 onClick={() => setActiveTab('exchanges')}
-                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'exchanges' ? 'bg-blue-50 text-blue-600 ring-1 ring-blue-200' : 'bg-slate-50 text-slate-500'
-                  }`}
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'exchanges' ? 'bg-blue-50 text-blue-600 ring-1 ring-blue-200' : 'bg-slate-50 text-slate-500'}`}
               >
                 {t(language, 'adminExchanges')}
                 {exchanges.length > 0 && <span className="ml-2 bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full">{exchanges.length}</span>}
               </button>
               <button
                 onClick={() => setActiveTab('crypto')}
-                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'crypto' ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200' : 'bg-slate-50 text-slate-500'
-                  }`}
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'crypto' ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200' : 'bg-slate-50 text-slate-500'}`}
               >
                 {t(language, 'adminCrypto')}
                 {cryptoTxs.length > 0 && <span className="ml-2 bg-amber-500 text-white text-[10px] px-2 py-0.5 rounded-full">{cryptoTxs.length}</span>}
               </button>
               <button
                 onClick={() => setActiveTab('users')}
-                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'users' ? 'bg-purple-50 text-purple-600 ring-1 ring-purple-200' : 'bg-slate-50 text-slate-500'
-                  }`}
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'users' ? 'bg-purple-50 text-purple-600 ring-1 ring-purple-200' : 'bg-slate-50 text-slate-500'}`}
               >
                 {t(language, 'adminUsers')}
               </button>
               <button
                 onClick={() => setActiveTab('partners')}
-                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'partners' ? 'bg-purple-900 text-white shadow-lg' : 'bg-slate-50 text-slate-500'
-                  }`}
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'partners' ? 'bg-purple-900 text-white shadow-lg' : 'bg-slate-50 text-slate-500'}`}
               >
                 <Users className="w-4 h-4 inline mr-1" /> {t(language, 'adminPartners')}
               </button>
               <button
                 onClick={() => setActiveTab('stats')}
-                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'stats' ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200' : 'bg-slate-50 text-slate-500'
-                  }`}
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'stats' ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200' : 'bg-slate-50 text-slate-500'}`}
               >
                 {t(language, 'adminStats')}
               </button>
               <button
                 onClick={() => setActiveTab('settings')}
-                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'settings' ? 'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-200' : 'bg-slate-50 text-slate-500'
-                  }`}
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'settings' ? 'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-200' : 'bg-slate-50 text-slate-500'}`}
               >
                 <RefreshCw className="w-4 h-4 inline mr-1" /> {t(language, 'exSettings')}
               </button>
               <button
                 onClick={() => setActiveTab('blacklist')}
-                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'blacklist' ? 'bg-red-900 text-white shadow-lg' : 'bg-slate-50 text-slate-500'
-                  }`}
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'blacklist' ? 'bg-red-900 text-white shadow-lg' : 'bg-slate-50 text-slate-500'}`}
               >
                 <UserX className="w-4 h-4 inline mr-1" /> ЧС
               </button>
               <button
                 onClick={() => setActiveTab('cash')}
-                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'cash' ? 'bg-amber-900 text-white shadow-lg' : 'bg-slate-50 text-slate-500'
-                  }`}
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'cash' ? 'bg-amber-900 text-white shadow-lg' : 'bg-slate-50 text-slate-500'}`}
               >
                 <RefreshCw className="w-4 h-4 inline mr-1" /> Кассы
               </button>
               <button
                 onClick={() => setActiveTab('levels')}
-                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'levels' ? 'bg-orange-50 text-orange-600 ring-1 ring-orange-200' : 'bg-slate-50 text-slate-500'
-                  }`}
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'levels' ? 'bg-orange-50 text-orange-600 ring-1 ring-orange-200' : 'bg-slate-50 text-slate-500'}`}
               >
                 <TrendingUp className="w-4 h-4 inline mr-1" /> Уровни
                 {levelApps?.length > 0 && <span className="ml-2 bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-full">{levelApps.length}</span>}
@@ -729,28 +717,59 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                   <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
                     <RefreshCw className="w-32 h-32 text-white animate-spin-slow" />
                   </div>
-                  <h3 className="text-white text-sm font-black uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
-                    <RefreshCw className="w-4 h-4" /> Глобальный курс
-                  </h3>
-                  <div className="flex gap-3">
+
+                  <div className="flex justify-between items-start mb-6 relative z-10">
+                    <h3 className="text-white text-sm font-black uppercase tracking-[0.2em] flex items-center gap-2">
+                      <RefreshCw className="w-4 h-4" /> Глобальный курс
+                    </h3>
+
+                    <div className="flex items-center gap-3 bg-white/5 px-3 py-2 rounded-xl border border-white/10">
+                      <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">Заморозить</span>
+                      <button
+                        onClick={() => {
+                          const newValue = sysSettings.RATE_FROZEN === 'true' ? 'false' : 'true';
+                          saveSetting('RATE_FROZEN', newValue);
+                        }}
+                        className={`w-10 h-5 rounded-full transition-all relative ${sysSettings.RATE_FROZEN === 'true' ? 'bg-red-500' : 'bg-slate-700'}`}
+                      >
+                        <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${sysSettings.RATE_FROZEN === 'true' ? 'left-6' : 'left-1'}`} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 relative z-10">
                     <div className="flex-1 relative">
                       <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-xs uppercase tracking-widest">1 USDT =</div>
                       <input
                         type="number"
                         step="0.1"
+                        disabled={sysSettings.RATE_FROZEN === 'true'}
                         value={sysSettings.EXCHANGE_RATE}
                         onChange={(e) => setSysSettings({ ...sysSettings, EXCHANGE_RATE: e.target.value })}
-                        className="w-full bg-white/10 border border-white/20 rounded-2xl py-4 pl-20 pr-4 text-white text-2xl font-black outline-none focus:bg-white/20 transition-all"
+                        className={`w-full border rounded-2xl py-4 pl-20 pr-4 text-2xl font-black outline-none transition-all ${sysSettings.RATE_FROZEN === 'true'
+                            ? 'bg-red-500/10 border-red-500/30 text-red-500/50 cursor-not-allowed'
+                            : 'bg-white/10 border-white/20 text-white focus:bg-white/20'
+                          }`}
                       />
-                      <div className="absolute right-4 top-1/2 -translate-y-1/2 text-white font-bold text-lg">TMT</div>
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 text-white font-bold text-lg opacity-50">TMT</div>
                     </div>
                     <button
+                      disabled={sysSettings.RATE_FROZEN === 'true' || savingKey === 'EXCHANGE_RATE'}
                       onClick={() => saveSetting('EXCHANGE_RATE', sysSettings.EXCHANGE_RATE)}
-                      className="bg-emerald-500 hover:bg-emerald-400 text-white font-black px-6 rounded-2xl transition-all active:scale-95 shadow-lg shadow-emerald-500/20"
+                      className={`font-black px-6 rounded-2xl transition-all active:scale-95 shadow-lg ${sysSettings.RATE_FROZEN === 'true'
+                          ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
+                          : 'bg-emerald-500 hover:bg-emerald-400 text-white shadow-emerald-500/20'
+                        }`}
                     >
-                      OK
+                      {savingKey === 'EXCHANGE_RATE' ? <RefreshCw className="w-5 h-5 animate-spin" /> : 'OK'}
                     </button>
                   </div>
+
+                  {sysSettings.RATE_FROZEN === 'true' && (
+                    <p className="text-[10px] font-bold text-red-400 uppercase tracking-widest mt-3 animate-pulse">
+                      ⚠️ Курс заморожен. Изменения недоступны.
+                    </p>
+                  )}
                 </div>
 
                 {/* Recent Activity Mini-List */}
@@ -775,9 +794,9 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                     ))}
                     {(auditLogs || []).length === 0 && <div className="text-center py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Нет недавних логов</div>}
                   </div>
-                  </div>
                 </div>
-              ) : activeTab === 'levels' ? (
+              </div>
+            ) : activeTab === 'levels' ? (
               <div className="space-y-4">
                 <div className="flex justify-between items-center mb-2 px-1">
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Заявки на повышение</h3>
@@ -850,8 +869,8 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                           }}
                           disabled={loading[order.id]}
                           className={`flex flex-col items-center gap-1 p-2 rounded-xl font-bold text-xs transition-all ${loading[order.id]
-                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                              : 'bg-red-50 text-red-600 hover:bg-red-100 active:scale-95'
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'bg-red-50 text-red-600 hover:bg-red-100 active:scale-95'
                             }`}
                         >
                           {loading[order.id] ? (
@@ -867,8 +886,8 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                           }}
                           disabled={loading[order.id]}
                           className={`flex flex-col items-center gap-1 p-2 rounded-xl font-bold text-xs transition-all ${loading[order.id]
-                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                              : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 active:scale-95'
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 active:scale-95'
                             }`}
                         >
                           {loading[order.id] ? (
@@ -1074,7 +1093,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                   <div className="w-20 h-20 bg-purple-50 text-purple-500 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
                     <Users className="w-10 h-10" />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <h3 className="text-2xl font-black text-slate-800 tracking-tight">{t(language, 'adminInvitePartner')}</h3>
                     <p className="text-sm font-medium text-slate-500 leading-relaxed px-4">
@@ -1086,12 +1105,12 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block">
                       {t(language, 'adminPartnerLink')}
                     </label>
-                    
+
                     <div className="flex gap-2 p-1.5 bg-slate-50 rounded-[2rem] border border-slate-100">
                       <div className="flex-1 px-4 py-3 text-xs font-bold text-slate-600 truncate flex items-center bg-white rounded-2xl shadow-sm">
                         {`https://t.me/rapira_tm_bot/app?startapp=partner_${user?.id}`}
                       </div>
-                      <button 
+                      <button
                         onClick={() => {
                           navigator.clipboard.writeText(`https://t.me/rapira_tm_bot/app?startapp=partner_${user?.id}`);
                           alert(t(language, 'success'));
@@ -1111,7 +1130,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                   <div className="space-y-1">
                     <h4 className="text-xs font-black text-blue-700 uppercase tracking-widest">Безопасность и уровни</h4>
                     <p className="text-[11px] font-bold text-blue-600/70 leading-relaxed">
-                      Приглашенные партнеры автоматически получают статус Partner. 
+                      Приглашенные партнеры автоматически получают статус Partner.
                       Это позволяет им торговать с повышенными лимитами сразу после регистрации.
                     </p>
                   </div>
@@ -1119,7 +1138,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
               </div>
             ) : activeTab === 'stats' ? (
               <div className="space-y-4">
-                {!stats ? (
+                {!stats || !stats.users ? (
                   <div className="text-center text-slate-400 py-10">{t(language, 'adminLoading')}</div>
                 ) : (
                   <>
@@ -1128,78 +1147,53 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                       <div className="bg-white p-4 rounded-2xl shadow-sm ring-1 ring-slate-100">
                         <div className="text-[10px] font-bold text-slate-400 uppercase">{t(language, 'adminTotalUsers')}</div>
                         <div className="text-2xl font-black text-slate-800">{stats.users?.total || 0}</div>
+                        <div className="text-[10px] text-emerald-500 font-bold mt-1">+{stats.users?.active24h || 0} за 24ч</div>
                       </div>
                       <div className="bg-white p-4 rounded-2xl shadow-sm ring-1 ring-slate-100">
                         <div className="text-[10px] font-bold text-slate-400 uppercase">{t(language, 'adminKYCVerified')}</div>
                         <div className="text-2xl font-black text-emerald-600">{stats.kyc?.verified || 0}</div>
+                        <div className="text-[10px] text-amber-500 font-bold mt-1">{stats.kyc?.pending || 0} в очереди</div>
                       </div>
                       <div className="bg-white p-4 rounded-2xl shadow-sm ring-1 ring-slate-100">
-                        <div className="text-[10px] font-bold text-slate-400 uppercase">{t(language, 'adminActiveDisputes')}</div>
+                        <div className="text-[10px] font-bold text-slate-400 uppercase">Активные споры</div>
                         <div className="text-2xl font-black text-red-600">{stats.disputes?.active || 0}</div>
                       </div>
                       <div className="bg-white p-4 rounded-2xl shadow-sm ring-1 ring-slate-100">
-                        <div className="text-[10px] font-bold text-slate-400 uppercase">{t(language, 'adminPending')}</div>
-                        <div className="text-2xl font-black text-amber-600">{stats.cryptoTx?.pending || 0}</div>
+                        <div className="text-[10px] font-bold text-slate-400 uppercase">Активные сделки</div>
+                        <div className="text-2xl font-black text-amber-600">{stats.trades?.active || 0}</div>
                       </div>
                     </div>
 
-                    {/* Статистика по кодам */}
+                    {/* Объемы торгов */}
                     <div className="bg-white p-5 rounded-2xl shadow-sm ring-1 ring-slate-100">
                       <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
-                        <Gift className="w-4 h-4 text-purple-500" /> {t(language, 'codesTitle')}
+                        <TrendingUp className="w-4 h-4 text-indigo-500" /> Объемы торгов (24ч)
                       </h3>
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="text-center">
-                          <div className="text-lg font-black text-slate-800">{stats.codes?.total || 0}</div>
-                          <div className="text-[10px] font-bold text-slate-400 uppercase">{t(language, 'adminCodesTotal')}</div>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl">
+                          <span className="text-xs font-bold text-slate-600">P2P Платформа</span>
+                          <span className="font-black text-slate-800">{stats.volume?.p2p24h?.toFixed(2) || '0.00'} USDT</span>
                         </div>
-                        <div className="text-center">
-                          <div className="text-lg font-black text-emerald-600">{stats.codes?.active || 0}</div>
-                          <div className="text-[10px] font-bold text-slate-400 uppercase">{t(language, 'adminCodesActive')}</div>
+                        <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl">
+                          <span className="text-xs font-bold text-slate-600">Быстрый обмен</span>
+                          <span className="font-black text-slate-800">{stats.volume?.swap24h?.toFixed(2) || '0.00'} USDT</span>
                         </div>
-                        <div className="text-center">
-                          <div className="text-lg font-black text-blue-600">{stats.codes?.used || 0}</div>
-                          <div className="text-[10px] font-bold text-slate-400 uppercase">{t(language, 'adminCodesUsed')}</div>
+                        <div className="flex justify-between items-center bg-indigo-50 p-3 rounded-xl border border-indigo-100">
+                          <span className="text-xs font-black text-indigo-700">ОБЩИЙ ОБЪЕМ</span>
+                          <span className="font-black text-indigo-800">{(Number(stats.volume?.p2p24h || 0) + Number(stats.volume?.swap24h || 0)).toFixed(2)} USDT</span>
                         </div>
                       </div>
-                      {stats.codes?.volume && Object.keys(stats.codes.volume).length > 0 && (
-                        <div className="mt-4 pt-4 border-t border-slate-100">
-                          <div className="text-[10px] font-bold text-slate-400 uppercase mb-2">{t(language, 'adminCodesVolume')}</div>
-                          {Object.entries(stats.codes.volume).map(([currency, amount]) => (
-                            <div key={currency} className="flex justify-between text-sm">
-                              <span className="font-bold text-slate-600">{currency}</span>
-                              <span className="font-black text-slate-800">{Number(amount).toFixed(2)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {stats.codes?.fees && Object.keys(stats.codes.fees).length > 0 && (
-                        <div className="mt-4 pt-4 border-t border-slate-100">
-                          <div className="text-[10px] font-bold text-slate-400 uppercase mb-2">{t(language, 'adminCodesFees')}</div>
-                          {Object.entries(stats.codes.fees).map(([currency, amount]) => (
-                            <div key={currency} className="flex justify-between text-sm">
-                              <span className="font-bold text-slate-600">{currency}</span>
-                              <span className="font-black text-emerald-600">+{Number(amount).toFixed(2)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
 
-                    {/* Обмены и транзакции */}
+                    {/* Финансы */}
                     <div className="bg-white p-5 rounded-2xl shadow-sm ring-1 ring-slate-100">
                       <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
-                        <RefreshCw className="w-4 h-4 text-blue-500" /> {t(language, 'adminExchanges')}
+                        <DollarSign className="w-4 h-4 text-emerald-500" /> Финансовые показатели
                       </h3>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <div className="text-[10px] font-bold text-slate-400 uppercase">{t(language, 'adminExchangesTotal')}</div>
-                          <div className="text-lg font-black text-slate-800">{stats.exchanges?.total || 0}</div>
-                        </div>
-                        <div>
-                          <div className="text-[10px] font-bold text-slate-400 uppercase">{t(language, 'adminExchangesPending')}</div>
-                          <div className="text-lg font-black text-amber-600">{stats.exchanges?.pending || 0}</div>
-                        </div>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between"><span className="text-slate-500">Комиссии с обменов:</span> <span className="font-bold text-emerald-600">+{stats.finance?.swapFees?.toFixed(2) || '0.00'} USDT</span></div>
+                        <div className="flex justify-between"><span className="text-slate-500">Комиссии P2P (прибл.):</span> <span className="font-bold text-emerald-600">+{stats.finance?.p2pFeesEstimated?.toFixed(2) || '0.00'} USDT</span></div>
+                        <div className="flex justify-between border-t border-slate-100 pt-2"><span className="text-slate-500">Очередь на вывод:</span> <span className="font-bold text-red-600">{stats.finance?.pendingWithdrawals || 0} заявок</span></div>
                       </div>
                     </div>
                   </>
@@ -1255,7 +1249,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                       <button
                         onClick={() => {
                           const newVal = sysSettings.RATE_FROZEN === 'true' ? 'false' : 'true';
-                          setSysSettings({...sysSettings, RATE_FROZEN: newVal});
+                          setSysSettings({ ...sysSettings, RATE_FROZEN: newVal });
                           saveSetting('RATE_FROZEN', newVal);
                         }}
                         disabled={savingKey === 'RATE_FROZEN'}
@@ -1337,213 +1331,213 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                   </p>
                 </div>
               </div>
-          ) : activeTab === 'blacklist' ? (
-          <div className="space-y-4">
-            <div className="bg-white p-6 rounded-[2.5rem] shadow-sm ring-1 ring-slate-100">
-              <h3 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2">
-                <UserX className="w-5 h-5 text-red-500" /> Добавить в ЧС
-              </h3>
-              <div className="space-y-3">
-                <select id="bl-type" className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm font-bold outline-none ring-1 ring-slate-200">
-                  <option value="ID">По Telegram ID</option>
-                  <option value="CRYPTO_ADDRESS">По Крипто-адресу</option>
-                  <option value="BANK_CARD">По Банковской карте</option>
-                  <option value="DEVICE_ID">По Device ID</option>
-                </select>
-                <input id="bl-value" type="text" placeholder="Значение (ID, Адрес, Карта)" className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm font-bold outline-none ring-1 ring-slate-200" />
-                <input id="bl-reason" type="text" placeholder="Причина блокировки" className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm font-bold outline-none ring-1 ring-slate-200" />
-                <button
-                  onClick={async () => {
-                    const type = (document.getElementById('bl-type') as HTMLSelectElement).value;
-                    const value = (document.getElementById('bl-value') as HTMLInputElement).value;
-                    const reason = (document.getElementById('bl-reason') as HTMLInputElement).value;
-                    if (!value) return alert('Введите значение');
-                    const res = await fetch('/api/admin/blacklist', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ type, value, reason })
-                    });
-                    if (res.ok) {
-                      alert('Добавлено в черный список');
-                      fetchBlacklist();
-                      (document.getElementById('bl-value') as HTMLInputElement).value = '';
-                      (document.getElementById('bl-reason') as HTMLInputElement).value = '';
-                    }
-                  }}
-                  className="w-full py-4 bg-red-600 text-white font-black rounded-xl active:scale-95 transition-all shadow-lg shadow-red-600/20"
-                >
-                  ЗАБЛОКИРОВАТЬ ГЛОБАЛЬНО
-                </button>
-              </div>
-            </div>
-
-            {/* Список ЧС */}
-            <div className="bg-white p-6 rounded-[2.5rem] shadow-sm ring-1 ring-slate-100">
-              <h3 className="text-sm font-black text-slate-800 mb-4 flex items-center justify-between">
-                <span>Текущий ЧС</span>
-                <button onClick={fetchBlacklist} className="p-2"><RefreshCw className={`w-4 h-4 text-slate-400 ${isBlacklistLoading ? 'animate-spin' : ''}`} /></button>
-              </h3>
-              <div className="space-y-2">
-                {(blacklist || []).length > 0 ? (blacklist || []).map(entry => (
-                  <div key={entry.id} className="bg-slate-50 p-4 rounded-2xl flex justify-between items-center group">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[10px] font-black text-red-500 uppercase px-2 py-0.5 bg-red-50 rounded-md">{entry.type}</span>
-                        <span className="text-sm font-black text-slate-800">{entry.value}</span>
-                      </div>
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{entry.reason || 'Без причины'}</div>
-                    </div>
-                    <button 
+            ) : activeTab === 'blacklist' ? (
+              <div className="space-y-4">
+                <div className="bg-white p-6 rounded-[2.5rem] shadow-sm ring-1 ring-slate-100">
+                  <h3 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2">
+                    <UserX className="w-5 h-5 text-red-500" /> Добавить в ЧС
+                  </h3>
+                  <div className="space-y-3">
+                    <select id="bl-type" className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                      <option value="ID">По Telegram ID</option>
+                      <option value="CRYPTO_ADDRESS">По Крипто-адресу</option>
+                      <option value="BANK_CARD">По Банковской карте</option>
+                      <option value="DEVICE_ID">По Device ID</option>
+                    </select>
+                    <input id="bl-value" type="text" placeholder="Значение (ID, Адрес, Карта)" className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm font-bold outline-none ring-1 ring-slate-200" />
+                    <input id="bl-reason" type="text" placeholder="Причина блокировки" className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm font-bold outline-none ring-1 ring-slate-200" />
+                    <button
                       onClick={async () => {
-                        if (!confirm('Удалить из черного списка?')) return;
-                        await fetch('/api/admin/blacklist', {
-                          method: 'DELETE',
+                        const type = (document.getElementById('bl-type') as HTMLSelectElement).value;
+                        const value = (document.getElementById('bl-value') as HTMLInputElement).value;
+                        const reason = (document.getElementById('bl-reason') as HTMLInputElement).value;
+                        if (!value) return alert('Введите значение');
+                        const res = await fetch('/api/admin/blacklist', {
+                          method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ value: entry.value })
+                          body: JSON.stringify({ type, value, reason })
                         });
-                        fetchBlacklist();
+                        if (res.ok) {
+                          alert('Добавлено в черный список');
+                          fetchBlacklist();
+                          (document.getElementById('bl-value') as HTMLInputElement).value = '';
+                          (document.getElementById('bl-reason') as HTMLInputElement).value = '';
+                        }
                       }}
-                      className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                      className="w-full py-4 bg-red-600 text-white font-black rounded-xl active:scale-95 transition-all shadow-lg shadow-red-600/20"
                     >
-                      <XCircle className="w-5 h-5" />
+                      ЗАБЛОКИРОВАТЬ ГЛОБАЛЬНО
                     </button>
                   </div>
-                )) : (
-                  <div className="text-center py-10">
-                    <UserX className="w-12 h-12 text-slate-100 mx-auto mb-2" />
-                    <div className="text-slate-400 font-bold text-xs">Черный список пуст</div>
+                </div>
+
+                {/* Список ЧС */}
+                <div className="bg-white p-6 rounded-[2.5rem] shadow-sm ring-1 ring-slate-100">
+                  <h3 className="text-sm font-black text-slate-800 mb-4 flex items-center justify-between">
+                    <span>Текущий ЧС</span>
+                    <button onClick={fetchBlacklist} className="p-2"><RefreshCw className={`w-4 h-4 text-slate-400 ${isBlacklistLoading ? 'animate-spin' : ''}`} /></button>
+                  </h3>
+                  <div className="space-y-2">
+                    {(blacklist || []).length > 0 ? (blacklist || []).map(entry => (
+                      <div key={entry.id} className="bg-slate-50 p-4 rounded-2xl flex justify-between items-center group">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] font-black text-red-500 uppercase px-2 py-0.5 bg-red-50 rounded-md">{entry.type}</span>
+                            <span className="text-sm font-black text-slate-800">{entry.value}</span>
+                          </div>
+                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{entry.reason || 'Без причины'}</div>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            if (!confirm('Удалить из черного списка?')) return;
+                            await fetch('/api/admin/blacklist', {
+                              method: 'DELETE',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ value: entry.value })
+                            });
+                            fetchBlacklist();
+                          }}
+                          className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                        >
+                          <XCircle className="w-5 h-5" />
+                        </button>
+                      </div>
+                    )) : (
+                      <div className="text-center py-10">
+                        <UserX className="w-12 h-12 text-slate-100 mx-auto mb-2" />
+                        <div className="text-slate-400 font-bold text-xs">Черный список пуст</div>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
-            </div>
-          </div>
-          ) : activeTab === 'cash' ? (
-          <div className="space-y-4">
-            <div className="bg-white p-6 rounded-[2.5rem] shadow-sm ring-1 ring-slate-100">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
-                  <RefreshCw className="w-5 h-5 text-amber-500" /> Мониторинг Касс
-                </h3>
-                <button onClick={fetchCashBalances} className={`p-2 ${isCashLoading ? 'animate-spin' : ''}`}>
-                  <RefreshCw className="w-4 h-4 text-slate-400" />
-                </button>
-              </div>
-              <div className="space-y-3">
-                {(cashBalances || []).length > 0 ? (cashBalances || []).map((item: any) => (
-                  <div key={item.city} className="bg-slate-50 p-5 rounded-2xl flex justify-between items-center border border-slate-100 hover:border-amber-200 transition-colors">
-                    <div>
-                      <div className="text-lg font-black text-slate-800">{item.city}</div>
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Региональный пункт</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-black text-slate-900">{item._sum.amount?.toFixed(2) || '0.00'}</div>
-                      <div className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">USDT (Доступно)</div>
-                    </div>
+            ) : activeTab === 'cash' ? (
+              <div className="space-y-4">
+                <div className="bg-white p-6 rounded-[2.5rem] shadow-sm ring-1 ring-slate-100">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                      <RefreshCw className="w-5 h-5 text-amber-500" /> Мониторинг Касс
+                    </h3>
+                    <button onClick={fetchCashBalances} className={`p-2 ${isCashLoading ? 'animate-spin' : ''}`}>
+                      <RefreshCw className="w-4 h-4 text-slate-400" />
+                    </button>
                   </div>
-                )) : (
-                  ['Ашхабад', 'Туркменабад', 'Мары', 'Дашогуз', 'Балканабад'].map(city => (
-                    <div key={city} className="bg-slate-50 p-4 rounded-2xl flex justify-between items-center opacity-50">
-                      <div className="font-bold text-slate-700">{city}</div>
-                      <div className="text-lg font-black text-slate-900">0.00 <span className="text-[10px] text-slate-400">USDT</span></div>
-                    </div>
-                  ))
-                )}
+                  <div className="space-y-3">
+                    {(cashBalances || []).length > 0 ? (cashBalances || []).map((item: any) => (
+                      <div key={item.city} className="bg-slate-50 p-5 rounded-2xl flex justify-between items-center border border-slate-100 hover:border-amber-200 transition-colors">
+                        <div>
+                          <div className="text-lg font-black text-slate-800">{item.city}</div>
+                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Региональный пункт</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-black text-slate-900">{item._sum.amount?.toFixed(2) || '0.00'}</div>
+                          <div className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">USDT (Доступно)</div>
+                        </div>
+                      </div>
+                    )) : (
+                      ['Ашхабад', 'Туркменабад', 'Мары', 'Дашогуз', 'Балканабад'].map(city => (
+                        <div key={city} className="bg-slate-50 p-4 rounded-2xl flex justify-between items-center opacity-50">
+                          <div className="font-bold text-slate-700">{city}</div>
+                          <div className="text-lg font-black text-slate-900">0.00 <span className="text-[10px] text-slate-400">USDT</span></div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
             ) : activeTab === 'audit' ? (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center px-1">
-                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Действия Администраторов</h3>
-                <button onClick={() => fetchAuditLogs(auditPage)} className="p-2 bg-white rounded-xl shadow-sm"><RefreshCw className={`w-4 h-4 text-slate-400 ${auditLoading ? 'animate-spin' : ''}`} /></button>
-              </div>
-              <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="bg-slate-50 border-b border-slate-100">
-                        <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Дата</th>
-                        <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Админ</th>
-                        <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Действие</th>
-                        <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Детали</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50 font-bold">
-                      {(auditLogs || []).map(log => (
-                        <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="px-5 py-4 text-slate-400 whitespace-nowrap">{new Date(log.createdAt).toLocaleString('ru-RU')}</td>
-                          <td className="px-5 py-4 text-slate-800">{log.admin?.firstName || 'System'}</td>
-                          <td className="px-5 py-4"><span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-lg text-[9px] font-black uppercase">{log.action}</span></td>
-                          <td className="px-5 py-4 text-slate-600">{log.details}</td>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center px-1">
+                  <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Действия Администраторов</h3>
+                  <button onClick={() => fetchAuditLogs(auditPage)} className="p-2 bg-white rounded-xl shadow-sm"><RefreshCw className={`w-4 h-4 text-slate-400 ${auditLoading ? 'animate-spin' : ''}`} /></button>
+                </div>
+                <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-100">
+                          <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Дата</th>
+                          <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Админ</th>
+                          <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Действие</th>
+                          <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Детали</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50 font-bold">
+                        {(auditLogs || []).map(log => (
+                          <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="px-5 py-4 text-slate-400 whitespace-nowrap">{new Date(log.createdAt).toLocaleString('ru-RU')}</td>
+                            <td className="px-5 py-4 text-slate-800">{log.admin?.firstName || 'System'}</td>
+                            <td className="px-5 py-4"><span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-lg text-[9px] font-black uppercase">{log.action}</span></td>
+                            <td className="px-5 py-4 text-slate-600">{log.details}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
-            </div>
             ) : activeTab === 'logs' ? (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center px-1">
-                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Журнал Системы</h3>
-                <button onClick={() => fetchLogs(logsPage)} className="p-2 bg-white rounded-xl shadow-sm"><RefreshCw className={`w-4 h-4 text-slate-400 ${logsLoading ? 'animate-spin' : ''}`} /></button>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center px-1">
+                  <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Журнал Системы</h3>
+                  <button onClick={() => fetchLogs(logsPage)} className="p-2 bg-white rounded-xl shadow-sm"><RefreshCw className={`w-4 h-4 text-slate-400 ${logsLoading ? 'animate-spin' : ''}`} /></button>
+                </div>
+                <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-100">
+                          <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Дата</th>
+                          <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Тип</th>
+                          <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Сообщение</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50 font-bold">
+                        {(systemLogs || []).map(log => (
+                          <tr key={log.id} className={`hover:bg-slate-50/50 transition-colors ${log.severity === 'CRITICAL' ? 'bg-rose-50/30' : ''}`}>
+                            <td className="px-5 py-4 text-slate-400 whitespace-nowrap">{new Date(log.createdAt).toLocaleString('ru-RU')}</td>
+                            <td className="px-5 py-4"><span className="px-2 py-0.5 bg-slate-100 rounded-lg text-[9px] font-black uppercase">{log.type}</span></td>
+                            <td className="px-5 py-4 text-slate-800">{log.message}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
-              <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
-                <div className="overflow-x-auto">
+            ) : activeTab === 'stability' ? (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center px-1">
+                  <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Сверка Балансов</h3>
+                  <button onClick={runReconciliation} disabled={reconLoading} className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl text-xs font-bold active:scale-95 disabled:opacity-50">
+                    <RefreshCw className={`w-3 h-3 ${reconLoading ? 'animate-spin' : ''}`} /> Сверить
+                  </button>
+                </div>
+                <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
                   <table className="w-full text-left text-xs">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-100">
                         <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Дата</th>
-                        <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Тип</th>
-                        <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Сообщение</th>
+                        <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Статус</th>
+                        <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Разница</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50 font-bold">
-                      {(systemLogs || []).map(log => (
-                        <tr key={log.id} className={`hover:bg-slate-50/50 transition-colors ${log.severity === 'CRITICAL' ? 'bg-rose-50/30' : ''}`}>
-                          <td className="px-5 py-4 text-slate-400 whitespace-nowrap">{new Date(log.createdAt).toLocaleString('ru-RU')}</td>
-                          <td className="px-5 py-4"><span className="px-2 py-0.5 bg-slate-100 rounded-lg text-[9px] font-black uppercase">{log.type}</span></td>
-                          <td className="px-5 py-4 text-slate-800">{log.message}</td>
+                      {(reconLogs || []).map(log => (
+                        <tr key={log.id}>
+                          <td className="px-5 py-4 text-slate-400">{new Date(log.createdAt).toLocaleString('ru-RU')}</td>
+                          <td className="px-5 py-4">
+                            <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase ${log.isMatch ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+                              {log.isMatch ? 'OK' : 'DIFF'}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4">{log.totalBalance}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               </div>
-            </div>
-            ) : activeTab === 'stability' ? (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center px-1">
-                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Сверка Балансов</h3>
-                <button onClick={runReconciliation} disabled={reconLoading} className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl text-xs font-bold active:scale-95 disabled:opacity-50">
-                  <RefreshCw className={`w-3 h-3 ${reconLoading ? 'animate-spin' : ''}`} /> Сверить
-                </button>
-              </div>
-              <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-100">
-                      <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Дата</th>
-                      <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Статус</th>
-                      <th className="px-5 py-4 font-black text-slate-400 uppercase tracking-widest text-[9px]">Разница</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50 font-bold">
-                    {(reconLogs || []).map(log => (
-                      <tr key={log.id}>
-                        <td className="px-5 py-4 text-slate-400">{new Date(log.createdAt).toLocaleString('ru-RU')}</td>
-                        <td className="px-5 py-4">
-                          <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase ${log.isMatch ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
-                            {log.isMatch ? 'OK' : 'DIFF'}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4">{log.totalBalance}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
             ) : null}
           </div>
         </>
@@ -1606,8 +1600,8 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                     >
                       <div
                         className={`max-w-[80%] p-3 rounded-2xl text-sm ${message.senderId === selectedDispute.buyerId
-                            ? 'bg-blue-50 text-slate-800 rounded-tl-none'
-                            : 'bg-emerald-50 text-slate-800 rounded-tr-none'
+                          ? 'bg-blue-50 text-slate-800 rounded-tl-none'
+                          : 'bg-emerald-50 text-slate-800 rounded-tr-none'
                           }`}
                       >
                         <div className="font-bold text-xs mb-1">
@@ -1630,8 +1624,8 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                 onClick={() => resolveDispute(selectedDispute.id, 'CANCELLED')}
                 disabled={loading[selectedDispute.id]}
                 className={`flex flex-col items-center gap-2 p-4 rounded-xl font-bold text-sm transition-all ${loading[selectedDispute.id]
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-red-50 text-red-600 hover:bg-red-100 active:scale-95'
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-red-50 text-red-600 hover:bg-red-100 active:scale-95'
                   }`}
               >
                 {loading[selectedDispute.id] ? (
@@ -1646,8 +1640,8 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                 onClick={() => resolveDispute(selectedDispute.id, 'COMPLETED')}
                 disabled={loading[selectedDispute.id]}
                 className={`flex flex-col items-center gap-2 p-4 rounded-xl font-bold text-sm transition-all ${loading[selectedDispute.id]
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 active:scale-95'
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 active:scale-95'
                   }`}
               >
                 {loading[selectedDispute.id] ? (
@@ -1841,8 +1835,8 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-lg ${op.type === 'CRYPTO' ? 'bg-amber-100 text-amber-600' :
-                              op.type === 'EXCHANGE' ? 'bg-blue-100 text-blue-600' :
-                                'bg-purple-100 text-purple-600'
+                            op.type === 'EXCHANGE' ? 'bg-blue-100 text-blue-600' :
+                              'bg-purple-100 text-purple-600'
                             }`}>
                             {op.type}
                           </span>
@@ -1857,8 +1851,8 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                           {op.amount ? `${op.amount} ${op.currency || ''}` : op.amountUsdt ? `${op.amountUsdt} USDT` : `${op.amountTmt} TMT`}
                         </div>
                         <div className={`text-[10px] font-bold ${op.status === 'COMPLETED' ? 'text-emerald-600' :
-                            op.status === 'PENDING' ? 'text-amber-600' :
-                              op.status === 'CANCELLED' ? 'text-red-600' : 'text-slate-400'
+                          op.status === 'PENDING' ? 'text-amber-600' :
+                            op.status === 'CANCELLED' ? 'text-red-600' : 'text-slate-400'
                           }`}>
                           {op.status}
                         </div>

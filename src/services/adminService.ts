@@ -9,7 +9,13 @@ export const adminService = {
     const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const last7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    const [vol24h, vol7d, activeOrders, totalFees, pendingKyc, pendingWithdrawals] = await Promise.all([
+    const [
+      vol24h, vol7d, 
+      swapVol24h, swapVol7d,
+      activeOrders, totalFees, 
+      pendingKyc, pendingWithdrawals,
+      totalUsers, verifiedUsers
+    ] = await Promise.all([
       prisma.order.aggregate({
         where: { status: 'COMPLETED', createdAt: { gte: last24h } },
         _sum: { amountAsset: true }
@@ -17,6 +23,14 @@ export const adminService = {
       prisma.order.aggregate({
         where: { status: 'COMPLETED', createdAt: { gte: last7d } },
         _sum: { amountAsset: true }
+      }),
+      prisma.exchangeRequest.aggregate({
+        where: { status: 'COMPLETED', createdAt: { gte: last24h } },
+        _sum: { amountUsdt: true }
+      }),
+      prisma.exchangeRequest.aggregate({
+        where: { status: 'COMPLETED', createdAt: { gte: last7d } },
+        _sum: { amountUsdt: true }
       }),
       prisma.order.count({
         where: { status: { in: ['PENDING', 'PAID', 'DISPUTED'] } }
@@ -26,19 +40,24 @@ export const adminService = {
         _sum: { fee: true }
       }),
       prisma.user.count({ where: { kycStatus: 'PENDING' } }),
-      prisma.levelApplication.count({ where: { status: 'PENDING' } }),
       prisma.transaction.count({
         where: { type: 'WITHDRAWAL', status: 'PENDING' }
-      })
+      }),
+      prisma.user.count(),
+      prisma.user.count({ where: { isVerified: true } })
     ]);
 
     return {
-      volume24h: Number(vol24h._sum.amountAsset || 0),
-      volume7d: Number(vol7d._sum.amountAsset || 0),
+      volume24h: Number(vol24h._sum.amountAsset || 0) + Number(swapVol24h._sum.amountUsdt || 0),
+      volume7d: Number(vol7d._sum.amountAsset || 0) + Number(swapVol7d._sum.amountUsdt || 0),
+      p2pVolume24h: Number(vol24h._sum.amountAsset || 0),
+      swapVolume24h: Number(swapVol24h._sum.amountUsdt || 0),
       activeOrders,
       todayFees: Number(totalFees._sum.fee || 0),
       verificationQueueCount: pendingKyc,
       withdrawalQueueCount: pendingWithdrawals,
+      totalUsers,
+      verifiedUsers
     };
   },
 
@@ -47,6 +66,13 @@ export const adminService = {
       where: { id: 'global' },
       update: { rate: newRate, isFrozen: freeze },
       create: { id: 'global', rate: newRate, isFrozen: freeze },
+    });
+
+    // Sync with SystemSetting
+    await prisma.systemSetting.upsert({
+      where: { key: 'EXCHANGE_RATE' },
+      update: { value: newRate },
+      create: { key: 'EXCHANGE_RATE', value: newRate }
     });
     
     // Log history

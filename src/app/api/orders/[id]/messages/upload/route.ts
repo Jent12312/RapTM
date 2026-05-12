@@ -33,16 +33,14 @@ export async function POST(
       return NextResponse.json({ error: 'File must be an image' }, { status: 400 });
     }
 
-    // Convert to Base64 (In production use a proper storage like S3 or Cloudinary)
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const base64Image = `data:${file.type};base64,${buffer.toString('base64')}`;
+    const { saveFile } = await import('@/lib/upload');
+    const imageUrl = await saveFile(file);
 
     const message = await prisma.message.create({
       data: {
         orderId,
         senderId: authUser.userId,
-        imageUrl: base64Image,
+        imageUrl: imageUrl,
         text: text || null
       },
       include: { sender: true }

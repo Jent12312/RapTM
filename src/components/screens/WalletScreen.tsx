@@ -47,7 +47,7 @@ export default function WalletScreen() {
   const [isLoadingAddress, setIsLoadingAddress] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showQR, setShowQR] = useState(false);
-  const [city, setCity] = useState('Ашхабад');
+  const [city, setCity] = useState(t(language, 'walAshgabat'));
   const [rapCode, setRapCode] = useState('');
 
   const [history, setHistory] = useState<any[]>([]);
@@ -73,7 +73,7 @@ export default function WalletScreen() {
   const claimFaucet = async () => {
     haptic.medium();
     if (!user?.id) {
-      addToast('Пользователь не авторизован', 'error');
+      addToast(t(language, 'walUserNotAuth'), 'error');
       return;
     }
     setIsClaiming(true);
@@ -85,13 +85,13 @@ export default function WalletScreen() {
       });
       const data = await res.json();
       if (res.ok) {
-        addToast('🎉 1000 USDT зачислены на ваш счёт!', 'success');
+        addToast(t(language, 'walClaimSuccess'), 'success');
         await initUser(WebApp.initData);
       } else {
-        addToast(data.error || 'Ошибка получения USDT', 'error');
+        addToast(data.error || t(language, 'walClaimError'), 'error');
       }
     } catch (e) {
-      addToast('Ошибка сети', 'error');
+      addToast(t(language, 'networkError'), 'error');
     } finally {
       setIsClaiming(false);
     }
@@ -105,11 +105,11 @@ export default function WalletScreen() {
         const data = await res.json();
         setDepositAddress(data.address);
       } else {
-        addToast('Ошибка получения адреса', 'error');
+        addToast(t(language, 'walAddrError'), 'error');
       }
     } catch (error) {
       console.error(error);
-      addToast('Ошибка сети', 'error');
+      addToast(t(language, 'networkError'), 'error');
     } finally {
       setIsLoadingAddress(false);
     }
@@ -123,11 +123,11 @@ export default function WalletScreen() {
 
   const getSafeStatusLabel = (status: string): string => {
     const statusMap: Record<string, string> = {
-      'PENDING': 'Ожидание',
-      'PROCESSING': 'В обработке',
-      'COMPLETED': 'Выполнено',
-      'FAILED': 'Ошибка',
-      'CANCELLED': 'Отменено'
+      'PENDING': t(language, 'walStatusPending'),
+      'PROCESSING': t(language, 'walStatusProcessing'),
+      'COMPLETED': t(language, 'walStatusCompleted'),
+      'FAILED': t(language, 'walStatusFailed'),
+      'CANCELLED': t(language, 'walStatusCancelled')
     };
     return statusMap[status] || status;
   };
@@ -211,13 +211,13 @@ export default function WalletScreen() {
     await initUser(WebApp.initData);
     await fetchRates();
     loadHistory();
-    addToast('Баланс обновлён', 'info');
+    addToast(t(language, 'walBalanceUpdated'), 'info');
   };
 
   const copyToClipboard = (text: string) => {
     haptic.light();
     navigator.clipboard.writeText(text);
-    addToast('Скопировано', 'info');
+    addToast(t(language, 'walCopied'), 'info');
   };
 
   const filteredHistory = useMemo(() => {
@@ -237,18 +237,18 @@ export default function WalletScreen() {
     haptic.medium();
     if ((modalType === 'deposit' && depositMethod === 'rapCode') ||
       (modalType === 'withdraw' && withdrawMethod === 'rapCode')) {
-      return addToast('Функция в разработке', 'info');
+      return addToast(t(language, 'walInDev'), 'info');
     }
 
-    if (!amount || Number(amount) <= 0) return addToast('Введите сумму', 'error');
+    if (!amount || Number(amount) <= 0) return addToast(t(language, 'walEnterAmount'), 'error');
 
     if (modalType === 'deposit' && depositMethod === 'crypto' && Number(amount) < MIN_DEPOSIT_USDT) {
-      return addToast(`Минимальный депозит ${MIN_DEPOSIT_USDT} USDT`, 'error');
+      return addToast(t(language, 'walMinDeposit').replace('{amount}', MIN_DEPOSIT_USDT.toString()), 'error');
     }
 
     if (modalType === 'withdraw' && withdrawMethod === 'crypto') {
-      if (!validateAddress(address, network)) return addToast(`Неверный адрес ${network}`, 'error');
-      if (Number(amount) > balances.usdt) return addToast('Недостаточно баланса', 'error');
+      if (!validateAddress(address, network)) return addToast(t(language, 'walInvalidAddr').replace('{network}', network), 'error');
+      if (Number(amount) > balances.usdt) return addToast(t(language, 'walInsuffBalance'), 'error');
     }
 
     setIsSubmitting(true);
@@ -278,7 +278,7 @@ export default function WalletScreen() {
       const data = await res.json();
 
       if (res.ok) {
-        addToast('Заявка создана', 'success');
+        addToast(t(language, 'walRequestCreated'), 'success');
         setModalType('none');
         setShow2FAPrompt(false);
         setTwoFactorToken('');
@@ -287,10 +287,10 @@ export default function WalletScreen() {
       } else if (data.error === '2FA_REQUIRED') {
         setShow2FAPrompt(true);
       } else {
-        addToast(data.error || 'Ошибка запроса', 'error');
+        addToast(data.error || t(language, 'requestError'), 'error');
       }
     } catch (e) {
-      addToast('Ошибка запроса', 'error');
+      addToast(t(language, 'requestError'), 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -396,12 +396,12 @@ export default function WalletScreen() {
             <button onClick={() => {
               haptic.medium();
               if (user?.kycStatus !== 'VERIFIED') {
-                addToast('Пожалуйста, пройдите верификацию (KYC) для вывода средств', 'error');
+                addToast(t(language, 'walKycRequired'), 'error');
                 setActiveTab('profile');
                 return;
               }
               if ((user?.level === 'Pro' || user?.level === 'Partner') && !user?.twoFactorEnabled) {
-                addToast('Для вашего уровня доступа (Pro/Partner) обязательно наличие 2FA для вывода средств.', 'error');
+                addToast(t(language, 'wal2faRequiredLevel'), 'error');
                 setActiveTab('profile');
                 return;
               }
@@ -445,7 +445,7 @@ export default function WalletScreen() {
                 ) : (
                   <Gift className="w-4 h-4" />
                 )}
-                Получить 1000 USDT
+                {t(language, 'walGetTestUsdt')}
               </button>
             </div>
             <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
@@ -457,7 +457,7 @@ export default function WalletScreen() {
                 <Zap className="w-3 h-3 text-slate-200" />
               </div>
               {isLoadingRates ? <Skeleton className="h-8 w-24 mb-2" /> : <div className="text-2xl font-black text-slate-800 tracking-tight mb-1">{isBalanceVisible ? balances.tmt.toFixed(2) : '****'}</div>}
-              {isLoadingRates ? <Skeleton className="h-5 w-32" /> : <div className="text-[10px] font-bold text-blue-500 bg-blue-50 px-2 py-1 rounded-lg inline-block">Местная валюта</div>}
+              {isLoadingRates ? <Skeleton className="h-5 w-32" /> : <div className="text-[10px] font-bold text-blue-500 bg-blue-50 px-2 py-1 rounded-lg inline-block">{t(language, 'localCurrency')}</div>}
             </div>
           </div>
 
@@ -470,7 +470,7 @@ export default function WalletScreen() {
                   <Star className="w-6 h-6" />
                 </div>
                 <div>
-                  <span className="text-[11px] font-black text-amber-600 uppercase tracking-widest block">Бонусный счет</span>
+                  <span className="text-[11px] font-black text-amber-600 uppercase tracking-widest block">{t(language, 'walBonusAccount')}</span>
                   <div className="text-2xl font-black text-slate-800 tracking-tight">
                     {isBalanceVisible ? balances.bonus.toFixed(2) : '****'} <span className="text-sm font-bold text-slate-400">USDT</span>
                   </div>
@@ -478,7 +478,7 @@ export default function WalletScreen() {
               </div>
               <div className="text-right">
                 <div className="text-[10px] font-bold text-amber-600 bg-white/60 px-3 py-1.5 rounded-xl border border-amber-100 inline-block">
-                  Доступно для обмена
+                  {t(language, 'walAvailableForExchange')}
                 </div>
               </div>
             </div>
@@ -488,7 +488,7 @@ export default function WalletScreen() {
         {/* История с фильтрами */}
         <div className="space-y-5">
           <div className="flex justify-between items-center px-1">
-            <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">История</h3>
+            <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">{t(language, 'walHistory')}</h3>
             <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400">
               <Clock className="w-3 h-3" />
               Auto-refresh ON
@@ -503,7 +503,7 @@ export default function WalletScreen() {
               </div>
               <input
                 type="text"
-                placeholder="Поиск по сумме, дате или TxID..."
+                placeholder={t(language, 'walSearchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-11 pr-4 py-4 bg-white rounded-2xl text-[13px] font-medium border border-slate-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
@@ -518,7 +518,7 @@ export default function WalletScreen() {
                   onClick={() => { haptic.selection(); setFilterType(type as any); }}
                   className={`px-6 py-3 rounded-2xl text-[11px] font-black whitespace-nowrap transition-all ${filterType === type ? 'bg-slate-900 text-white shadow-lg shadow-slate-200 scale-105' : 'bg-white text-slate-400 border border-slate-50 hover:bg-slate-50'}`}
                 >
-                  {type === 'all' ? 'ВСЕ' : type === 'SWAP' ? 'ОБМЕН' : type === 'DEPOSIT' ? 'ПОПОЛНЕНИЯ' : 'ВЫВОДЫ'}
+                  {type === 'all' ? t(language, 'walFilterAll') : type === 'SWAP' ? t(language, 'walFilterExchange') : type === 'DEPOSIT' ? t(language, 'walFilterDeposit') : t(language, 'walFilterWithdraw')}
                 </button>
               ))}
             </div>
@@ -533,7 +533,7 @@ export default function WalletScreen() {
 
                 {mainHistory.length === 0 && (
                   <div className="text-center py-12 bg-white rounded-[2rem] border border-dashed border-slate-200">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Нет операций</p>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t(language, 'walNoOps')}</p>
                   </div>
                 )}
 
@@ -542,7 +542,7 @@ export default function WalletScreen() {
                     onClick={() => { haptic.medium(); setIsFullHistoryOpen(true); }}
                     className="w-full py-5 mt-2 text-xs font-black uppercase tracking-widest text-slate-500 bg-white rounded-2xl border border-slate-100 shadow-sm active:scale-[0.98] transition-all"
                   >
-                    Смотреть всё ({filteredHistory.length})
+                    {t(language, 'walSeeAll').replace('{count}', filteredHistory.length.toString())}
                   </button>
                 )}
               </>
@@ -554,7 +554,7 @@ export default function WalletScreen() {
         {isFullHistoryOpen && (
           <div className="fixed inset-0 z-[150] bg-slate-50 overflow-y-auto animate-in slide-in-from-bottom duration-300">
             <div className="sticky top-0 bg-white/80 backdrop-blur-md p-5 flex items-center justify-between shadow-sm z-10">
-              <h2 className="text-lg font-black text-slate-800">Вся история</h2>
+              <h2 className="text-lg font-black text-slate-800">{t(language, 'walFullHistory')}</h2>
               <button onClick={() => setIsFullHistoryOpen(false)} className="p-2 bg-slate-100 rounded-full"><X className="w-5 h-5" /></button>
             </div>
             <div className="p-5 space-y-3 pb-20">
@@ -571,8 +571,8 @@ export default function WalletScreen() {
 
               <div className="flex justify-between items-center mb-8 relative z-10">
                 <div>
-                  <h3 className="text-2xl font-black text-slate-800">Пополнение</h3>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Выберите способ оплаты</p>
+                  <h3 className="text-2xl font-black text-slate-800">{t(language, 'walDeposit')}</h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{t(language, 'walSelectPaymentMethod')}</p>
                 </div>
                 <button onClick={() => setModalType('none')} className="p-3 bg-white shadow-sm border border-slate-100 rounded-2xl active:scale-90 transition-all"><X className="w-5 h-5 text-slate-400" /></button>
               </div>
@@ -588,7 +588,7 @@ export default function WalletScreen() {
                       <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${depositMethod === m ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' : 'bg-slate-50'}`}>
                         {m === 'crypto' ? <Zap className="w-5 h-5" /> : m === 'cash' ? <MapPin className="w-5 h-5" /> : <Star className="w-5 h-5" />}
                       </div>
-                      <span className="text-[10px] font-black uppercase tracking-wider">{m === 'crypto' ? 'Крипто' : m === 'cash' ? 'Наличные' : 'rapCode'}</span>
+                      <span className="text-[10px] font-black uppercase tracking-wider">{m === 'crypto' ? t(language, 'walCrypto') : m === 'cash' ? t(language, 'walCash') : t(language, 'walRapCode')}</span>
                     </button>
                   ))}
                 </div>
@@ -604,7 +604,7 @@ export default function WalletScreen() {
 
                       <div className="bg-emerald-50/50 p-6 rounded-[2rem] border border-emerald-100/50 relative group">
                         <div className="flex justify-between items-center mb-4">
-                          <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Адрес пополнения {network}</span>
+                          <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{t(language, 'walDepositAddr')} {network}</span>
                           <div className="flex gap-2">
                             <button onClick={() => { haptic.medium(); setShowQR(!showQR); }} disabled={!depositAddress || isLoadingAddress} className="p-2 bg-white rounded-xl text-emerald-600 shadow-sm active:scale-90 transition-all hover:bg-emerald-50 disabled:opacity-50"><QrCode className="w-4 h-4" /></button>
                             <button onClick={() => copyToClipboard(depositAddress)} disabled={!depositAddress || isLoadingAddress} className="p-2 bg-white rounded-xl text-emerald-600 shadow-sm active:scale-90 transition-all hover:bg-emerald-50 disabled:opacity-50"><Copy className="w-4 h-4" /></button>
@@ -614,14 +614,14 @@ export default function WalletScreen() {
                           {isLoadingAddress ? (
                             <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
                           ) : (
-                            <div className="text-[13px] font-mono break-all font-bold text-slate-700 leading-relaxed">{depositAddress || 'Загрузка...'}</div>
+                            <div className="text-[13px] font-mono break-all font-bold text-slate-700 leading-relaxed">{depositAddress || t(language, 'loading')}</div>
                           )}
                         </div>
 
                         {showQR && depositAddress && !isLoadingAddress && (
                           <div className="mt-6 flex flex-col items-center p-6 bg-white rounded-[2rem] shadow-inner border border-emerald-50 animate-in zoom-in duration-300">
                             <QRCodeSVG value={depositAddress} size={200} />
-                            <p className="text-[10px] text-slate-400 mt-4 font-black uppercase tracking-widest">Отсканируйте для оплаты</p>
+                            <p className="text-[10px] text-slate-400 mt-4 font-black uppercase tracking-widest">{t(language, 'walScanToPay')}</p>
                           </div>
                         )}
                       </div>
@@ -629,7 +629,7 @@ export default function WalletScreen() {
                       <div className="grid grid-cols-1 gap-6">
                         <div className="space-y-3">
                           <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest flex justify-between">
-                            <span>Сумма USDT</span>
+                            <span>{t(language, 'walAmountUsdt')}</span>
                             <span className="text-emerald-500">Min: {MIN_DEPOSIT_USDT}</span>
                           </label>
                           <input
@@ -641,13 +641,13 @@ export default function WalletScreen() {
                           />
                         </div>
                         <div className="space-y-3">
-                          <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Hash транзакции (TxID)</label>
+                          <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">{t(language, 'walTxHash')}</label>
                           <input
                             type="text"
                             value={txId}
                             onChange={(e) => setTxId(e.target.value)}
                             className="w-full p-5 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-emerald-500 focus:bg-white text-xs font-mono font-bold transition-all outline-none shadow-sm"
-                            placeholder="Введите или вставьте TxID"
+                            placeholder={t(language, 'walEnterTxId')}
                           />
                         </div>
                       </div>
@@ -657,20 +657,20 @@ export default function WalletScreen() {
                   {depositMethod === 'cash' && (
                     <div className="space-y-6">
                       <div className="space-y-3">
-                        <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Ваш город</label>
+                        <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">{t(language, 'walYourCity')}</label>
                         <select value={city} onChange={(e) => setCity(e.target.value)} className="w-full p-5 bg-slate-50 rounded-2xl font-black text-slate-700 outline-none border-2 border-transparent focus:border-emerald-500 transition-all appearance-none shadow-sm">
-                          {['Ашхабад', 'Туркменабад', 'Мары', 'Дашогуз', 'Балканабад'].map(c => <option key={c} value={c}>{c}</option>)}
+                          {[t(language, 'walAshgabat'), t(language, 'walTurkmenabad'), t(language, 'walMary'), t(language, 'walDashoguz'), t(language, 'walBalkanabad')].map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                       </div>
                       <div className="space-y-3">
-                        <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Сумма пополнения</label>
-                        <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full p-5 bg-slate-50 rounded-2xl font-black text-lg outline-none border-2 border-transparent focus:border-emerald-500 transition-all shadow-sm" placeholder="Сумма USDT" />
+                        <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">{t(language, 'amount')}</label>
+                        <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full p-5 bg-slate-50 rounded-2xl font-black text-lg outline-none border-2 border-transparent focus:border-emerald-500 transition-all shadow-sm" placeholder={t(language, 'amount') + ' USDT'} />
                       </div>
                       <div className="p-5 bg-amber-50/50 rounded-[2rem] border border-amber-100 flex gap-4">
                         <div className="w-10 h-10 bg-amber-500 rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-amber-200">
                           <MapPin className="w-5 h-5 text-white" />
                         </div>
-                        <p className="text-[11px] text-amber-800 font-bold leading-relaxed">Наш оператор свяжется с вами в Telegram для подтверждения места встречи в городе {city}.</p>
+                        <p className="text-[11px] text-amber-800 font-bold leading-relaxed">{t(language, 'walCashOperatorNote').replace('{city}', city)}</p>
                       </div>
                     </div>
                   )}
@@ -681,10 +681,10 @@ export default function WalletScreen() {
                         <div className="w-10 h-10 bg-indigo-500 rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-indigo-200">
                           <Star className="w-5 h-5 text-white" />
                         </div>
-                        <p className="text-[11px] text-indigo-800 font-bold leading-relaxed">Активация подарочных ваучеров и переводов внутри системы мгновенно и без комиссии.</p>
+                        <p className="text-[11px] text-indigo-800 font-bold leading-relaxed">{t(language, 'walRapCodeActivationNote')}</p>
                       </div>
                       <div className="space-y-3">
-                        <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">Код активации</label>
+                        <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">{t(language, 'walActivationCode')}</label>
                         <input type="text" value={rapCode} onChange={(e) => setRapCode(e.target.value)} className="w-full p-6 bg-slate-50 rounded-2xl font-black text-center text-xl tracking-[0.3em] uppercase outline-none border-2 border-transparent focus:border-indigo-500 transition-all shadow-sm" placeholder="XXXX-XXXX-XXXX" />
                       </div>
                     </div>
@@ -696,7 +696,7 @@ export default function WalletScreen() {
                   onClick={() => handleTransaction()}
                   className="w-full py-6 bg-slate-900 text-white rounded-[2rem] font-black text-sm tracking-widest shadow-2xl shadow-slate-200 active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                 >
-                  {isSubmitting ? <Loader2 className="animate-spin w-5 h-5" /> : 'ОТПРАВИТЬ ЗАЯВКУ'}
+                  {isSubmitting ? <Loader2 className="animate-spin w-5 h-5" /> : t(language, 'walSubmitRequest')}
                 </button>
               </div>
             </div>
@@ -711,8 +711,8 @@ export default function WalletScreen() {
 
               <div className="flex justify-between items-center mb-8 relative z-10">
                 <div>
-                  <h3 className="text-2xl font-black text-slate-800">Вывод средств</h3>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Средства зачислятся в течение 15 минут</p>
+                  <h3 className="text-2xl font-black text-slate-800">{t(language, 'walWithdrawal')}</h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{t(language, 'walWithdrawalNote')}</p>
                 </div>
                 <button onClick={() => setModalType('none')} className="p-3 bg-white shadow-sm border border-slate-100 rounded-2xl active:scale-90 transition-all"><X className="w-5 h-5 text-slate-400" /></button>
               </div>
@@ -728,7 +728,7 @@ export default function WalletScreen() {
                       <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${withdrawMethod === m ? 'bg-white/10' : 'bg-slate-50'}`}>
                         {m === 'crypto' ? <Zap className="w-5 h-5" /> : m === 'cash' ? <MapPin className="w-5 h-5" /> : <Star className="w-5 h-5" />}
                       </div>
-                      <span className="text-[10px] font-black uppercase tracking-wider">{m === 'crypto' ? 'Крипто' : m === 'cash' ? 'Наличные' : 'rapCode'}</span>
+                      <span className="text-[10px] font-black uppercase tracking-wider">{m === 'crypto' ? t(language, 'walCrypto') : m === 'cash' ? t(language, 'walCash') : t(language, 'walRapCode')}</span>
                     </button>
                   ))}
                 </div>
@@ -744,10 +744,10 @@ export default function WalletScreen() {
 
                       <div className="space-y-3">
                         <div className="flex justify-between items-center ml-2">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Адрес получателя</label>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t(language, 'walRecipientAddr')}</label>
                           {address && (
                             <div className={`flex items-center gap-1 text-[10px] font-black ${validateAddress(address, network) ? 'text-emerald-500' : 'text-rose-500'}`}>
-                              {validateAddress(address, network) ? <><CheckCircle2 className="w-3 h-3" /> Верный формат</> : <><X className="w-3 h-3" /> Неверный формат</>}
+                              {validateAddress(address, network) ? <><CheckCircle2 className="w-3 h-3" /> {t(language, 'walValidFormat')}</> : <><X className="w-3 h-3" /> {t(language, 'walInvalidFormat')}</>}
                             </div>
                           )}
                         </div>
@@ -757,7 +757,7 @@ export default function WalletScreen() {
                             value={address}
                             onChange={(e) => setAddress(e.target.value)}
                             className="w-full p-5 bg-slate-50 rounded-2xl text-[13px] font-mono font-bold border-2 border-transparent focus:border-slate-900 focus:bg-white transition-all outline-none shadow-sm"
-                            placeholder={`Введите ${network} адрес`}
+                            placeholder={t(language, 'walEnterNetworkAddr').replace('{network}', network)}
                           />
                           {savedAddresses.length > 0 && (
                             <div className="mt-3 flex gap-2 overflow-x-auto no-scrollbar pb-1">
@@ -773,8 +773,8 @@ export default function WalletScreen() {
 
                       <div className="space-y-3">
                         <div className="flex justify-between items-center px-2">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Сумма вывода</label>
-                          <button onClick={() => { haptic.light(); setAmount((balances.usdt - (network === 'TRC20' ? 1 : 0.5)).toFixed(2)); }} className="text-[10px] font-black text-slate-900 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl transition-colors">ВЫВЕСТИ ВСЁ</button>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t(language, 'walWithdrawAmount')}</label>
+                          <button onClick={() => { haptic.light(); setAmount((balances.usdt - (network === 'TRC20' ? 1 : 0.5)).toFixed(2)); }} className="text-[10px] font-black text-slate-900 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl transition-colors">{t(language, 'walWithdrawAll')}</button>
                         </div>
                         <div className="relative">
                           <input
@@ -788,11 +788,11 @@ export default function WalletScreen() {
                         </div>
                         <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-2">
                           <div className="flex justify-between items-center text-[10px] font-bold">
-                            <span className="text-slate-400">Комиссия сети:</span>
+                            <span className="text-slate-400">{t(language, 'walNetworkFeeLabel')}</span>
                             <span className="text-slate-800">{network === 'TRC20' ? '1.00' : '0.50'} USDT</span>
                           </div>
                           <div className="flex justify-between items-center text-[11px] font-black border-t border-slate-100 pt-2">
-                            <span className="text-slate-500">К зачислению:</span>
+                            <span className="text-slate-500">{t(language, 'walToReceive')}</span>
                             <span className="text-emerald-600 text-sm">{amount ? (Math.max(0, Number(amount) - (network === 'TRC20' ? 1 : 0.5))).toFixed(2) : '0.00'} USDT</span>
                           </div>
                         </div>
@@ -806,14 +806,14 @@ export default function WalletScreen() {
                         <MapPin className="w-10 h-10" />
                       </div>
                       <div className="space-y-2">
-                        <h4 className="font-black text-xl text-slate-800 tracking-tight">Выдача наличных</h4>
-                        <p className="text-[11px] text-slate-400 font-bold px-8 leading-relaxed uppercase tracking-widest">Выберите город для получения</p>
+                        <h4 className="font-black text-xl text-slate-800 tracking-tight">{t(language, 'walCashWithdrawal')}</h4>
+                        <p className="text-[11px] text-slate-400 font-bold px-8 leading-relaxed uppercase tracking-widest">{t(language, 'walSelectCityWithdraw')}</p>
                       </div>
                       <select value={city} onChange={(e) => setCity(e.target.value)} className="w-full p-5 bg-slate-50 rounded-2xl font-black text-slate-800 outline-none border-2 border-transparent focus:border-slate-900 transition-all appearance-none shadow-sm text-center">
                         {['Ашхабад', 'Туркменабад', 'Мары', 'Дашогуз', 'Балканабад'].map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                       <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full p-5 bg-slate-50 rounded-2xl font-black text-center text-lg outline-none border-2 border-transparent focus:border-slate-900 transition-all shadow-sm" placeholder="Сумма USDT" />
-                      <p className="text-[10px] text-slate-400 font-medium px-10">После подачи заявки вы получите инструкции по встрече с курьером в Telegram.</p>
+                      <p className="text-[10px] text-slate-400 font-medium px-10">{t(language, 'walCashWithdrawalNote')}</p>
                     </div>
                   )}
 
@@ -823,11 +823,11 @@ export default function WalletScreen() {
                         <div className="w-10 h-10 bg-amber-500 rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-amber-200">
                           <Star className="w-5 h-5 text-white" />
                         </div>
-                        <p className="text-[11px] text-amber-800 font-bold leading-relaxed uppercase tracking-widest">Создание ваучера</p>
+                        <p className="text-[11px] text-amber-800 font-bold leading-relaxed uppercase tracking-widest">{t(language, 'walVoucherCreation')}</p>
                       </div>
-                      <p className="text-[11px] text-slate-500 font-medium px-4">Создайте код для моментальной передачи средств любому пользователю системы без комиссий.</p>
+                      <p className="text-[11px] text-slate-500 font-medium px-4">{t(language, 'walVoucherCreationNote')}</p>
                       <div className="space-y-3">
-                        <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest text-center block">Сумма rapCode</label>
+                        <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest text-center block">{t(language, 'walAmountRapCode')}</label>
                         <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full p-6 bg-slate-50 rounded-2xl font-black text-center text-2xl outline-none border-2 border-transparent focus:border-amber-500 transition-all shadow-sm" placeholder="0.00" />
                       </div>
                     </div>
@@ -839,7 +839,7 @@ export default function WalletScreen() {
                   onClick={() => handleTransaction()}
                   className="w-full py-6 bg-slate-900 text-white rounded-[2rem] font-black text-sm tracking-widest shadow-2xl active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                 >
-                  {isSubmitting ? <Loader2 className="animate-spin w-5 h-5" /> : 'ВЫВЕСТИ СРЕДСТВА'}
+                  {isSubmitting ? <Loader2 className="animate-spin w-5 h-5" /> : t(language, 'walWithdrawBtn')}
                 </button>
               </div>
             </div>
@@ -882,7 +882,7 @@ export default function WalletScreen() {
                 onClick={() => handleTransaction()}
                 className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-xs tracking-widest shadow-xl flex items-center justify-center gap-2"
               >
-                {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'ПОДТВЕРДИТЬ'}
+                {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : t(language, 'confirm')}
               </button>
             </div>
           </div>

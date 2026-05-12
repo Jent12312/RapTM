@@ -68,7 +68,7 @@ export default function MyAdsScreen({ onClose }: Props) {
   // Функция удаления
   const deleteAd = async (adId: string) => {
     const { addToast } = useAppStore.getState();
-    if (!confirm(t(language, 'deleteAccount'))) return;
+    if (!confirm(t(language, 'confirmDeleteAd'))) return;
 
     try {
       await fetch(`/api/p2p/${adId}`, { method: 'DELETE' });
@@ -86,7 +86,7 @@ export default function MyAdsScreen({ onClose }: Props) {
     const link = `https://t.me/rapira_tm_bot/app?startapp=ad_${ad.id}`;
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(link).then(() => {
-        addToast(language === 'ru' ? "Ссылка скопирована" : language === 'tm' ? "Salgysy kopiýalandy" : "Link copied", "success");
+        addToast(t(language, 'linkCopied'), "success");
       });
     } else {
       const textArea = document.createElement("textarea");
@@ -95,7 +95,7 @@ export default function MyAdsScreen({ onClose }: Props) {
       textArea.select();
       try {
         document.execCommand('copy');
-        addToast(language === 'ru' ? "Ссылка скопирована" : language === 'tm' ? "Salgysy kopiýalandy" : "Link copied", "success");
+        addToast(t(language, 'linkCopied'), "success");
       } catch (err) {}
       document.body.removeChild(textArea);
     }
