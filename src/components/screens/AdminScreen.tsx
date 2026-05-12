@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { t } from '@/lib/dictionaries';
-import { ChevronLeft, AlertTriangle, CheckCircle2, XCircle, MessageCircle, Clock, ShieldCheck, UserCheck, UserX, Gift, RefreshCw, Users, TrendingUp, ArrowLeft, Copy } from 'lucide-react';
+import { ChevronLeft, AlertTriangle, CheckCircle2, XCircle, MessageCircle, Clock, ShieldCheck, UserCheck, UserX, Gift, RefreshCw, Users, TrendingUp, ArrowLeft, Copy, Settings, DollarSign, Percent, Lock, Unlock, Save } from 'lucide-react';
 
 export default function AdminScreen({ onClose }: { onClose: () => void }) {
   const { language, user } = useAppStore();
@@ -37,11 +37,13 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
   const [stats, setStats] = useState<any>(null);
 
   // Настройки
-  const [sysSettings, setSysSettings] = useState<any>({
+  const [sysSettings, setSysSettings] = useState<Record<string, string>>({
     EXCHANGE_RATE: '19.5',
-    EXCHANGE_FEE: '1'
+    EXCHANGE_FEE: '1',
+    WELCOME_BONUS: '15',
+    RATE_FROZEN: 'false'
   });
-  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [savingKey, setSavingKey] = useState<string | null>(null);
   const [blacklist, setBlacklist] = useState<any[]>([]);
   const [cashBalances, setCashBalances] = useState<any[]>([]);
   const [isBlacklistLoading, setIsBlacklistLoading] = useState(false);
@@ -121,10 +123,10 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
       const data = await res.json();
       if (data.success) {
         setStats(data.stats);
-        setSysSettings((prev: any) => ({
+        setSysSettings(prev => ({
           ...prev,
-          EXCHANGE_RATE: data.rate.rate,
-          RATE_FROZEN: data.rate.isFrozen ? 'true' : 'false'
+          EXCHANGE_RATE: data.rate?.rate || prev.EXCHANGE_RATE,
+          RATE_FROZEN: data.rate?.isFrozen ? 'true' : 'false'
         }));
       }
     } catch (e) {
@@ -249,7 +251,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
     try {
       const res = await fetch('/api/admin/settings');
       const data = await res.json();
-      if (res.ok) setSysSettings(data);
+      if (res.ok) setSysSettings(prev => ({ ...prev, ...data }));
     } catch (e) {
       console.error('Failed to fetch settings:', e);
     }
@@ -260,7 +262,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
   }, [activeTab]);
 
   const saveSetting = async (key: string, value: string) => {
-    setIsSavingSettings(true);
+    setSavingKey(key);
     try {
       const res = await fetch('/api/admin/settings', {
         method: 'POST',
@@ -268,13 +270,15 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
         body: JSON.stringify({ key, value })
       });
       if (res.ok) {
-        alert(`${key} успешно обновлен!`);
+        alert(`Настройка ${key} успешно обновлена!`);
         fetchSysSettings();
+      } else {
+        throw new Error('Server error');
       }
     } catch (e) {
-      alert('Ошибка при сохранении');
+      alert(`Ошибка при сохранении ${key}`);
     } finally {
-      setIsSavingSettings(false);
+      setSavingKey(null);
     }
   };
 
@@ -749,7 +753,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                     <button onClick={() => setActiveTab('audit')} className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline">Все логи</button>
                   </div>
                   <div className="space-y-4">
-                    {auditLogs.slice(0, 3).map(log => (
+                    {(auditLogs || []).slice(0, 3).map(log => (
                       <div key={log.id} className="flex items-start gap-3">
                         <div className="w-8 h-8 bg-slate-50 rounded-xl flex items-center justify-center shrink-0">
                           <Clock className="w-4 h-4 text-slate-400" />
@@ -776,7 +780,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                     <div className="text-slate-400 font-bold text-xs">Нет новых заявок</div>
                   </div>
                 ) : (
-                  levelApps.map(app => (
+                  (levelApps || []).map(app => (
                     <div key={app.id} className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100">
                       <div className="flex items-center gap-3 mb-4">
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${app.requestedLevel === 'PARTNER' ? 'bg-purple-500' : 'bg-blue-500'}`}>
@@ -796,10 +800,10 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                 )}
               </div>
             ) : activeTab === 'disputes' ? (
-              disputes.length === 0 ? (
+              (disputes || []).length === 0 ? (
                 <div className="text-center text-slate-400 py-10 font-bold">{t(language, 'adminNoDisputes')}</div>
               ) : (
-                disputes.map(order => (
+                (disputes || []).map(order => (
                   <div
                     key={order.id}
                     className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-red-100 border-t-4 border-red-500 cursor-pointer hover:shadow-md transition-all"
@@ -870,10 +874,10 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                 ))
               )
             ) : activeTab === 'kyc' ? (
-              kycRequests.length === 0 ? (
+              (kycRequests || []).length === 0 ? (
                 <div className="text-center text-slate-400 py-10 font-bold">{t(language, 'adminNoUsers')}</div>
               ) : (
-                kycRequests.map(user => (
+                (kycRequests || []).map(user => (
                   <div
                     key={user.id}
                     className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-emerald-100 border-t-4 border-emerald-500 cursor-pointer hover:shadow-md transition-all"
@@ -911,10 +915,10 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                 ))
               )
             ) : activeTab === 'exchanges' ? (
-              exchanges.length === 0 ? (
+              (exchanges || []).length === 0 ? (
                 <div className="text-center text-slate-400 py-10 font-bold">{t(language, 'adminNoExchanges')}</div>
               ) : (
-                exchanges.map(req => (
+                (exchanges || []).map(req => (
                   <div key={req.id} className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-blue-100 border-t-4 border-blue-500 mb-4">
                     <div className="flex justify-between items-center mb-3">
                       <span className={`text-xs font-bold px-2 py-1 rounded-lg ${req.direction === 'USDT_TO_TMT' ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>
@@ -943,10 +947,10 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                 ))
               )
             ) : activeTab === 'crypto' ? (
-              cryptoTxs.length === 0 ? (
+              (cryptoTxs || []).length === 0 ? (
                 <div className="text-center text-slate-400 py-10 font-bold">{t(language, 'adminNoTransactions')}</div>
               ) : (
-                cryptoTxs.map(tx => (
+                (cryptoTxs || []).map(tx => (
                   <div key={tx.id} className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-amber-100 border-t-4 border-amber-500 mb-4">
                     <div className="flex justify-between items-center mb-3">
                       <span className={`text-xs font-bold px-2 py-1 rounded-lg ${tx.type === 'DEPOSIT' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
@@ -995,10 +999,10 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                 </div>
 
                 {/* Список пользователей */}
-                {users.length === 0 ? (
+                {(users || []).length === 0 ? (
                   <div className="text-center text-slate-400 py-10 font-bold">{t(language, 'adminNoUsers')}</div>
                 ) : (
-                  users.map(u => (
+                  (users || []).map(u => (
                     <div
                       key={u.id}
                       className="bg-white p-4 rounded-2xl shadow-sm ring-1 ring-slate-100 cursor-pointer hover:shadow-md transition-all"
@@ -1193,88 +1197,135 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                 )}
               </div>
             ) : activeTab === 'settings' ? (
-              <div className="space-y-4">
-                <div className="bg-white p-6 rounded-[2rem] shadow-sm ring-1 ring-slate-100">
-                  <h3 className="text-sm font-bold text-slate-700 mb-6 flex items-center gap-2">
-                    <RefreshCw className="w-4 h-4 text-indigo-500" /> {t(language, 'exSettings')}
-                  </h3>
-
-                  <div className="space-y-6">
-                    {/* Курс */}
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">
-                        {t(language, 'exRate')} (1 USDT = ? TMT)
-                      </label>
-                      <div className="flex gap-2">
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={sysSettings.EXCHANGE_RATE}
-                          onChange={(e) => setSysSettings({ ...sysSettings, EXCHANGE_RATE: e.target.value })}
-                          className="flex-1 bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 text-lg font-black outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <button
-                          onClick={() => saveSetting('EXCHANGE_RATE', sysSettings.EXCHANGE_RATE)}
-                          disabled={isSavingSettings}
-                          className="px-6 bg-indigo-500 text-white font-bold rounded-xl active:scale-95 transition-all disabled:opacity-50"
-                        >
-                          {t(language, 'save')}
-                        </button>
-                      </div>
+              <div className="space-y-6 animate-in fade-in duration-300">
+                <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-6 opacity-5 pointer-events-none">
+                    <DollarSign className="w-24 h-24 text-indigo-500" />
+                  </div>
+                  <div className="flex items-center gap-3 mb-6 relative z-10">
+                    <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
+                      <TrendingUp className="w-5 h-5" />
                     </div>
-
-                    <hr className="border-slate-100" />
-
-                    {/* Комиссия */}
                     <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">
-                        {t(language, 'exFeePercent')}
-                      </label>
-                      <div className="flex gap-2">
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={sysSettings.EXCHANGE_FEE}
-                          onChange={(e) => setSysSettings({ ...sysSettings, EXCHANGE_FEE: e.target.value })}
-                          className="flex-1 bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 text-lg font-black outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <button
-                          onClick={() => saveSetting('EXCHANGE_FEE', sysSettings.EXCHANGE_FEE)}
-                          disabled={isSavingSettings}
-                          className="px-6 bg-indigo-500 text-white font-bold rounded-xl active:scale-95 transition-all disabled:opacity-50"
-                        >
-                          {t(language, 'save')}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">
-                        Приветственный бонус (USDT)
-                      </label>
-                      <div className="flex gap-2">
-                        <input
-                          type="number"
-                          value={sysSettings.WELCOME_BONUS || '15'}
-                          onChange={(e) => setSysSettings({ ...sysSettings, WELCOME_BONUS: e.target.value })}
-                          className="flex-1 bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 text-lg font-black outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <button
-                          onClick={() => saveSetting('WELCOME_BONUS', sysSettings.WELCOME_BONUS)}
-                          className="px-6 bg-purple-500 text-white font-bold rounded-xl active:scale-95"
-                        >
-                          {t(language, 'save')}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 flex items-start gap-2">
-                      <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                      <p className="text-[10px] font-bold text-amber-700 uppercase leading-relaxed">
-                        Внимание: Изменения вступают в силу немедленно для всех новых заявок пользователей.
-                      </p>
+                      <h3 className="text-sm font-black text-slate-800">Глобальный курс USDT/TMT</h3>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Для автоматических обменов</p>
                     </div>
                   </div>
+
+                  <div className="space-y-4 relative z-10">
+                    <div className="flex gap-3">
+                      <div className="flex-1 relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">1 USDT =</span>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={sysSettings.EXCHANGE_RATE || ''}
+                          onChange={(e) => setSysSettings({ ...sysSettings, EXCHANGE_RATE: e.target.value })}
+                          className="w-full bg-slate-50 border border-slate-100 focus:border-indigo-400 focus:bg-white rounded-2xl py-4 pl-24 pr-4 text-slate-900 text-xl font-black outline-none transition-all"
+                          placeholder="0.00"
+                        />
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">TMT</span>
+                      </div>
+                      <button
+                        onClick={() => saveSetting('EXCHANGE_RATE', sysSettings.EXCHANGE_RATE)}
+                        disabled={savingKey === 'EXCHANGE_RATE'}
+                        className="bg-indigo-500 hover:bg-indigo-600 text-white w-16 rounded-2xl flex items-center justify-center transition-all active:scale-95 disabled:opacity-50"
+                      >
+                        {savingKey === 'EXCHANGE_RATE' ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                      <div className="flex items-center gap-3">
+                        {sysSettings.RATE_FROZEN === 'true' ? <Lock className="w-5 h-5 text-red-500" /> : <Unlock className="w-5 h-5 text-emerald-500" />}
+                        <div>
+                          <div className="text-sm font-bold text-slate-800">Заморозка курса</div>
+                          <div className="text-[10px] text-slate-500">Запретить боту авто-обновление</div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const newVal = sysSettings.RATE_FROZEN === 'true' ? 'false' : 'true';
+                          setSysSettings({...sysSettings, RATE_FROZEN: newVal});
+                          saveSetting('RATE_FROZEN', newVal);
+                        }}
+                        disabled={savingKey === 'RATE_FROZEN'}
+                        className={`w-14 h-8 rounded-full transition-colors relative flex items-center px-1 ${sysSettings.RATE_FROZEN === 'true' ? 'bg-red-500' : 'bg-slate-200'}`}
+                      >
+                        <div className={`w-6 h-6 bg-white rounded-full transition-transform transform shadow-sm ${sysSettings.RATE_FROZEN === 'true' ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 relative overflow-hidden group">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">
+                      <Percent className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-slate-800">Комиссия системы</h3>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Взимается при обменах</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="flex-1 relative">
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={sysSettings.EXCHANGE_FEE || ''}
+                        onChange={(e) => setSysSettings({ ...sysSettings, EXCHANGE_FEE: e.target.value })}
+                        className="w-full bg-slate-50 border border-slate-100 focus:border-emerald-400 focus:bg-white rounded-2xl py-4 px-4 text-slate-900 text-xl font-black outline-none transition-all"
+                        placeholder="1.0"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xl">%</span>
+                    </div>
+                    <button
+                      onClick={() => saveSetting('EXCHANGE_FEE', sysSettings.EXCHANGE_FEE)}
+                      disabled={savingKey === 'EXCHANGE_FEE'}
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white w-16 rounded-2xl flex items-center justify-center transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      {savingKey === 'EXCHANGE_FEE' ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 relative overflow-hidden group">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-3 bg-purple-50 text-purple-600 rounded-2xl">
+                      <Gift className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-slate-800">Приветственный бонус</h3>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">За регистрацию</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="flex-1 relative">
+                      <input
+                        type="number"
+                        value={sysSettings.WELCOME_BONUS || ''}
+                        onChange={(e) => setSysSettings({ ...sysSettings, WELCOME_BONUS: e.target.value })}
+                        className="w-full bg-slate-50 border border-slate-100 focus:border-purple-400 focus:bg-white rounded-2xl py-4 px-4 text-slate-900 text-xl font-black outline-none transition-all"
+                        placeholder="15"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">USDT</span>
+                    </div>
+                    <button
+                      onClick={() => saveSetting('WELCOME_BONUS', sysSettings.WELCOME_BONUS)}
+                      disabled={savingKey === 'WELCOME_BONUS'}
+                      className="bg-purple-500 hover:bg-purple-600 text-white w-16 rounded-2xl flex items-center justify-center transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      {savingKey === 'WELCOME_BONUS' ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-amber-50 p-5 rounded-2xl border border-amber-200/50 flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
+                  <p className="text-xs font-bold text-amber-800 leading-relaxed">
+                    Изменения настроек применяются мгновенно и влияют на все новые операции в системе. Будьте внимательны при изменении глобального курса.
+                  </p>
                 </div>
               </div>
           ) : activeTab === 'blacklist' ? (
@@ -1324,7 +1375,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                 <button onClick={fetchBlacklist} className="p-2"><RefreshCw className={`w-4 h-4 text-slate-400 ${isBlacklistLoading ? 'animate-spin' : ''}`} /></button>
               </h3>
               <div className="space-y-2">
-                {blacklist.length > 0 ? blacklist.map(entry => (
+                {(blacklist || []).length > 0 ? (blacklist || []).map(entry => (
                   <div key={entry.id} className="bg-slate-50 p-4 rounded-2xl flex justify-between items-center group">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
@@ -1369,7 +1420,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                 </button>
               </div>
               <div className="space-y-3">
-                {cashBalances.length > 0 ? cashBalances.map((item: any) => (
+                {(cashBalances || []).length > 0 ? (cashBalances || []).map((item: any) => (
                   <div key={item.city} className="bg-slate-50 p-5 rounded-2xl flex justify-between items-center border border-slate-100 hover:border-amber-200 transition-colors">
                     <div>
                       <div className="text-lg font-black text-slate-800">{item.city}</div>
@@ -1409,7 +1460,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50 font-bold">
-                      {auditLogs.map(log => (
+                      {(auditLogs || []).map(log => (
                         <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
                           <td className="px-5 py-4 text-slate-400 whitespace-nowrap">{new Date(log.createdAt).toLocaleString('ru-RU')}</td>
                           <td className="px-5 py-4 text-slate-800">{log.admin?.firstName || 'System'}</td>
@@ -1439,7 +1490,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50 font-bold">
-                      {systemLogs.map(log => (
+                      {(systemLogs || []).map(log => (
                         <tr key={log.id} className={`hover:bg-slate-50/50 transition-colors ${log.severity === 'CRITICAL' ? 'bg-rose-50/30' : ''}`}>
                           <td className="px-5 py-4 text-slate-400 whitespace-nowrap">{new Date(log.createdAt).toLocaleString('ru-RU')}</td>
                           <td className="px-5 py-4"><span className="px-2 py-0.5 bg-slate-100 rounded-lg text-[9px] font-black uppercase">{log.type}</span></td>
@@ -1469,7 +1520,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50 font-bold">
-                    {reconLogs.map(log => (
+                    {(reconLogs || []).map(log => (
                       <tr key={log.id}>
                         <td className="px-5 py-4 text-slate-400">{new Date(log.createdAt).toLocaleString('ru-RU')}</td>
                         <td className="px-5 py-4">
