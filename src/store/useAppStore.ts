@@ -25,6 +25,7 @@ interface AppState {
   isLoadingAds: boolean;
   
   toasts: ToastMessage[];
+  referralInfo: { isNew: boolean; referrerName: string | null } | null;
   
   setLanguage: (lang: Language) => void;
   setActiveTab: (tab: Tab) => void;
@@ -50,6 +51,7 @@ export const useAppStore = create<AppState>()(
       ads: [],
       isLoadingAds: false,
       toasts: [],
+      referralInfo: null,
 
       setLanguage: (lang) => set({ language: lang }),
       setActiveTab: (tab) => set({ activeTab: tab }),
@@ -73,7 +75,8 @@ export const useAppStore = create<AppState>()(
                 tmt: Number(data.user?.wallet?.tmtBalance) || 0,
                 usdt: Number(data.user?.wallet?.usdtBalance) || 0,
                 bonus: Number(data.user?.wallet?.bonusBalance) || 0
-              }
+              },
+              referralInfo: data.isNewReferral ? { isNew: true, referrerName: data.referrerName } : null
             });
           } else {
             console.error("Ошибка авторизации: ", data.error);

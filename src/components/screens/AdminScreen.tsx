@@ -3,11 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { t } from '@/lib/dictionaries';
-import { ChevronLeft, AlertTriangle, CheckCircle2, XCircle, MessageCircle, Clock, ShieldCheck, UserCheck, UserX, Gift, RefreshCw, Users, TrendingUp, ArrowLeft } from 'lucide-react';
+import { ChevronLeft, AlertTriangle, CheckCircle2, XCircle, MessageCircle, Clock, ShieldCheck, UserCheck, UserX, Gift, RefreshCw, Users, TrendingUp, ArrowLeft, Copy } from 'lucide-react';
 
 export default function AdminScreen({ onClose }: { onClose: () => void }) {
   const { language, user } = useAppStore();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'disputes' | 'kyc' | 'exchanges' | 'crypto' | 'users' | 'stats' | 'settings' | 'logs' | 'audit' | 'stability' | 'blacklist' | 'cash' | 'levels'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'disputes' | 'kyc' | 'exchanges' | 'crypto' | 'users' | 'partners' | 'stats' | 'settings' | 'logs' | 'audit' | 'stability' | 'blacklist' | 'cash' | 'levels'>('dashboard');
   const [disputes, setDisputes] = useState<any[]>([]);
   const [selectedDispute, setSelectedDispute] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
@@ -622,6 +622,13 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                 {t(language, 'adminUsers')}
               </button>
               <button
+                onClick={() => setActiveTab('partners')}
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'partners' ? 'bg-purple-900 text-white shadow-lg' : 'bg-slate-50 text-slate-500'
+                  }`}
+              >
+                <Users className="w-4 h-4 inline mr-1" /> {t(language, 'adminPartners')}
+              </button>
+              <button
                 onClick={() => setActiveTab('stats')}
                 className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'stats' ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200' : 'bg-slate-50 text-slate-500'
                   }`}
@@ -658,42 +665,48 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
               <div className="space-y-4 animate-in fade-in duration-500">
                 {/* Real-time Stats */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-slate-100">
-                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Объем 24ч</div>
-                    <div className="text-2xl font-black text-slate-900">{stats?.volume24h?.toFixed(2) || '0.00'} <span className="text-sm font-bold text-slate-400">USDT</span></div>
+                  <div className="bg-white p-6 rounded-[2.5rem] shadow-sm ring-1 ring-slate-100 relative overflow-hidden group hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-500">
+                    <div className="absolute -top-4 -right-4 w-16 h-16 bg-slate-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Объем 24ч</div>
+                    <div className="text-3xl font-black text-slate-900 tracking-tighter">{Number(stats?.volume24h || 0).toFixed(2)} <span className="text-xs font-bold text-slate-400">USDT</span></div>
                   </div>
-                  <div className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-slate-100">
-                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Объем 7д</div>
-                    <div className="text-2xl font-black text-slate-900">{stats?.volume7d?.toFixed(2) || '0.00'} <span className="text-sm font-bold text-slate-400">USDT</span></div>
+                  <div className="bg-white p-6 rounded-[2.5rem] shadow-sm ring-1 ring-slate-100 relative overflow-hidden group hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-500">
+                    <div className="absolute -top-4 -right-4 w-16 h-16 bg-slate-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Объем 7д</div>
+                    <div className="text-3xl font-black text-slate-900 tracking-tighter">{Number(stats?.volume7d || 0).toFixed(2)} <span className="text-xs font-bold text-slate-400">USDT</span></div>
                   </div>
-                  <div className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-slate-100">
-                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Комиссии сегодня</div>
-                    <div className="text-2xl font-black text-emerald-600">{stats?.todayFees?.toFixed(2) || '0.00'} <span className="text-sm font-bold text-emerald-400">USDT</span></div>
+                  <div className="bg-emerald-50/50 p-6 rounded-[2.5rem] shadow-sm ring-1 ring-emerald-100 relative overflow-hidden group hover:shadow-xl hover:shadow-emerald-100/50 transition-all duration-500">
+                    <div className="absolute -top-4 -right-4 w-16 h-16 bg-emerald-100/30 rounded-full"></div>
+                    <div className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] mb-2">Комиссии сегодня</div>
+                    <div className="text-3xl font-black text-emerald-600 tracking-tighter">{Number(stats?.todayFees || 0).toFixed(2)} <span className="text-xs font-bold text-emerald-400">USDT</span></div>
                   </div>
-                  <div className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-slate-100">
-                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Активные сделки</div>
-                    <div className="text-2xl font-black text-blue-600">{stats?.activeOrders || '0'}</div>
+                  <div className="bg-blue-50/50 p-6 rounded-[2.5rem] shadow-sm ring-1 ring-blue-100 relative overflow-hidden group hover:shadow-xl hover:shadow-blue-100/50 transition-all duration-500">
+                    <div className="absolute -top-4 -right-4 w-16 h-16 bg-blue-100/30 rounded-full"></div>
+                    <div className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-2">Активные сделки</div>
+                    <div className="text-3xl font-black text-blue-600 tracking-tighter">{stats?.activeOrders || '0'}</div>
                   </div>
                 </div>
 
-                {/* Queues */}
-                <div className="grid grid-cols-2 gap-3">
-                  <button onClick={() => setActiveTab('kyc')} className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-slate-100 flex flex-col items-center gap-2 group active:scale-95 transition-all">
-                    <div className="w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600 group-hover:bg-emerald-100 transition-colors">
+                {/* Queues - Enhanced Visualization */}
+                <div className="grid grid-cols-2 gap-4">
+                  <button onClick={() => setActiveTab('kyc')} className="bg-white p-6 rounded-[2.5rem] shadow-sm ring-1 ring-slate-100 flex flex-col items-center gap-3 group active:scale-95 transition-all relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500 opacity-20 group-hover:opacity-100 transition-opacity"></div>
+                    <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-all duration-300 shadow-sm">
                       <ShieldCheck className="w-6 h-6" />
                     </div>
                     <div className="text-center">
-                      <div className="text-[10px] font-black text-slate-400 uppercase">Верификация</div>
-                      <div className="text-lg font-black text-slate-800">{stats?.verificationQueueCount || 0} заявок</div>
+                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Верификация</div>
+                      <div className="text-xl font-black text-slate-900">{stats?.verificationQueueCount || 0} <span className="text-[10px] text-slate-400">В ОЧЕРЕДИ</span></div>
                     </div>
                   </button>
-                  <button onClick={() => setActiveTab('crypto')} className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-slate-100 flex flex-col items-center gap-2 group active:scale-95 transition-all">
-                    <div className="w-10 h-10 bg-amber-50 rounded-full flex items-center justify-center text-amber-600 group-hover:bg-amber-100 transition-colors">
+                  <button onClick={() => setActiveTab('crypto')} className="bg-white p-6 rounded-[2.5rem] shadow-sm ring-1 ring-slate-100 flex flex-col items-center gap-3 group active:scale-95 transition-all relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-amber-500 opacity-20 group-hover:opacity-100 transition-opacity"></div>
+                    <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-all duration-300 shadow-sm">
                       <Clock className="w-6 h-6" />
                     </div>
                     <div className="text-center">
-                      <div className="text-[10px] font-black text-slate-400 uppercase">Выводы</div>
-                      <div className="text-lg font-black text-slate-800">{stats?.withdrawalQueueCount || 0} заявок</div>
+                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Выводы</div>
+                      <div className="text-xl font-black text-slate-900">{stats?.withdrawalQueueCount || 0} <span className="text-[10px] text-slate-400">В ОЧЕРЕДИ</span></div>
                     </div>
                   </button>
                 </div>
@@ -725,28 +738,33 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                       OK
                     </button>
                   </div>
-                  <div className="mt-4 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${sysSettings.RATE_FROZEN === 'true' ? 'bg-red-500' : 'bg-emerald-500'}`}></div>
-                      <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">
-                        {sysSettings.RATE_FROZEN === 'true' ? 'Курс заморожен' : 'Курс активен'}
-                      </span>
-                    </div>
-                    <button
-                      onClick={async () => {
-                        const isFrozen = sysSettings.RATE_FROZEN === 'true';
-                        await saveSetting('RATE_FROZEN', isFrozen ? 'false' : 'true');
-                        setSysSettings({ ...sysSettings, RATE_FROZEN: isFrozen ? 'false' : 'true' });
-                      }}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${sysSettings.RATE_FROZEN === 'true' ? 'bg-red-500 text-white' : 'bg-white/10 text-white'
-                        }`}
-                    >
-                      <ShieldCheck className="w-4 h-4" /> {sysSettings.RATE_FROZEN === 'true' ? 'Разморозить' : 'Заморозить'}
-                    </button>
+                </div>
+
+                {/* Recent Activity Mini-List */}
+                <div className="bg-white p-6 rounded-[2.5rem] shadow-sm ring-1 ring-slate-100">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                      <Users className="w-4 h-4 text-purple-500" /> Последние действия
+                    </h3>
+                    <button onClick={() => setActiveTab('audit')} className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline">Все логи</button>
+                  </div>
+                  <div className="space-y-4">
+                    {auditLogs.slice(0, 3).map(log => (
+                      <div key={log.id} className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-slate-50 rounded-xl flex items-center justify-center shrink-0">
+                          <Clock className="w-4 h-4 text-slate-400" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-xs font-bold text-slate-800 line-clamp-1">{log.details}</div>
+                          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{log.admin?.firstName || 'Система'} • {new Date(log.createdAt).toLocaleTimeString('ru-RU')}</div>
+                        </div>
+                      </div>
+                    ))}
+                    {auditLogs.length === 0 && <div className="text-center py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Нет недавних логов</div>}
+                  </div>
                   </div>
                 </div>
-              </div>
-            ) : activeTab === 'levels' ? (
+              ) : activeTab === 'levels' ? (
               <div className="space-y-4">
                 <div className="flex justify-between items-center mb-2 px-1">
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Заявки на повышение</h3>
@@ -1003,11 +1021,11 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div className="bg-slate-50 p-2 rounded-lg">
                           <span className="text-slate-400 block">{t(language, 'adminUSDTBalance')}</span>
-                          <span className="font-bold text-slate-800">{u.wallet?.usdtBalance?.toFixed(2) || 0}</span>
+                          <span className="font-bold text-slate-800">{Number(u.wallet?.usdtBalance || 0).toFixed(2)}</span>
                         </div>
                         <div className="bg-slate-50 p-2 rounded-lg">
                           <span className="text-slate-400 block">{t(language, 'adminTMTBalance')}</span>
-                          <span className="font-bold text-slate-800">{u.wallet?.tmtBalance?.toFixed(2) || 0}</span>
+                          <span className="font-bold text-slate-800">{Number(u.wallet?.tmtBalance || 0).toFixed(2)}</span>
                         </div>
                       </div>
                     </div>
@@ -1036,6 +1054,55 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                     </button>
                   </div>
                 )}
+              </div>
+            ) : activeTab === 'partners' ? (
+              <div className="space-y-6 animate-in fade-in duration-500">
+                <div className="bg-white p-8 rounded-[2.5rem] shadow-sm ring-1 ring-slate-100 text-center space-y-6">
+                  <div className="w-20 h-20 bg-purple-50 text-purple-500 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
+                    <Users className="w-10 h-10" />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <h3 className="text-2xl font-black text-slate-800 tracking-tight">{t(language, 'adminInvitePartner')}</h3>
+                    <p className="text-sm font-medium text-slate-500 leading-relaxed px-4">
+                      {t(language, 'adminPartnerDesc')}
+                    </p>
+                  </div>
+
+                  <div className="space-y-4 pt-4">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block">
+                      {t(language, 'adminPartnerLink')}
+                    </label>
+                    
+                    <div className="flex gap-2 p-1.5 bg-slate-50 rounded-[2rem] border border-slate-100">
+                      <div className="flex-1 px-4 py-3 text-xs font-bold text-slate-600 truncate flex items-center bg-white rounded-2xl shadow-sm">
+                        {`https://t.me/rapira_tm_bot/app?startapp=partner_${user?.id}`}
+                      </div>
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText(`https://t.me/rapira_tm_bot/app?startapp=partner_${user?.id}`);
+                          alert(t(language, 'success'));
+                        }}
+                        className="p-4 bg-slate-900 text-white rounded-2xl hover:bg-slate-800 active:scale-95 transition-all shadow-lg shadow-slate-200"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-blue-50/50 p-6 rounded-[2.5rem] border border-blue-100 flex gap-4">
+                  <div className="p-3 bg-blue-100 text-blue-500 h-fit rounded-2xl">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-black text-blue-700 uppercase tracking-widest">Безопасность и уровни</h4>
+                    <p className="text-[11px] font-bold text-blue-600/70 leading-relaxed">
+                      Приглашенные партнеры автоматически получают статус Partner. 
+                      Это позволяет им торговать с повышенными лимитами сразу после регистрации.
+                    </p>
+                  </div>
+                </div>
               </div>
             ) : activeTab === 'stats' ? (
               <div className="space-y-4">
@@ -1570,11 +1637,11 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-emerald-50 p-4 rounded-2xl">
                   <div className="text-[10px] font-bold text-emerald-600 uppercase">{t(language, 'adminUSDTBalance')}</div>
-                  <div className="text-2xl font-black text-emerald-700">{selectedUser.wallet?.usdtBalance?.toFixed(2) || 0}</div>
+                  <div className="text-2xl font-black text-emerald-700">{Number(selectedUser.wallet?.usdtBalance || 0).toFixed(2)}</div>
                 </div>
                 <div className="bg-blue-50 p-4 rounded-2xl">
                   <div className="text-[10px] font-bold text-blue-600 uppercase">{t(language, 'adminTMTBalance')}</div>
-                  <div className="text-2xl font-black text-blue-700">{selectedUser.wallet?.tmtBalance?.toFixed(2) || 0}</div>
+                  <div className="text-2xl font-black text-blue-700">{Number(selectedUser.wallet?.tmtBalance || 0).toFixed(2)}</div>
                 </div>
               </div>
 

@@ -35,7 +35,10 @@ export async function POST(req: Request) {
 
     let user = await prisma.user.findUnique({
       where: { telegramId },
-      include: { wallet: true },
+      include: { 
+        wallet: true,
+        referrer: { select: { firstName: true } }
+      },
     });
 
     // Helper for finding referrer
@@ -85,7 +88,10 @@ export async function POST(req: Request) {
             create: { usdtBalance: 0.0, tmtBalance: 0.0, bonusBalance: bonus },
           },
         },
-        include: { wallet: true },
+        include: { 
+          wallet: true,
+          referrer: { select: { firstName: true } }
+        },
       });
     } else {
       // ОБНОВЛЕНИЕ ДАННЫХ ДЕЙСТВУЮЩЕГО ПОЛЬЗОВАТЕЛЯ
@@ -104,9 +110,16 @@ export async function POST(req: Request) {
       user = await prisma.user.update({
         where: { telegramId },
         data: updateData,
-        include: { wallet: true },
+        include: { 
+          wallet: true,
+          referrer: { select: { firstName: true } }
+        },
       });
     }
+
+    // Если это новый реферал (был создан только что с referrerId)
+    const isNewReferral = !!(user.referrerId && (new Date().getTime() - new Date(user.createdAt).getTime() < 60000));
+    const referrerName = user.referrer?.firstName || null;
 
     // Создаем JWT
     const token = await signJwt({ 
@@ -124,7 +137,13 @@ export async function POST(req: Request) {
       path: '/',
     });
 
-    return NextResponse.json({ success: true, user, token });
+    return NextResponse.json({ 
+      success: true, 
+      user, 
+      token,
+      isNewReferral,
+      referrerName
+    });
   } catch (error) {
     console.error('Telegram Auth Error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

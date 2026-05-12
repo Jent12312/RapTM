@@ -198,8 +198,8 @@ export default function CreateAdScreen({ onClose }: Props) {
               <div className="relative">
                 <select value={asset} onChange={(e) => setAsset(e.target.value)} className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-2xl px-4 py-3 text-sm font-bold appearance-none outline-none">
                   <option value="USDT">USDT</option>
-                  <option value="BTC">BTC</option>
-                  <option value="TON">TON</option>
+                  <option value="USD">USD</option>
+                  <option value="TMT">TMT</option>
                 </select>
                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               </div>
