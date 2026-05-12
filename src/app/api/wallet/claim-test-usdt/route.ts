@@ -1,23 +1,18 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-import prisma from '@/lib/prisma'; // убедись, что путь к prisma-клиенту правильный
+import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/prisma'; // Убедитесь, что путь к prisma-клиенту правильный
 
 const CLAIM_COOLDOWN_MINUTES = 5; // ограничение по времени
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Метод не разрешён' });
-  }
-
-  const { userId } = req.body;
-
-  if (!userId || typeof userId !== 'string') {
-    return res.status(400).json({ error: 'Не указан userId' });
-  }
-
+export async function POST(request: NextRequest) {
   try {
+    // Получаем тело запроса
+    const body = await request.json();
+    const { userId } = body;
+
+    if (!userId || typeof userId !== 'string') {
+      return NextResponse.json({ error: 'Не указан userId' }, { status: 400 });
+    }
+
     // Проверяем, существует ли пользователь
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -25,10 +20,10 @@ export default async function handler(
     });
 
     if (!user) {
-      return res.status(404).json({ error: 'Пользователь не найден' });
+      return NextResponse.json({ error: 'Пользователь не найден' }, { status: 404 });
     }
 
-    // Защита от частых запросов: ищем последнюю completed‑транзакцию такого же типа
+    // Защита от частых запросов: ищем последнюю completed-транзакцию такого же типа
     const recentClaim = await prisma.transaction.findFirst({
       where: {
         userId,
@@ -43,9 +38,9 @@ export default async function handler(
     });
 
     if (recentClaim) {
-      return res.status(429).json({
+      return NextResponse.json({
         error: `Повторно можно получить через ${CLAIM_COOLDOWN_MINUTES} мин.`,
-      });
+      }, { status: 429 });
     }
 
     // Убедимся, что кошелёк существует; если нет — создадим
@@ -69,6 +64,9 @@ export default async function handler(
       data: { usdtBalance: { increment: 1000 } },
     });
 
+    // Получаем IP-адрес в App Router
+    const ip = request.headers.get('x-forwarded-for') || null;
+
     // Создаём запись транзакции
     const transaction = await prisma.transaction.create({
       data: {
@@ -83,17 +81,18 @@ export default async function handler(
         txId: `faucet-${Date.now()}`,
         status: 'COMPLETED',
         adminNote: 'Тестовые 1000 USDT (faucet)',
-        ip: req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || null,
+        ip: ip,
       },
     });
 
-    res.status(200).json({
+    return NextResponse.json({
       success: true,
       newBalance: updatedWallet.usdtBalance.toString(),
       transactionId: transaction.id,
-    });
+    }, { status: 200 });
+
   } catch (error) {
     console.error('Claim test USDT error:', error);
-    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+    return NextResponse.json({ error: 'Внутренняя ошибка сервера' }, { status: 500 });
   }
 }
