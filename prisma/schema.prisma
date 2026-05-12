@@ -236,6 +236,7 @@ model Order {
 
   amountAsset Decimal    
   amountFiat  Decimal    
+  feeAmount   Decimal     @default(0)
   status      OrderStatus @default(PENDING) 
   
   isDisputed  Boolean  @default(false) // НОВОЕ: Нажат ли "Спор/Апелляция"

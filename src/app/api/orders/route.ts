@@ -100,6 +100,7 @@ export async function POST(req: Request) {
           sellerId,
           amountAsset,
           amountFiat,
+          feeAmount,
           status: 'PENDING'
         },
         include: { 

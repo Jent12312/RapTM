@@ -70,12 +70,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         return NextResponse.json({ error: 'Only seller can complete the order' }, { status: 403 });
       }
 
-      // Calculate commission (must match the one used at escrow start)
-      const settings = await prisma.systemSetting.findMany({ where: { key: 'EXCHANGE_RATE' } });
-      const exchangeRate = parseFloat(settings[0]?.value || '19.5');
-      
-      const { calculateP2PFee } = await import('@/lib/fees');
-      const feeAmount = calculateP2PFee(Number(order.amountAsset), order.ad.fiat, order.seller.level, exchangeRate);
+      const feeAmount = Number(order.feeAmount);
 
       // Execute transaction: Release escrow
       const [ , , updatedOrder ] = await prisma.$transaction([
@@ -150,11 +145,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         return NextResponse.json({ error: 'Cannot cancel after payment. Open a dispute instead.' }, { status: 400 });
       }
 
-      // Calculate fee to return correctly
-      const settings = await prisma.systemSetting.findMany({ where: { key: 'EXCHANGE_RATE' } });
-      const exchangeRate = parseFloat(settings[0]?.value || '19.5');
-      const { calculateP2PFee } = await import('@/lib/fees');
-      const feeAmount = calculateP2PFee(Number(order.amountAsset), order.ad.fiat, order.seller.level, exchangeRate);
+      const feeAmount = Number(order.feeAmount);
 
       const [ , updatedOrder ] = await prisma.$transaction([
         prisma.wallet.update({
@@ -195,9 +186,9 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         return NextResponse.json({ error: 'Only admin can resolve a dispute' }, { status: 403 });
       }
 
-      const amount = order.amountAsset;
-      const fee = order.feeAmount || 0;
-      const totalToSubtract = Number(amount) + Number(fee);
+      const amount = Number(order.amountAsset);
+      const fee = Number(order.feeAmount);
+      const totalToSubtract = amount + fee;
 
       const transactions = [];
 
@@ -216,11 +207,11 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         transactions.push(
           prisma.wallet.update({
             where: { userId: order.sellerId },
-            data: { usdtFrozen: { decrement: totalToSubtract } }
+            data: { frozenBalance: { decrement: totalToSubtract } }
           }),
           prisma.wallet.update({
             where: { userId: order.buyerId },
-            data: { usdtBalance: { increment: amount } }
+            data: { usdtBalance: { increment: Number(amount) } }
           })
         );
       } else {
@@ -229,7 +220,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
           prisma.wallet.update({
             where: { userId: order.sellerId },
             data: { 
-              usdtFrozen: { decrement: totalToSubtract },
+              frozenBalance: { decrement: totalToSubtract },
               usdtBalance: { increment: totalToSubtract }
             }
           })
