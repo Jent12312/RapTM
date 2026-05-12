@@ -24,7 +24,7 @@ export function Header() {
   const avatarSrc = user?.avatarUrl || null;
 
   return (
-    <div className="px-5 py-4 flex justify-between items-center bg-white/80 backdrop-blur-md sticky top-0 z-50">
+    <div className="px-5 py-4 flex justify-between items-center bg-white/80 backdrop-blur-md sticky top-0 z-50 h-16">
       <div className="flex bg-slate-100 p-1 rounded-xl">
         <LangBtn lang="ru" label="RU" />
         <LangBtn lang="tm" label="TM" />

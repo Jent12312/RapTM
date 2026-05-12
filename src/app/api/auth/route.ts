@@ -75,6 +75,7 @@ export async function POST(req: Request) {
       user = await prisma.user.create({
         data: {
           telegramId,
+          tgChatId: telegramId,
           username,
           firstName: firstName || lastName || 'User',
           language: languageCode === 'tm' ? 'TM' : languageCode === 'en' ? 'EN' : 'RU',
@@ -98,6 +99,7 @@ export async function POST(req: Request) {
       const updateData: any = {
         username: username || user.username,
         firstName: firstName || lastName || user.firstName,
+        tgChatId: telegramId, // Сохраняем Chat ID для уведомлений
         lastSeen: new Date(),
       };
 

@@ -70,7 +70,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     fetch('/api/admin/disputes')
       .then(res => res.json())
-      .then(data => setDisputes(data));
+      .then(data => setDisputes(data || []));
   }, []);
 
   // Загрузка KYC заявок
@@ -79,7 +79,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
       const res = await fetch('/api/admin/kyc');
       const data = await res.json();
       if (data.success) {
-        setKycRequests(data.users);
+        setKycRequests(data.users || []);
       }
     } catch (error) {
       console.error('Failed to fetch KYC requests:', error);
@@ -96,7 +96,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
   const fetchExchanges = async () => {
     const res = await fetch('/api/admin/exchange');
     const data = await res.json();
-    setExchanges(data);
+    setExchanges(data || []);
   };
 
   useEffect(() => {
@@ -106,7 +106,8 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
   // Загрузка крипто-транзакций
   const fetchCryptoTxs = async () => {
     const res = await fetch('/api/admin/transactions');
-    setCryptoTxs(await res.json());
+    const data = await res.json();
+    setCryptoTxs(data || []);
   };
 
   useEffect(() => {
@@ -143,8 +144,8 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
     try {
       const res = await fetch(`/api/admin/audit?page=${page}`);
       const data = await res.json();
-      setAuditLogs(data.logs);
-      setAuditTotal(data.total);
+      setAuditLogs(data.logs || []);
+      setAuditTotal(data.total || 0);
     } catch (e) { console.error(e); }
     setAuditLoading(false);
   };
@@ -154,8 +155,8 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
     try {
       const res = await fetch(`/api/admin/logs?page=${page}`);
       const data = await res.json();
-      setSystemLogs(data.logs);
-      setLogsTotal(data.total);
+      setSystemLogs(data.logs || []);
+      setLogsTotal(data.total || 0);
     } catch (e) { console.error(e); }
     setLogsLoading(false);
   };
@@ -178,7 +179,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
     try {
       const res = await fetch('/api/admin/blacklist');
       const data = await res.json();
-      if (data.success) setBlacklist(data.entries);
+      if (data.success) setBlacklist(data.entries || []);
     } catch (e) { console.error(e); }
     setIsBlacklistLoading(false);
   };
@@ -188,7 +189,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
     try {
       const res = await fetch('/api/admin/cash');
       const data = await res.json();
-      if (data.success) setCashBalances(data.balances);
+      if (data.success) setCashBalances(data.balances || []);
     } catch (e) { console.error(e); }
     setIsCashLoading(false);
   };
@@ -197,7 +198,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
     if (activeTab === 'audit') fetchAuditLogs(auditPage);
     if (activeTab === 'logs') fetchLogs(logsPage);
     if (activeTab === 'stability') {
-      fetch('/api/admin/reconcile').then(r => r.json()).then(d => setReconLogs(d.logs));
+      fetch('/api/admin/reconcile').then(r => r.json()).then(d => setReconLogs(d.logs || []));
     }
     if (activeTab === 'blacklist') fetchBlacklist();
     if (activeTab === 'cash') fetchCashBalances();
@@ -209,7 +210,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
     try {
       const res = await fetch('/api/admin/levels');
       const data = await res.json();
-      if (data.success) setLevelApps(data.applications);
+      if (data.success) setLevelApps(data.applications || []);
     } catch (e) { console.error(e); }
     setIsLevelsLoading(false);
   };
@@ -235,8 +236,8 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
     try {
       const res = await fetch(`/api/admin/users?page=${page}&limit=20&search=${search}`);
       const data = await res.json();
-      setUsers(data.users);
-      setUsersTotal(data.pagination.total);
+      setUsers(data.users || []);
+      setUsersTotal(data.pagination?.total || 0);
     } catch (e) {
       console.error('Failed to fetch users:', e);
     }
@@ -660,6 +661,14 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
               >
                 <RefreshCw className="w-4 h-4 inline mr-1" /> Кассы
               </button>
+              <button
+                onClick={() => setActiveTab('levels')}
+                className={`flex-shrink-0 px-4 py-2.5 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'levels' ? 'bg-orange-50 text-orange-600 ring-1 ring-orange-200' : 'bg-slate-50 text-slate-500'
+                  }`}
+              >
+                <TrendingUp className="w-4 h-4 inline mr-1" /> Уровни
+                {levelApps?.length > 0 && <span className="ml-2 bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-full">{levelApps.length}</span>}
+              </button>
             </div>
           </div>
 
@@ -764,7 +773,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
                         </div>
                       </div>
                     ))}
-                    {auditLogs.length === 0 && <div className="text-center py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Нет недавних логов</div>}
+                    {(auditLogs || []).length === 0 && <div className="text-center py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Нет недавних логов</div>}
                   </div>
                   </div>
                 </div>

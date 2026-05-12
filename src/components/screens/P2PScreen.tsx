@@ -213,7 +213,7 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
       <div className="pb-32 min-h-screen bg-slate-50/50 animate-in fade-in duration-300">
         
         {/* --- HEADER --- */}
-        <div className="bg-white px-4 pt-3 pb-4 shadow-sm shadow-slate-200/50 sticky top-[72px] z-30 border-b border-slate-100 space-y-4 rounded-b-3xl">
+        <div className="bg-white px-4 pt-3 pb-4 shadow-sm shadow-slate-200/50 sticky top-[64px] z-30 border-b border-slate-100 space-y-4 rounded-b-3xl">
           
           {/* Top Actions: Buy/Sell Toggle & Icons */}
           <div className="flex justify-between items-center gap-4">
@@ -449,7 +449,7 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
 
                 {/* Validation & Button */}
                 {(() => {
-                  const userTrades = user?.ordersAsBuyer?.length || 0;
+                  const userTrades = (user?.ordersAsBuyer || []).length || 0;
                   
                   if (selectedAd.reqKyc && !user?.isVerified) {
                     return <div className="w-full py-4 text-center rounded-xl font-bold text-sm bg-red-50 text-red-500">Требуется верификация (KYC)</div>;

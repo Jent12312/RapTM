@@ -26,17 +26,35 @@ export async function POST(req: Request) {
     const { key, value } = await req.json();
     const ip = req.headers.get('x-forwarded-for') || '127.0.0.1';
 
-    // Если меняем курс, записываем в историю
-    if (key === 'EXCHANGE_RATE') {
-      const oldSetting = await prisma.systemSetting.findUnique({ where: { key: 'EXCHANGE_RATE' } });
-      const oldRate = oldSetting ? parseFloat(oldSetting.value) : 0;
-      const newRate = parseFloat(value);
+    // Если меняем курс, записываем в историю и обновляем спец. таблицу
+    if (key === 'EXCHANGE_RATE' || key === 'RATE_FROZEN') {
+      const isRate = key === 'EXCHANGE_RATE';
+      const rateVal = isRate ? parseFloat(value) : undefined;
+      const frozenVal = !isRate ? (value === 'true') : undefined;
 
-      await prisma.rateHistory.create({
-        data: {
-          oldRate,
-          newRate,
-          changedBy: authUser.userId
+      if (isRate) {
+        const oldSetting = await prisma.systemSetting.findUnique({ where: { key: 'EXCHANGE_RATE' } });
+        const oldRate = oldSetting ? parseFloat(oldSetting.value) : 0;
+        
+        await prisma.rateHistory.create({
+          data: {
+            oldRate,
+            newRate: rateVal!,
+            changedBy: authUser.userId
+          }
+        });
+      }
+
+      await prisma.exchangeRate.upsert({
+        where: { id: 'global' },
+        update: { 
+          ...(rateVal !== undefined && { rate: rateVal }),
+          ...(frozenVal !== undefined && { isFrozen: frozenVal })
+        },
+        create: { 
+          id: 'global',
+          rate: rateVal || 19.5,
+          isFrozen: frozenVal || false
         }
       });
     }
@@ -60,7 +78,10 @@ export async function POST(req: Request) {
 
     return NextResponse.json(setting);
   } catch (error) {
-    console.error('Settings save error:', error);
-    return NextResponse.json({ error: 'Failed' }, { status: 500 });
+    console.error('Settings save error [ADMIN]:', error);
+    return NextResponse.json({ 
+      error: 'Failed to save setting', 
+      details: error instanceof Error ? error.message : String(error) 
+    }, { status: 500 });
   }
 }
