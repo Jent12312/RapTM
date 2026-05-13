@@ -29,13 +29,13 @@ export async function GET() {
     // 4. Объёмы торгов (P2P + Swaps + Codes)
     // P2P Volume USDT
     const p2pVolume24h = await prisma.order.aggregate({
-      where: { status: 'COMPLETED', updatedAt: { gte: dayAgo }, asset: 'USDT' },
+      where: { status: 'COMPLETED', updatedAt: { gte: dayAgo }, ad: { asset: 'USDT' } },
       _sum: { amountAsset: true }
     });
     
     // P2P Volume TMT
     const p2pVolumeTmt24h = await prisma.order.aggregate({
-      where: { status: 'COMPLETED', updatedAt: { gte: dayAgo }, asset: 'TMT' },
+      where: { status: 'COMPLETED', updatedAt: { gte: dayAgo }, ad: { asset: 'TMT' } },
       _sum: { amountAsset: true }
     });
 
@@ -57,10 +57,10 @@ export async function GET() {
     });
 
     const totalP2PVolume = await prisma.order.aggregate({
-      where: { status: 'COMPLETED', asset: 'USDT' },
+      where: { status: 'COMPLETED', ad: { asset: 'USDT' } },
       _sum: { amountAsset: true }
     });
-    const estimatedP2PCommissions = Number(totalP2PVolume._sum.amountAsset || 0) * 0.005;
+    const estimatedP2PCommissions = Number(totalP2PVolume._sum?.amountAsset || 0) * 0.005;
 
     // 6. Общие балансы в системе
     const totalBalances = await prisma.wallet.aggregate({
@@ -82,20 +82,20 @@ export async function GET() {
       disputes: { active: activeDisputes },
       trades: { active: activeTrades },
       volume: {
-        p2p24h: Number(p2pVolume24h._sum.amountAsset || 0),
-        p2pTmt24h: Number(p2pVolumeTmt24h._sum.amountAsset || 0),
-        swap24h: Number(swapVolume24h._sum.amountUsdt || 0)
+        p2p24h: Number(p2pVolume24h._sum?.amountAsset || 0),
+        p2pTmt24h: Number(p2pVolumeTmt24h._sum?.amountAsset || 0),
+        swap24h: Number(swapVolume24h._sum?.amountUsdt || 0)
       },
       finance: {
-        swapFees: Number(swapCommissions._sum.commission || 0),
+        swapFees: Number(swapCommissions._sum?.commission || 0),
         codeFees: codeFees.reduce((acc, item) => ({
           ...acc,
-          [item.currency]: Number(item._sum.fee || 0)
+          [item.currency]: Number(item._sum?.fee || 0)
         }), {} as Record<string, number>),
         p2pFeesEstimated: estimatedP2PCommissions,
         pendingWithdrawals,
-        totalUsdt: Number(totalBalances._sum.usdtBalance || 0),
-        totalTmt: Number(totalBalances._sum.tmtBalance || 0)
+        totalUsdt: Number(totalBalances._sum?.usdtBalance || 0),
+        totalTmt: Number(totalBalances._sum?.tmtBalance || 0)
       }
     });
   } catch (error) {

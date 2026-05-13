@@ -106,7 +106,7 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
   }: { 
     title: string, 
     preview: string | null, 
-    inputRef: React.RefObject<HTMLInputElement>,
+    inputRef: React.RefObject<HTMLInputElement | null>,
     onSelect: (file: File) => void,
     onRemove: () => void
   }) => (
@@ -314,6 +314,7 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
+      </div>
     </div>
   );
 }

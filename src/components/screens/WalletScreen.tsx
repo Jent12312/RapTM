@@ -72,6 +72,7 @@ export default function WalletScreen() {
   const [isClaiming, setIsClaiming] = useState(false);
   const [isClaimingTmt, setIsClaimingTmt] = useState(false);
   const [receivePhone, setReceivePhone] = useState('+993 65 XX-XX-XX');
+  const [phone, setPhone] = useState('');
 
   const fetchSettings = async () => {
     try {
@@ -752,7 +753,7 @@ export default function WalletScreen() {
                       <div className="space-y-3">
                         <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">{t(language, 'walYourCity')}</label>
                         <select value={city} onChange={(e) => setCity(e.target.value)} className="w-full p-5 bg-slate-50 rounded-2xl font-black text-slate-700 outline-none border-2 border-transparent focus:border-emerald-500 transition-all appearance-none shadow-sm">
-                          {[t(language, 'walAshgabat'), t(language, 'walTurkmenabad'), t(language, 'walMary'), t(language, 'walDashoguz'), t(language, 'walBalkanabad')].map(c => <option key={c} value={c}>{c}</option>)}
+                          {['walAshgabat', 'walTurkmenabat', 'walMary', 'walDashoguz', 'walBalkanabat'].map(k => <option key={k} value={t(language, k as any)}>{t(language, k as any)}</option>)}
                         </select>
                       </div>
                       <div className="space-y-3">

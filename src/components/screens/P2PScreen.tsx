@@ -170,10 +170,10 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
       // Проверка баланса перед сделкой (только если мы продаем актив или покупаем у мерчанта актив)
       const assetField = selectedAd.asset === 'TMT' ? 'tmtBalance' : 'usdtBalance';
       const sellerId = selectedAd.type === 'buy' ? user.id : selectedAd.userId;
-      const res = await fetch(`/api/wallet/balance?userId=${sellerId}`);
-      const data = await res.json();
+      const balanceRes = await fetch(`/api/wallet/balance?userId=${sellerId}`);
+      const balanceData = await balanceRes.json();
       
-      const sellerBalance = Number(data[assetField] || 0);
+      const sellerBalance = Number(balanceData[assetField] || 0);
       if (sellerBalance < amountAsset) {
         addToast(t(language, selectedAd.asset === 'TMT' ? 'insufficientTmtSeller' : 'insufficientUsdtSeller'), 'error');
         setIsProcessing(false);
