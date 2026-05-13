@@ -100,8 +100,12 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     fetch('/api/admin/disputes')
-      .then(res => res.json())
-      .then(data => setDisputes(data || []));
+      .then(res => res.ok ? res.json() : [])
+      .then(data => setDisputes(Array.isArray(data) ? data : []))
+      .catch(err => {
+        console.error('Failed to fetch disputes:', err);
+        setDisputes([]);
+      });
   }, []);
 
   useEffect(() => {
@@ -125,9 +129,9 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
   const fetchKycRequests = async () => {
     try {
       const res = await fetch('/api/admin/kyc');
-      const data = await res.json();
-      if (data.success) {
-        setKycRequests(data.users || []);
+      if (res.ok) {
+        const data = await res.json();
+        setKycRequests(Array.isArray(data.users) ? data.users : []);
       }
     } catch (error) {
       console.error('Failed to fetch KYC requests:', error);
@@ -140,7 +144,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
       const res = await fetch('/api/admin/exchange');
       if (!res.ok) throw new Error(t(language, 'serverError'));
       const data = await res.json();
-      setExchanges(data || []);
+      setExchanges(Array.isArray(data) ? data : []);
     } catch (e: any) {
       setError(e.message || 'Failed to fetch exchanges');
     } finally {
@@ -154,7 +158,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
       const res = await fetch('/api/admin/transactions');
       if (!res.ok) throw new Error(t(language, 'serverError'));
       const data = await res.json();
-      setCryptoTxs(data || []);
+      setCryptoTxs(Array.isArray(data) ? data : []);
     } catch (e: any) {
       setError(e.message || 'Failed to fetch crypto transactions');
     } finally {
@@ -249,7 +253,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
       const res = await fetch('/api/admin/blacklist');
       if (!res.ok) throw new Error(t(language, 'serverError'));
       const data = await res.json();
-      if (data.success) setBlacklist(data.entries || []);
+      if (data.success) setBlacklist(Array.isArray(data.entries) ? data.entries : []);
     } catch (e: any) {
       console.error(e);
       setError(e.message || 'Failed to fetch blacklist');
@@ -264,7 +268,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
       const res = await fetch('/api/admin/cash');
       if (!res.ok) throw new Error(t(language, 'serverError'));
       const data = await res.json();
-      if (data.success) setCashBalances(data.balances || []);
+      if (data.success) setCashBalances(Array.isArray(data.balances) ? data.balances : []);
     } catch (e: any) {
       console.error(e);
       setError(e.message || 'Failed to fetch cash balances');
@@ -279,7 +283,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
       const res = await fetch('/api/admin/levels');
       if (!res.ok) throw new Error(t(language, 'serverError'));
       const data = await res.json();
-      if (data.success) setLevelApps(data.applications || []);
+      if (data.success) setLevelApps(Array.isArray(data.applications) ? data.applications : []);
     } catch (e: any) {
       console.error(e);
       setError(e.message || 'Failed to fetch level applications');
@@ -317,7 +321,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
       const res = await fetch(`/api/admin/users?page=${page}&limit=20&search=${search}`);
       if (!res.ok) throw new Error(t(language, 'serverError'));
       const data = await res.json();
-      setUsers(data.users || []);
+      setUsers(Array.isArray(data.users) ? data.users : []);
       setUsersTotal(data.pagination?.total || 0);
     } catch (e: any) {
       console.error(e);

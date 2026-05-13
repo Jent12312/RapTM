@@ -19,7 +19,8 @@ export default function GlobalNotifications() {
       try {
         const res = await fetch(`/api/orders?userId=${user.id}`);
         if (!res.ok) return;
-        const orders = await res.json();
+        const data = await res.json();
+        const orders = Array.isArray(data) ? data : (data?.orders || []);
         
         const newKnown = { ...knownOrders };
         const isFirstLoad = Object.keys(knownOrders).length === 0;

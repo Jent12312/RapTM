@@ -172,7 +172,7 @@ export default function ReferralScreen({ onClose }: { onClose: () => void }) {
                  <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t(language, 'loading')}</p>
               </div>
-            ) : data && data.referrals.length > 0 ? (
+            ) : data && Array.isArray(data.referrals) && data.referrals.length > 0 ? (
               <div className="divide-y divide-slate-50">
                 {data.referrals.map((ref) => (
                   <div key={ref.id} className="p-5 flex justify-between items-center hover:bg-slate-50 transition-colors">

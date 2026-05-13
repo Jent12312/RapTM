@@ -48,7 +48,7 @@ export default function UsersTab({
       </div>
 
       <div className="space-y-3">
-        {users.length === 0 ? (
+        {!Array.isArray(users) || users.length === 0 ? (
           <div className="text-center py-10 text-slate-400 font-bold">{t(language, 'adminNoUsers')}</div>
         ) : (
           users.map((u) => (

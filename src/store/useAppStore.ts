@@ -67,6 +67,14 @@ export const useAppStore = create<AppState>()(
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ initData }),
           });
+          
+          if (!res.ok) {
+            const errorText = await res.text();
+            console.error("Auth server error:", errorText);
+            get().addToast("Ошибка сервера при авторизации.", "error");
+            return;
+          }
+
           const data = await res.json();
           if (data.success && data.user) {
             set({
@@ -83,7 +91,7 @@ export const useAppStore = create<AppState>()(
             get().addToast("Ошибка авторизации. Перезапустите приложение.", "error");
           }
         } catch (err) {
-          console.error("Ошибка авторизации:", err);
+          console.error("Ошибка авторизации (Network/JSON):", err);
           get().addToast("Ошибка сети при авторизации.", "error");
         }
       },
@@ -104,8 +112,9 @@ export const useAppStore = create<AppState>()(
             const data = await res.json();
             // Безопасное извлечение массива
             const adsArray = Array.isArray(data) ? data : (data?.ads || data?.data || []);
-            set({ ads: adsArray, isLoadingAds: false });
+            set({ ads: Array.isArray(adsArray) ? adsArray : [], isLoadingAds: false });
           } else {
+            console.error("Ads fetch error: status", res.status);
             set({ ads: [], isLoadingAds: false });
           }
         } catch (error) {

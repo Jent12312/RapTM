@@ -186,9 +186,13 @@ export default function WalletScreen() {
 
       if (txRes.ok) {
         const resJson = await txRes.json();
-        txData = resJson.transactions || [];
+        const rawTxs = resJson.transactions || resJson.data || [];
+        txData = Array.isArray(rawTxs) ? rawTxs : [];
       }
-      if (exRes.ok) exData = await exRes.json();
+      if (exRes.ok) {
+        const exResData = await exRes.json();
+        exData = Array.isArray(exResData) ? exResData : [];
+      }
 
       const normalizedExchanges = (Array.isArray(exData) ? exData : []).map(ex => ({
         id: `swap-${ex.id}`,
@@ -214,7 +218,7 @@ export default function WalletScreen() {
       const res = await fetch('/api/wallet/addresses');
       if (res.ok) {
         const data = await res.json();
-        setSavedAddresses(data.addresses || []);
+        setSavedAddresses(Array.isArray(data.addresses) ? data.addresses : []);
       }
     } catch (error) { console.error(error); }
     finally { setIsLoadingAddresses(false); }

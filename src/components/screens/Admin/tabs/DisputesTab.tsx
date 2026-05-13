@@ -18,13 +18,13 @@ export default function DisputesTab({
   resolveDispute,
   loading,
 }: DisputesTabProps) {
-  if ((disputes || []).length === 0) {
+  if (!Array.isArray(disputes) || disputes.length === 0) {
     return <div className="text-center text-slate-400 py-10 font-bold">{t(language, 'adminNoDisputes')}</div>;
   }
 
   return (
     <div className="space-y-4">
-      {(disputes || []).map((order) => (
+      {disputes.map((order) => (
         <div
           key={order.id}
           className="bg-white p-5 rounded-[2rem] shadow-sm ring-1 ring-red-100 border-t-4 border-red-500 cursor-pointer hover:shadow-md transition-all"
