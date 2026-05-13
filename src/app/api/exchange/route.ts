@@ -58,9 +58,11 @@ export async function POST(req: Request) {
     }, { EXCHANGE_RATE: '19.5', EXCHANGE_FEE: '1' });
 
     const currentRate = parseFloat(settingsMap.EXCHANGE_RATE);
+    const feeConfig = parseFloat(settingsMap.EXCHANGE_FEE || '20'); // Ожидаем сумму в TMT или проценты? Судя по коду было 20 TMT.
     
-    // Фиатные пары (USDT/TMT): 20 TMT фикс (списывается в USDT эквиваленте)
-    const fee = 20 / currentRate;
+    // Если в настройках число > 10, считаем это фиксированной суммой в TMT. Если < 10, возможно это проценты (но старый код использовал фикс).
+    // Для совместимости со старым кодом (где было 20 TMT) используем значение как фиксированную сумму в TMT.
+    const fee = feeConfig / currentRate;
 
     const user = await prisma.user.findUnique({
       where: { id: userId },

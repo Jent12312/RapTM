@@ -72,6 +72,8 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
 
       const feeAmount = Number(order.feeAmount);
 
+      const assetField = order.ad.asset === 'TMT' ? 'tmtBalance' : 'usdtBalance';
+
       // Execute transaction: Release escrow
       const [ , , updatedOrder ] = await prisma.$transaction([
         prisma.wallet.update({
@@ -80,7 +82,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         }),
         prisma.wallet.update({
           where: { userId: order.buyerId },
-          data: { usdtBalance: { increment: Number(order.amountAsset) } }
+          data: { [assetField]: { increment: Number(order.amountAsset) } }
         }),
         prisma.order.update({
           where: { id },
@@ -147,12 +149,14 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
 
       const feeAmount = Number(order.feeAmount);
 
+      const assetField = order.ad.asset === 'TMT' ? 'tmtBalance' : 'usdtBalance';
+
       const [ , updatedOrder ] = await prisma.$transaction([
         prisma.wallet.update({
           where: { userId: order.sellerId },
           data: { 
             frozenBalance: { decrement: Number(order.amountAsset) + feeAmount },
-            usdtBalance: { increment: Number(order.amountAsset) + feeAmount }
+            [assetField]: { increment: Number(order.amountAsset) + feeAmount }
           }
         }),
         prisma.order.update({
@@ -201,6 +205,8 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         })
       );
 
+      const assetField = order.ad.asset === 'TMT' ? 'tmtBalance' : 'usdtBalance';
+
       // 2. Wallet updates
       if (status === 'COMPLETED') {
         // From seller's frozen to buyer's balance
@@ -211,7 +217,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
           }),
           prisma.wallet.update({
             where: { userId: order.buyerId },
-            data: { usdtBalance: { increment: Number(amount) } }
+            data: { [assetField]: { increment: Number(amount) } }
           })
         );
       } else {
@@ -221,7 +227,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
             where: { userId: order.sellerId },
             data: { 
               frozenBalance: { decrement: totalToSubtract },
-              usdtBalance: { increment: totalToSubtract }
+              [assetField]: { increment: totalToSubtract }
             }
           })
         );

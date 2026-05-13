@@ -8,10 +8,14 @@ import WebApp from '@twa-dev/sdk';
 
 export default function KycScreen({ onClose }: { onClose: () => void }) {
   const { user, language, addToast, initUser } = useAppStore();
-  const [kycPhoto, setKycPhoto] = useState<File | null>(null);
-  const [kycPreview, setKycPreview] = useState<string | null>(null);
+  const [kycSelfie, setKycSelfie] = useState<File | null>(null);
+  const [kycSelfiePreview, setKycSelfiePreview] = useState<string | null>(null);
+  const [kycDocument, setKycDocument] = useState<File | null>(null);
+  const [kycDocumentPreview, setKycDocumentPreview] = useState<string | null>(null);
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const selfieInputRef = useRef<HTMLInputElement>(null);
+  const documentInputRef = useRef<HTMLInputElement>(null);
 
   // Получаем актуальный статус из user или храним локально
   const kycStatus = user?.kycStatus || 'NONE';
@@ -19,7 +23,7 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
   const isPending = kycStatus === 'PENDING';
   const isRejected = kycStatus === 'REJECTED';
 
-  const handlePhotoSelect = (file: File) => {
+  const handlePhotoSelect = (file: File, type: 'selfie' | 'document') => {
     // Проверка типа
     const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
     if (!allowedTypes.includes(file.type)) {
@@ -33,30 +37,20 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
       return;
     }
 
-    setKycPhoto(file);
+    if (type === 'selfie') setKycSelfie(file);
+    else setKycDocument(file);
     
     // Создаём превью
     const reader = new FileReader();
     reader.onload = (e) => {
-      setKycPreview(e.target?.result as string);
+      if (type === 'selfie') setKycSelfiePreview(e.target?.result as string);
+      else setKycDocumentPreview(e.target?.result as string);
     };
     reader.readAsDataURL(file);
   };
 
-  const handlePhotoUpload = () => {
-    // Открываем стандартный выбор файла через click
-    fileInputRef.current?.click();
-  };
-
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handlePhotoSelect(file);
-    }
-  };
-
   const handleSubmitKyc = async () => {
-    if (!kycPhoto) {
+    if (!kycSelfie || !kycDocument) {
       addToast(t(language, 'kycPhotoRequired'), 'error');
       return;
     }
@@ -65,7 +59,8 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
 
     try {
       const formData = new FormData();
-      formData.append('photo', kycPhoto);
+      formData.append('selfie', kycSelfie);
+      formData.append('document', kycDocument);
 
       const res = await fetch(`/api/user/${user.id}/kyc-upload`, {
         method: 'POST',
@@ -89,13 +84,76 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
     }
   };
 
-  const handleRemovePhoto = () => {
-    setKycPhoto(null);
-    setKycPreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+  const handleRemovePhoto = (type: 'selfie' | 'document') => {
+    if (type === 'selfie') {
+      setKycSelfie(null);
+      setKycSelfiePreview(null);
+      if (selfieInputRef.current) selfieInputRef.current.value = '';
+    } else {
+      setKycDocument(null);
+      setKycDocumentPreview(null);
+      if (documentInputRef.current) documentInputRef.current.value = '';
     }
   };
+
+  // Компонент для секции загрузки
+  const UploadSection = ({ 
+    title, 
+    preview, 
+    inputRef, 
+    onSelect, 
+    onRemove 
+  }: { 
+    title: string, 
+    preview: string | null, 
+    inputRef: React.RefObject<HTMLInputElement>,
+    onSelect: (file: File) => void,
+    onRemove: () => void
+  }) => (
+    <div className="bg-white p-6 rounded-[2rem] shadow-sm ring-1 ring-slate-100">
+      <h4 className="text-sm font-bold text-slate-700 mb-4">{title}</h4>
+
+      {preview ? (
+        <div className="relative">
+          <div className="rounded-2xl overflow-hidden border-2 border-emerald-200">
+            <img
+              src={preview}
+              alt="KYC Photo"
+              className="w-full h-48 object-cover"
+            />
+          </div>
+          <button
+            onClick={onRemove}
+            className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur rounded-full text-red-500 shadow-lg hover:bg-white transition-all"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <button
+            onClick={() => inputRef.current?.click()}
+            className="w-full border-2 border-dashed border-slate-200 p-6 rounded-2xl flex flex-col items-center justify-center gap-2 hover:border-emerald-400 transition-all"
+          >
+            <Camera className="w-8 h-8 text-slate-400" />
+            <p className="text-sm font-bold text-slate-600">{t(language, 'kycOpenCam')}</p>
+            <p className="text-xs text-slate-400">Telegram MediaPicker</p>
+          </button>
+
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/jpg"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onSelect(file);
+            }}
+            className="hidden"
+          />
+        </div>
+      )}
+    </div>
+  );
 
   // Если уже верифицирован
   if (isVerified) {
@@ -187,10 +245,13 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
           </div>
 
           <button
-            onClick={handleRemovePhoto}
+            onClick={() => {
+              handleRemovePhoto('selfie');
+              handleRemovePhoto('document');
+            }}
             className="w-full bg-emerald-500 text-white font-bold py-4 rounded-2xl shadow-lg active:scale-95 transition-all"
           >
-            {t(language, 'kycStep2Title')}
+            {t(language, 'kycSubmitBtn')}
           </button>
         </div>
       </div>
@@ -222,72 +283,29 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
           </ul>
         </div>
 
-        <div className="bg-white p-6 rounded-[2rem] shadow-sm ring-1 ring-slate-100">
-          <h4 className="text-sm font-bold text-slate-700 mb-4">{t(language, 'kycStep1Title')}</h4>
+        <UploadSection 
+          title={t(language, 'kycStep1Title')}
+          preview={kycSelfiePreview}
+          inputRef={selfieInputRef}
+          onSelect={(file) => handlePhotoSelect(file, 'selfie')}
+          onRemove={() => handleRemovePhoto('selfie')}
+        />
 
-          {kycPreview ? (
-            <div className="relative">
-              <div className="rounded-2xl overflow-hidden border-2 border-emerald-200">
-                <img
-                  src={kycPreview}
-                  alt="KYC Photo"
-                  className="w-full h-64 object-cover"
-                />
-              </div>
-              <button
-                onClick={handleRemovePhoto}
-                className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur rounded-full text-red-500 shadow-lg hover:bg-white transition-all"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <button
-                onClick={handlePhotoUpload}
-                className="w-full border-2 border-dashed border-slate-200 p-8 rounded-2xl flex flex-col items-center justify-center gap-2 hover:border-emerald-400 transition-all"
-              >
-                <Camera className="w-10 h-10 text-slate-400" />
-                <p className="text-sm font-bold text-slate-600">{t(language, 'kycOpenCam')}</p>
-                <p className="text-xs text-slate-400">Telegram MediaPicker</p>
-              </button>
-
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-px bg-slate-200"></div>
-                <span className="text-xs text-slate-400 font-medium">{t(language, 'kycOr')}</span>
-                <div className="flex-1 h-px bg-slate-200"></div>
-              </div>
-
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full border-2 border-dashed border-slate-200 p-4 rounded-2xl flex items-center justify-center gap-3 hover:border-blue-400 transition-all"
-              >
-                <Image className="w-6 h-6 text-slate-400" />
-                <p className="text-sm font-bold text-slate-600">{t(language, 'kycSelectFile')}</p>
-              </button>
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/jpg"
-                onChange={handleFileInputChange}
-                className="hidden"
-              />
-            </div>
-          )}
-
-          <p className="text-xs text-slate-400 mt-3 text-center">
-            📸 {t(language, 'kycStep1Title')}
-          </p>
-        </div>
+        <UploadSection 
+          title={t(language, 'kycStep2Title')}
+          preview={kycDocumentPreview}
+          inputRef={documentInputRef}
+          onSelect={(file) => handlePhotoSelect(file, 'document')}
+          onRemove={() => handleRemovePhoto('document')}
+        />
 
         <div className="bg-white p-6 rounded-[2rem] shadow-sm ring-1 ring-slate-100">
-          <h4 className="text-sm font-bold text-slate-700 mb-4">{t(language, 'kycStep2Title')}</h4>
+          <h4 className="text-sm font-bold text-slate-700 mb-4">{t(language, 'kycStep3Title')}</h4>
           <button
             onClick={handleSubmitKyc}
-            disabled={!kycPhoto || isSubmitting}
+            disabled={!kycSelfie || !kycDocument || isSubmitting}
             className={`w-full font-bold py-4 rounded-2xl shadow-lg active:scale-95 transition-all ${
-              kycPhoto && !isSubmitting
+              kycSelfie && kycDocument && !isSubmitting
                 ? 'bg-emerald-500 text-white'
                 : 'bg-slate-200 text-slate-400 cursor-not-allowed'
             }`}
@@ -296,7 +314,6 @@ export default function KycScreen({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-      </div>
     </div>
   );
 }

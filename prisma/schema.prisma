@@ -95,6 +95,7 @@ model User {
   isVerified   Boolean  @default(false)
   kycStatus    KycStatus @default(NONE)
   kycPhotoUrl  String?  // URL загруженного фото документа
+  kycSelfieUrl String?  // URL селфи с документом
   createdAt    DateTime  @default(now())
   nickname     String?
   avatarUrl    String?

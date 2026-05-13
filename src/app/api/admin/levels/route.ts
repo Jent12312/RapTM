@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     include: { user: true }
   });
 
-  if (status === 'APPROVED') {
+  if (status === 'VERIFIED') {
     await prisma.user.update({
       where: { id: app.userId },
       data: { 

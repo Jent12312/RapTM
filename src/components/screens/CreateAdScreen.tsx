@@ -194,7 +194,9 @@ export default function CreateAdScreen({ onClose }: Props) {
         <div className="bg-white p-5 rounded-[2.5rem] shadow-sm ring-1 ring-slate-100 space-y-5">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t(language, 'cryptocurrency')}</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                {adDirection === 'buy' ? t(language, 'youReceive') : t(language, 'youGive')}
+              </label>
               <div className="relative">
                 <select value={asset} onChange={(e) => setAsset(e.target.value)} className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-2xl px-4 py-3 text-sm font-bold appearance-none outline-none">
                   <option value="USDT">USDT</option>
@@ -205,7 +207,9 @@ export default function CreateAdScreen({ onClose }: Props) {
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t(language, 'fiatCurrency')}</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                {adDirection === 'buy' ? t(language, 'youGive') : t(language, 'youReceive')}
+              </label>
               <div className="relative">
                 <select value={fiat} onChange={(e) => setFiat(e.target.value)} className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-2xl px-4 py-3 text-sm font-bold appearance-none outline-none">
                   <option value="TMT">TMT (Манат)</option>

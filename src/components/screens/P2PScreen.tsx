@@ -167,17 +167,17 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
       const amountAsset = tradeType === 'buy' ? Number(calculateReceiveAmount) : inputAmount;
       const amountFiat = tradeType === 'buy' ? inputAmount : Number(calculateReceiveAmount);
 
-      // Проверка баланса перед сделкой (только если мы продаем USDT или покупаем у мерчанта USDT)
-      if (selectedAd.asset === 'USDT') {
-        const sellerId = selectedAd.type === 'buy' ? user.id : selectedAd.userId;
-        const res = await fetch(`/api/wallet/balance?userId=${sellerId}`);
-        const data = await res.json();
-        
-        if (data.usdtBalance < amountAsset) {
-          addToast(t(language, 'insufficientUsdtSeller'), 'error');
-          setIsProcessing(false);
-          return;
-        }
+      // Проверка баланса перед сделкой (только если мы продаем актив или покупаем у мерчанта актив)
+      const assetField = selectedAd.asset === 'TMT' ? 'tmtBalance' : 'usdtBalance';
+      const sellerId = selectedAd.type === 'buy' ? user.id : selectedAd.userId;
+      const res = await fetch(`/api/wallet/balance?userId=${sellerId}`);
+      const data = await res.json();
+      
+      const sellerBalance = Number(data[assetField] || 0);
+      if (sellerBalance < amountAsset) {
+        addToast(t(language, selectedAd.asset === 'TMT' ? 'insufficientTmtSeller' : 'insufficientUsdtSeller'), 'error');
+        setIsProcessing(false);
+        return;
       }
 
       const res = await fetch('/api/orders', {

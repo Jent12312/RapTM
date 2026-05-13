@@ -14,8 +14,6 @@ import { haptic } from '@/lib/haptic';
 import Skeleton from '@/components/ui/Skeleton';
 import PullToRefresh from '@/components/ui/PullToRefresh';
 
-const ADMIN_PHONE_NUMBER = '+993 65 XX-XX-XX';
-
 export default function ExchangeScreen() {
   const { language, balances, user, initUser, addToast } = useAppStore();
   
@@ -27,7 +25,8 @@ export default function ExchangeScreen() {
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [settings, setSettings] = useState({
     EXCHANGE_RATE: 19.5,
-    EXCHANGE_FEE: 1
+    EXCHANGE_FEE: 1,
+    RECEIVE_PHONE: '+993 65 XX-XX-XX'
   });
 
   // Загрузка настроек и истории
@@ -42,8 +41,9 @@ export default function ExchangeScreen() {
       if (settingsRes.ok) {
         const s = await settingsRes.json();
         setSettings({
-          EXCHANGE_RATE: parseFloat(s.EXCHANGE_RATE),
-          EXCHANGE_FEE: parseFloat(s.EXCHANGE_FEE)
+          EXCHANGE_RATE: parseFloat(s.EXCHANGE_RATE) || 19.5,
+          EXCHANGE_FEE: parseFloat(s.EXCHANGE_FEE) || 1,
+          RECEIVE_PHONE: s.RECEIVE_PHONE || '+993 65 XX-XX-XX'
         });
       }
     } catch (e) {
@@ -337,7 +337,7 @@ export default function ExchangeScreen() {
               <span className="text-[11px] font-black text-amber-700 uppercase tracking-widest">{t(language, 'whatToDo')}</span>
             </div>
             <p className="text-xs leading-relaxed text-amber-900/80 font-bold relative z-10">
-              {t(language, 'exInstruction').replace('{amount}', amount || '0').replace('{phone}', ADMIN_PHONE_NUMBER)}
+              {t(language, 'exInstruction').replace('{amount}', amount || '0').replace('{phone}', settings.RECEIVE_PHONE)}
             </p>
           </div>
         )}

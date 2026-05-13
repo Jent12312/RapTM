@@ -5,7 +5,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { t } from '@/lib/dictionaries';
 import {
   Eye, EyeOff, Plus, ArrowDownToLine, RefreshCcw, X, Copy, CheckCircle2, Clock,
-  MapPin, Zap, Star, AlertTriangle, ArrowRightLeft, QrCode, Loader2, ShieldCheck, Gift
+  MapPin, Zap, Star, AlertTriangle, ArrowRightLeft, QrCode, Loader2, ShieldCheck, Gift, Phone
 } from 'lucide-react';
 import WebApp from '@twa-dev/sdk';
 import { QRCodeSVG } from 'qrcode.react';
@@ -36,8 +36,9 @@ export default function WalletScreen() {
   } = useAppStore();
 
   const [modalType, setModalType] = useState<'none' | 'deposit' | 'withdraw'>('none');
-  const [depositMethod, setDepositMethod] = useState<'crypto' | 'cash' | 'rapCode'>('crypto');
-  const [withdrawMethod, setWithdrawMethod] = useState<'crypto' | 'cash' | 'rapCode'>('crypto');
+  const [depositMethod, setDepositMethod] = useState<'crypto' | 'cash' | 'rapCode' | 'tmt'>('crypto');
+  const [withdrawMethod, setWithdrawMethod] = useState<'crypto' | 'cash' | 'rapCode' | 'tmt'>('crypto');
+  const [modalAsset, setModalAsset] = useState<'USDT' | 'TMT'>('USDT');
 
   const [network, setNetwork] = useState<'TRC20' | 'BEP20' | 'APTOS'>('TRC20');
   const [amount, setAmount] = useState('');
@@ -69,6 +70,18 @@ export default function WalletScreen() {
   const [isLoadingAddresses, setIsLoadingAddresses] = useState(false);
 
   const [isClaiming, setIsClaiming] = useState(false);
+  const [isClaimingTmt, setIsClaimingTmt] = useState(false);
+  const [receivePhone, setReceivePhone] = useState('+993 65 XX-XX-XX');
+
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch('/api/settings');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.RECEIVE_PHONE) setReceivePhone(data.RECEIVE_PHONE);
+      }
+    } catch (e) { console.error(e); }
+  };
 
   const claimFaucet = async () => {
     haptic.medium();
@@ -94,6 +107,33 @@ export default function WalletScreen() {
       addToast(t(language, 'networkError'), 'error');
     } finally {
       setIsClaiming(false);
+    }
+  };
+
+  const claimFaucetTmt = async () => {
+    haptic.medium();
+    if (!user?.id) {
+      addToast(t(language, 'walUserNotAuth'), 'error');
+      return;
+    }
+    setIsClaimingTmt(true);
+    try {
+      const res = await fetch('/api/wallet/claim-test-tmt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        addToast(t(language, 'walClaimTmtSuccess'), 'success');
+        await initUser(WebApp.initData);
+      } else {
+        addToast(data.error || t(language, 'walClaimError'), 'error');
+      }
+    } catch (e) {
+      addToast(t(language, 'networkError'), 'error');
+    } finally {
+      setIsClaimingTmt(false);
     }
   };
 
@@ -198,6 +238,7 @@ export default function WalletScreen() {
     loadHistory();
     fetchRates();
     fetchSavedAddresses();
+    fetchSettings();
     const interval = setInterval(() => {
       initUser(WebApp.initData);
       loadHistory();
@@ -266,9 +307,10 @@ export default function WalletScreen() {
           userId: user.id,
           type: modalType === 'deposit' ? 'DEPOSIT' : 'WITHDRAWAL',
           amount: Number(amount),
+          asset: modalAsset,
           network,
-          method: modalType === 'deposit' ? depositMethod : withdrawMethod,
-          address,
+          method: (modalType === 'deposit' ? depositMethod : withdrawMethod) === 'tmt' ? 'CASH' : (modalType === 'deposit' ? depositMethod : withdrawMethod).toUpperCase(),
+          address: modalAsset === 'TMT' ? phone : address,
           txId,
           city,
           rapCode
@@ -387,7 +429,7 @@ export default function WalletScreen() {
           </div>
 
           <div className="grid grid-cols-3 gap-4 mt-8 relative z-10">
-            <button onClick={() => { haptic.medium(); setModalType('deposit'); }} className="flex flex-col items-center gap-2">
+            <button onClick={() => { haptic.medium(); setModalAsset('TMT'); setDepositMethod('tmt'); setModalType('deposit'); }} className="flex flex-col items-center gap-2">
               <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center hover:bg-white/30 transition-colors">
                 <Plus className="w-6 h-6" />
               </div>
@@ -405,6 +447,8 @@ export default function WalletScreen() {
                 setActiveTab('profile');
                 return;
               }
+              setModalAsset('TMT');
+              setWithdrawMethod('tmt');
               setModalType('withdraw');
             }} className="flex flex-col items-center gap-2 group/btn">
               <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center hover:bg-white/20 transition-all border border-white/5">
@@ -458,6 +502,19 @@ export default function WalletScreen() {
               </div>
               {isLoadingRates ? <Skeleton className="h-8 w-24 mb-2" /> : <div className="text-2xl font-black text-slate-800 tracking-tight mb-1">{isBalanceVisible ? balances.tmt.toFixed(2) : '****'}</div>}
               {isLoadingRates ? <Skeleton className="h-5 w-32" /> : <div className="text-[10px] font-bold text-blue-500 bg-blue-50 px-2 py-1 rounded-lg inline-block">{t(language, 'localCurrency')}</div>}
+              {/* Кнопка получения тестовых TMT */}
+              <button
+                onClick={claimFaucetTmt}
+                disabled={isClaimingTmt}
+                className="mt-4 w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-2xl font-black text-xs tracking-wider flex items-center justify-center gap-2 active:scale-[0.97] transition-all disabled:opacity-60 shadow-lg shadow-blue-200"
+              >
+                {isClaimingTmt ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Gift className="w-4 h-4" />
+                )}
+                {t(language, 'walGetTestTmt')}
+              </button>
             </div>
           </div>
 
@@ -578,22 +635,58 @@ export default function WalletScreen() {
               </div>
 
               <div className="space-y-8 relative z-10">
-                <div className="grid grid-cols-3 gap-3">
-                  {(['crypto', 'cash', 'rapCode'] as const).map(m => (
+                <div className="grid grid-cols-4 gap-2">
+                  {(['tmt', 'crypto', 'cash', 'rapCode'] as const).map(m => (
                     <button
                       key={m}
-                      onClick={() => { haptic.selection(); setDepositMethod(m); }}
-                      className={`flex flex-col items-center p-4 rounded-[2rem] gap-3 transition-all border ${depositMethod === m ? 'bg-white border-emerald-500 shadow-[0_10px_30px_rgba(16,185,129,0.1)] text-emerald-600' : 'bg-white border-slate-50 text-slate-400 hover:border-slate-200'}`}
+                      onClick={() => { haptic.selection(); setDepositMethod(m); setModalAsset(m === 'tmt' ? 'TMT' : 'USDT'); }}
+                      className={`flex flex-col items-center p-3 rounded-[1.5rem] gap-2 transition-all border ${depositMethod === m ? 'bg-white border-emerald-500 shadow-sm text-emerald-600' : 'bg-white border-slate-50 text-slate-400'}`}
                     >
-                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${depositMethod === m ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' : 'bg-slate-50'}`}>
-                        {m === 'crypto' ? <Zap className="w-5 h-5" /> : m === 'cash' ? <MapPin className="w-5 h-5" /> : <Star className="w-5 h-5" />}
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${depositMethod === m ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' : 'bg-slate-50'}`}>
+                        {m === 'tmt' ? <Phone className="w-4 h-4" /> : m === 'crypto' ? <Zap className="w-4 h-4" /> : m === 'cash' ? <MapPin className="w-4 h-4" /> : <Star className="w-4 h-4" />}
                       </div>
-                      <span className="text-[10px] font-black uppercase tracking-wider">{m === 'crypto' ? t(language, 'walCrypto') : m === 'cash' ? t(language, 'walCash') : t(language, 'walRapCode')}</span>
+                      <span className="text-[9px] font-black uppercase tracking-tight text-center leading-tight">
+                        {m === 'tmt' ? t(language, 'walTmtDeposit').replace('Пополнение ', '') : m === 'crypto' ? t(language, 'walCrypto') : m === 'cash' ? t(language, 'walCash') : t(language, 'walRapCode')}
+                      </span>
                     </button>
                   ))}
                 </div>
 
                 <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-slate-100 space-y-6">
+                  {depositMethod === 'tmt' && (
+                    <div className="space-y-6">
+                      <div className="p-5 bg-blue-50/50 rounded-[2rem] border border-blue-100 flex gap-4">
+                        <div className="w-10 h-10 bg-blue-500 rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-blue-200">
+                          <Phone className="w-5 h-5 text-white" />
+                        </div>
+                        <p className="text-[11px] text-blue-800 font-bold leading-relaxed">
+                          {t(language, 'walTmtDepositNote')}<br/>
+                          <span className="text-blue-600 font-black text-sm">{receivePhone}</span>
+                        </p>
+                      </div>
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">{t(language, 'walTmtPhone')}</label>
+                        <input
+                          type="tel"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          className="w-full p-5 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-blue-500 focus:bg-white font-black text-lg transition-all outline-none shadow-sm"
+                          placeholder={t(language, 'walTmtPhonePlaceholder')}
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">{t(language, 'amount')} (TMT)</label>
+                        <input
+                          type="number"
+                          value={amount}
+                          onChange={(e) => setAmount(e.target.value)}
+                          className="w-full p-5 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-blue-500 focus:bg-white font-black text-lg transition-all outline-none shadow-sm"
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   {depositMethod === 'crypto' && (
                     <div className="space-y-6">
                       <div className="flex bg-slate-50 p-1.5 rounded-[1.5rem] border border-slate-100">
@@ -718,22 +811,65 @@ export default function WalletScreen() {
               </div>
 
               <div className="space-y-8 relative z-10">
-                <div className="grid grid-cols-3 gap-3">
-                  {(['crypto', 'cash', 'rapCode'] as const).map(m => (
+                <div className="grid grid-cols-4 gap-2">
+                  {(['tmt', 'crypto', 'cash', 'rapCode'] as const).map(m => (
                     <button
                       key={m}
-                      onClick={() => { haptic.selection(); setWithdrawMethod(m); }}
-                      className={`flex flex-col items-center p-4 rounded-[2rem] gap-3 transition-all border ${withdrawMethod === m ? 'bg-slate-900 border-slate-900 shadow-xl text-white' : 'bg-white border-slate-50 text-slate-400 hover:border-slate-200'}`}
+                      onClick={() => { haptic.selection(); setWithdrawMethod(m); setModalAsset(m === 'tmt' ? 'TMT' : 'USDT'); }}
+                      className={`flex flex-col items-center p-3 rounded-[1.5rem] gap-2 transition-all border ${withdrawMethod === m ? 'bg-slate-900 border-slate-900 shadow-xl text-white' : 'bg-white border-slate-50 text-slate-400'}`}
                     >
-                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${withdrawMethod === m ? 'bg-white/10' : 'bg-slate-50'}`}>
-                        {m === 'crypto' ? <Zap className="w-5 h-5" /> : m === 'cash' ? <MapPin className="w-5 h-5" /> : <Star className="w-5 h-5" />}
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${withdrawMethod === m ? 'bg-white/10' : 'bg-slate-50'}`}>
+                        {m === 'tmt' ? <Phone className="w-4 h-4" /> : m === 'crypto' ? <Zap className="w-4 h-4" /> : m === 'cash' ? <MapPin className="w-4 h-4" /> : <Star className="w-4 h-4" />}
                       </div>
-                      <span className="text-[10px] font-black uppercase tracking-wider">{m === 'crypto' ? t(language, 'walCrypto') : m === 'cash' ? t(language, 'walCash') : t(language, 'walRapCode')}</span>
+                      <span className="text-[9px] font-black uppercase tracking-tight text-center leading-tight">
+                        {m === 'tmt' ? t(language, 'walTmtWithdraw').replace('Вывод ', '') : m === 'crypto' ? t(language, 'walCrypto') : m === 'cash' ? t(language, 'walCash') : t(language, 'walRapCode')}
+                      </span>
                     </button>
                   ))}
                 </div>
 
                 <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-slate-100 space-y-6">
+                  {withdrawMethod === 'tmt' && (
+                    <div className="space-y-6">
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black text-slate-400 ml-2 uppercase tracking-widest">{t(language, 'walTmtPhone')}</label>
+                        <input
+                          type="tel"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          className="w-full p-5 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-slate-900 focus:bg-white font-black text-lg transition-all outline-none shadow-sm"
+                          placeholder={t(language, 'walTmtPhonePlaceholder')}
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center px-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t(language, 'walWithdrawAmount')}</label>
+                          <button onClick={() => { haptic.light(); setAmount(balances.tmt.toFixed(2)); }} className="text-[10px] font-black text-slate-900 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl transition-colors">{t(language, 'walWithdrawAll')}</button>
+                        </div>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            value={amount}
+                            onChange={(e) => setAmount(e.target.value)}
+                            className="w-full p-5 bg-slate-50 rounded-2xl font-black text-lg border-2 border-transparent focus:border-slate-900 focus:bg-white transition-all outline-none shadow-sm"
+                            placeholder="0.00"
+                          />
+                          <span className="absolute right-5 top-5 text-slate-300 font-bold">TMT</span>
+                        </div>
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-2">
+                          <div className="flex justify-between items-center text-[10px] font-bold">
+                            <span className="text-slate-400">{t(language, 'walNetworkFeeLabel')}</span>
+                            <span className="text-slate-800">0.00 TMT</span>
+                          </div>
+                          <div className="flex justify-between items-center text-[11px] font-black border-t border-slate-100 pt-2">
+                            <span className="text-slate-500">{t(language, 'walToReceive')}</span>
+                            <span className="text-emerald-600 text-sm">{amount || '0.00'} TMT</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {withdrawMethod === 'crypto' && (
                     <div className="space-y-6">
                       <div className="flex bg-slate-50 p-1.5 rounded-[1.5rem] border border-slate-100">

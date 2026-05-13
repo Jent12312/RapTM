@@ -87,7 +87,7 @@ export default function Home() {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="animate-pulse flex flex-col items-center">
           <div className="w-16 h-16 bg-emerald-500 rounded-2xl mb-4 shadow-lg shadow-emerald-200"></div>
-          <p className="text-emerald-600 font-bold italic tracking-widest animate-bounce">RAPIRA TM</p>
+          <p className="text-emerald-600 font-bold italic tracking-widest animate-bounce">RAPTM</p>
         </div>
       </div>
     );

@@ -23,7 +23,11 @@ import {
   Mail,
   X,
   Gift,
-  AlertTriangle
+  AlertTriangle,
+  LogOut,
+  Trash2,
+  Zap,
+  Users as UsersIcon
 } from 'lucide-react';
 import WebApp from '@twa-dev/sdk';
 
@@ -31,14 +35,13 @@ import WebApp from '@twa-dev/sdk';
 import CreateAdScreen from './CreateAdScreen';
 import MyAdsScreen from './MyAdsScreen';
 import MyOrdersScreen from './MyOrdersScreen';
-import AdminScreen from './AdminScreen';
+import AdminScreen from './Admin/AdminScreen';
 import KycScreen from './KycScreen';
 import CodeScreen from './CodeScreen';
 import HelpScreen from './HelpScreen';
 import AddressBookScreen from './AddressBookScreen';
 import SecurityScreen from './SecurityScreen';
 import ApiManagementScreen from './ApiManagementScreen';
-import { LogOut, Trash2, Zap, Users as UsersIcon } from 'lucide-react';
 import ReferralScreen from './ReferralScreen';
 
 // Типы для статистики

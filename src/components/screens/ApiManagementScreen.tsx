@@ -63,7 +63,7 @@ export default function ApiManagementScreen({ onClose }: Props) {
       
       {/* Footer Branding */}
       <div className="p-8 text-center opacity-20">
-         <p className="text-[10px] font-black text-white uppercase tracking-[0.5em]">RAPIRA TM ENGINE v2.0</p>
+         <p className="text-[10px] font-black text-white uppercase tracking-[0.5em]">RAPTM ENGINE v2.0</p>
       </div>
     </div>
   );

@@ -62,12 +62,17 @@ export async function POST(req: Request) {
 
     if (!user) {
       // ЛОГИКА ДЛЯ НОВОГО ПОЛЬЗОВАТЕЛЯ
+      
+      // Получаем настройки бонуса
+      const bonusSetting = await prisma.systemSetting.findUnique({ where: { key: 'WELCOME_BONUS' } });
+      const standardBonus = bonusSetting ? parseFloat(bonusSetting.value) : 15.0;
+
       let level: 'Standard' | 'Pro' | 'Partner' = 'Standard';
-      let bonus = 15.0;
+      let bonus = standardBonus;
 
       if (startParam === 'partner' || (typeof startParam === 'string' && startParam.startsWith('partner_'))) {
         level = 'Partner';
-        bonus = 50.0;
+        bonus = 50.0; // Для партнеров фиксированный повышенный бонус
       }
 
       const referrerId = await getReferrerId(startParam as string);

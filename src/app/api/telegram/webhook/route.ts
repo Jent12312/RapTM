@@ -148,7 +148,7 @@ async function handleInlineQuery(inlineQuery: any) {
       const ratingPercent = totalReviews > 0 ? Math.round((goodReviews / totalReviews) * 100) : 0;
       const volume = orders.reduce((acc, curr) => acc + Number(curr.amountAsset), 0);
 
-      statsText = `👤 <b>Мерчант: ${user.nickname || user.firstName}</b> ⚡️\n\n🛡 Статус: ${user.isVerified ? 'Проверен' : 'Базовый'}\n📊 Сделок: ${orders.length}\n✅ Выполнено: 100%\n💎 Объём: ${volume.toFixed(2)} USDT\n👍 Рейтинг: ${ratingPercent}%\n\n👇 <i>Нажмите кнопку ниже, чтобы открыть профиль продавца в Rapira TM!</i>`;
+      statsText = `👤 <b>Мерчант: ${user.nickname || user.firstName}</b> ⚡️\n\n🛡 Статус: ${user.isVerified ? 'Проверен' : 'Базовый'}\n📊 Сделок: ${orders.length}\n✅ Выполнено: 100%\n💎 Объём: ${volume.toFixed(2)} USDT\n👍 Рейтинг: ${ratingPercent}%\n\n👇 <i>Нажмите кнопку ниже, чтобы открыть профиль продавца в RapTM!</i>`;
     }
 
     const responsePayload = {

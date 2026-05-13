@@ -8,7 +8,7 @@ export async function GET() {
     const settings = await prisma.systemSetting.findMany({
       where: {
         key: {
-          in: ['EXCHANGE_RATE', 'EXCHANGE_FEE']
+          in: ['EXCHANGE_RATE', 'EXCHANGE_FEE', 'RECEIVE_PHONE', 'WALLET_TRC20', 'WALLET_BEP20', 'WALLET_APTOS']
         }
       }
     });

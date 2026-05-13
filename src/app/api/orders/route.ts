@@ -77,8 +77,12 @@ export async function POST(req: Request) {
       feeAmount = 0; 
     }
 
-    if (Number(seller.wallet.usdtBalance) < (amountAsset + feeAmount)) {
-      return NextResponse.json({ error: 'У продавца недостаточно USDT на балансе (включая комиссию)' }, { status: 400 });
+    const asset = ad.asset; // 'USDT' или 'TMT'
+    const balanceField = asset === 'TMT' ? 'tmtBalance' : 'usdtBalance';
+    const sellerBalance = Number(seller.wallet[balanceField]);
+
+    if (sellerBalance < (amountAsset + feeAmount)) {
+      return NextResponse.json({ error: `У продавца недостаточно ${asset} на балансе (включая комиссию)` }, { status: 400 });
     }
 
     // 6. АТОМАРНАЯ ТРАНЗАКЦИЯ: Заморозка средств + создание ордера + первое сообщение
@@ -87,7 +91,7 @@ export async function POST(req: Request) {
       await tx.wallet.update({
         where: { userId: sellerId },
         data: {
-          usdtBalance: { decrement: amountAsset + feeAmount },
+          [balanceField]: { decrement: amountAsset + feeAmount },
           frozenBalance: { increment: amountAsset + feeAmount }
         }
       });

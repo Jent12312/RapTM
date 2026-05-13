@@ -45,8 +45,13 @@ export async function POST(req: Request) {
 
     if (!user) {
       // NEW USER REGISTRATION
+      
+      // Get bonus settings
+      const bonusSetting = await prisma.systemSetting.findUnique({ where: { key: 'WELCOME_BONUS' } });
+      const standardBonus = bonusSetting ? parseFloat(bonusSetting.value) : 15.0;
+
       let level: 'Standard' | 'Pro' | 'Partner' = 'Standard';
-      let bonus = 15.0;
+      let bonus = standardBonus;
 
       // Logic for Partner level via start_param
       if (startParam === 'partner' || startParam?.startsWith('partner_')) {
