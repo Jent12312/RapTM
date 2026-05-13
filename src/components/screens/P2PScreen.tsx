@@ -219,7 +219,7 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
       <div className="pb-32 min-h-screen bg-slate-50/50 animate-in fade-in duration-300">
         
         {/* --- HEADER --- */}
-        <div className="bg-white px-4 pt-1 pb-3 shadow-sm shadow-slate-200/50 sticky top-[63px] z-30 border-b border-slate-100 space-y-3 rounded-b-3xl">
+        <div className="bg-white px-4 pt-4 pb-3 shadow-sm shadow-slate-200/50 sticky top-0 z-30 border-b border-slate-100 space-y-3 rounded-b-3xl">
           
           {/* Top Actions: Buy/Sell Toggle & Icons */}
           <div className="flex justify-between items-center gap-4">
@@ -423,7 +423,7 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
               </div>
 
               {/* Modal Body */}
-              <div className="p-5 overflow-y-auto space-y-6">
+              <div className="p-5 overflow-y-auto space-y-6 pb-12">
                 
                 {/* Inputs */}
                 <div className="space-y-3 relative">

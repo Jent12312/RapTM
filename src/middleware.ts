@@ -67,24 +67,25 @@ export async function middleware(request: NextRequest) {
     const userId = payload.userId as string;
 
     if (userId) {
-      // Import prisma and cache dynamically to avoid issues in some runtimes if possible
-      // or just use them if we are in Node.js
+      // Import prisma and cache dynamically
       const { default: prisma } = await import('./lib/prisma');
       const { cache } = await import('./lib/cache');
 
       const cacheKey = `user_status_${userId}`;
-      let isBlocked = cache.get<boolean>(cacheKey);
+      
+      // Читаем кэш как объект (как это делает getAuthUser.ts)
+      let cachedStatus = cache.get<{ isBlocked: boolean; sessionVersion?: number }>(cacheKey);
 
-      if (isBlocked === null) {
+      if (!cachedStatus) {
         const user = await prisma.user.findUnique({
           where: { id: userId },
-          select: { isBlocked: true }
+          select: { isBlocked: true, sessionVersion: true }
         });
-        isBlocked = user?.isBlocked || false;
-        cache.set(cacheKey, isBlocked, 300); // Cache for 5 mins
+        cachedStatus = { isBlocked: user?.isBlocked || false, sessionVersion: user?.sessionVersion || undefined };
+        cache.set(cacheKey, cachedStatus, 300); // Кэшируем на 5 минут
       }
 
-      if (isBlocked) {
+      if (cachedStatus.isBlocked) {
         return NextResponse.json({ error: 'Ваш аккаунт заблокирован' }, { status: 403 });
       }
     }

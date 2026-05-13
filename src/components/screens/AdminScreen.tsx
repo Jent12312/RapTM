@@ -176,7 +176,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
   const runReconciliation = async () => {
     setReconLoading(true);
     try {
-      const res = await fetch('/api/admin/reconcile', { method: 'POST' });
+      const res = await fetch('/api/admin/reconciliation', { method: 'POST' });
       const data = await res.json();
       if (data.success) {
         setReconLogs(prev => [data.log, ...prev]);
@@ -210,7 +210,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
     if (activeTab === 'audit') fetchAuditLogs(auditPage);
     if (activeTab === 'logs') fetchLogs(logsPage);
     if (activeTab === 'stability') {
-      fetch('/api/admin/reconcile').then(r => r.json()).then(d => setReconLogs(d.logs || []));
+      fetch('/api/admin/reconciliation').then(r => r.json()).then(d => setReconLogs(d.logs || []));
     }
     if (activeTab === 'blacklist') fetchBlacklist();
     if (activeTab === 'cash') fetchCashBalances();
@@ -228,7 +228,7 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
   };
 
   const processLevelApp = async (id: string, status: 'APPROVED' | 'REJECTED') => {
-    setLoading({ ...loading, [id]: true });
+    setLoading(prev => ({ ...prev, [id]: true }));
     try {
       const res = await fetch('/api/admin/levels', {
         method: 'POST',
@@ -236,11 +236,11 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
         body: JSON.stringify({ id, status })
       });
       if (res.ok) {
-        setLevelApps(levelApps.filter(a => a.id !== id));
+        setLevelApps(prev => prev.filter(a => a.id !== id));
         fetchDashboard();
       }
     } catch (e) { console.error(e); }
-    setLoading({ ...loading, [id]: false });
+    setLoading(prev => ({ ...prev, [id]: false }));
   };
 
   // Загрузка пользователей
@@ -1787,21 +1787,21 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
               </div>
               <button
                 onClick={async () => {
-                  const res = await fetch(`/api/admin/users/${selectedUser.id}/freeze`, {
+                  const res = await fetch(`/api/admin/users/${selectedUser.id}/block`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ isFrozen: !selectedUser.isFrozen })
+                    body: JSON.stringify({ isBlocked: !selectedUser.isBlocked })
                   });
                   if (res.ok) {
                     const data = await res.json();
                     setSelectedUser(data.user);
-                    alert(data.user.isFrozen ? 'Заморожен' : 'Разморожен');
+                    alert(data.user.isBlocked ? 'Заблокирован' : 'Разблокирован');
                   }
                 }}
-                className={`w-full mt-4 py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${selectedUser.isFrozen ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-red-500 text-white shadow-lg shadow-red-500/20'
+                className={`w-full mt-4 py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${selectedUser.isBlocked ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-red-500 text-white shadow-lg shadow-red-500/20'
                   }`}
               >
-                {selectedUser.isFrozen ? 'РАЗМОРОЗИТЬ АККАУНТ' : 'ЗАМОРОЗИТЬ АККАУНТ'}
+                {selectedUser.isBlocked ? 'РАЗБЛОКИРОВАТЬ АККАУНТ' : 'ЗАБЛОКИРОВАТЬ АККАУНТ'}
               </button>
             </div>
 
