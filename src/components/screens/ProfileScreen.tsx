@@ -191,7 +191,10 @@ export default function ProfileScreen() {
     setIsLoadingReviews(true);
     try {
       const res = await fetch(`/api/user/${user.id}/reviews`);
-      if (res.ok) setReviews(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setReviews(Array.isArray(data) ? data : []);
+      }
     } catch (error) {
       console.error('Failed to fetch reviews:', error);
     } finally {
@@ -436,7 +439,7 @@ export default function ProfileScreen() {
         <div className="space-y-3">
           <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-4">{t(language, 'lastReviews')}</h3>
           <div className="bg-white rounded-[2.5rem] p-6 shadow-sm ring-1 ring-slate-100 space-y-4">
-            {reviews.slice(0, 3).map((review) => (
+            {Array.isArray(reviews) && reviews.slice(0, 3).map((review) => (
               <div key={review.id} className="border-b border-slate-50 last:border-0 pb-4 last:pb-0">
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex items-center gap-2">

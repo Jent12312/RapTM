@@ -37,7 +37,10 @@ export default function ExchangeScreen() {
         fetch('/api/settings')
       ]);
       
-      if (historyRes.ok) setHistory(await historyRes.json());
+      if (historyRes.ok) {
+        const data = await historyRes.json();
+        setHistory(Array.isArray(data) ? data : []);
+      }
       if (settingsRes.ok) {
         const s = await settingsRes.json();
         setSettings({

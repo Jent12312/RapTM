@@ -21,13 +21,28 @@ export default function MerchantProfileModal({ merchant, onClose }: Props) {
 
   useEffect(() => {
     // Грузим реальную статистику
-    fetch(`/api/user/${merchant.id}/stats`).then(res => res.json()).then(setStats);
+    fetch(`/api/user/${merchant.id}/stats`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && typeof data === 'object' && !data.error) {
+          setStats(data);
+        }
+      })
+      .catch(e => console.error('Stats fetch error:', e));
     // Грузим отзывы
-    fetch(`/api/user/${merchant.id}/reviews`).then(res => res.json()).then(setReviews);
+    fetch(`/api/user/${merchant.id}/reviews`)
+      .then(res => res.json())
+      .then(data => setReviews(Array.isArray(data) ? data : []))
+      .catch(() => setReviews([]));
+
     // Грузим объявления мерчанта
-    fetch(`/api/p2p?userId=${merchant.id}`).then(res => res.json()).then(data => {
-      setActiveAds(data.ads?.filter((ad: any) => ad.isActive) || []);
-    });
+    fetch(`/api/p2p?userId=${merchant.id}`)
+      .then(res => res.json())
+      .then(data => {
+        const ads = Array.isArray(data.ads) ? data.ads : [];
+        setActiveAds(ads.filter((ad: any) => ad.isActive));
+      })
+      .catch(() => setActiveAds([]));
 
     // Грузим рыночные цены для расчета цен объявлений
     const fetchMarketPrices = async () => {

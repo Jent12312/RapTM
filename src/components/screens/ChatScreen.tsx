@@ -89,7 +89,7 @@ export default function ChatScreen({ orderId, partnerName, onClose }: Props) {
       const res = await fetch(`/api/orders/${orderId}/messages`);
       if (res.ok) {
         const data = await res.json();
-        setMessages(data);
+        setMessages(Array.isArray(data) ? data : []);
       }
     } catch (error) {
       console.error(error);
