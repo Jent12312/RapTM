@@ -55,7 +55,14 @@ export async function middleware(request: NextRequest) {
   }
 
   // 3. Get token from cookies
-  const token = request.cookies.get('auth_token')?.value;
+  let token = request.cookies.get('auth_token')?.value;
+
+  if (!token) {
+    const authHeader = request.headers.get('authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7); // Убираем 'Bearer '
+    }
+  }
 
   if (!token) {
     return NextResponse.json({ error: 'Unauthorized: Missing token' }, { status: 401 });

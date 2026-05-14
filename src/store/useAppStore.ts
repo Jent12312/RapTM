@@ -23,6 +23,7 @@ interface AppState {
   
   ads: any[];
   isLoadingAds: boolean;
+  token: string | null;
   
   toasts: ToastMessage[];
   referralInfo: { isNew: boolean; referrerName: string | null } | null;
@@ -46,6 +47,7 @@ export const useAppStore = create<AppState>()(
       activeTab: 'wallet',
       isBalanceVisible: true,
       user: null,
+      token: null,
       balances: { tmt: 0, usdt: 0, bonus: 0 },
       
       ads: [],
@@ -79,6 +81,7 @@ export const useAppStore = create<AppState>()(
           if (data.success && data.user) {
             set({
               user: data.user,
+              token: data.token,
               balances: {
                 tmt: Number(data.user?.wallet?.tmtBalance) || 0,
                 usdt: Number(data.user?.wallet?.usdtBalance) || 0,
@@ -99,6 +102,7 @@ export const useAppStore = create<AppState>()(
       logout: () => {
         set({
           user: null,
+          token: null,
           balances: { tmt: 0, usdt: 0, bonus: 0 },
           ads: []
         });
@@ -107,7 +111,12 @@ export const useAppStore = create<AppState>()(
       fetchAds: async () => {
         set({ isLoadingAds: true });
         try {
-          const res = await fetch('/api/p2p');
+          const currentToken = get().token;
+          const res = await fetch('/api/p2p',{
+            headers: currentToken ? {
+              'Authorization': `Bearer ${currentToken}`
+            } : {}
+          });
           if (res.ok) {
             const data = await res.json();
             // Безопасное извлечение массива
@@ -145,6 +154,7 @@ export const useAppStore = create<AppState>()(
       partialize: (state) => ({
         language: state.language,
         isBalanceVisible: state.isBalanceVisible,
+        token: state.token,
       }),
     }
   )
