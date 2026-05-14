@@ -116,7 +116,23 @@ export async function sendAdminNotification(
     });
 
     if (admins.length === 0) {
-      console.log('No admin chat IDs found');
+      const FALLBACK_ADMIN = process.env.TELEGRAM_ADMIN_CHAT_ID;
+      if (FALLBACK_ADMIN) {
+        console.log('No admins found in DB, using fallback admin ID');
+        const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+        await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: FALLBACK_ADMIN,
+            text: message,
+            parse_mode: 'HTML',
+            ...(extraData?.reply_markup && { reply_markup: extraData.reply_markup }),
+          }),
+        });
+        return true;
+      }
+      console.log('No admin chat IDs found and no fallback configured');
       return false;
     }
 

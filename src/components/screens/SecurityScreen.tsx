@@ -47,7 +47,7 @@ export default function SecurityScreen({ onClose }: Props) {
     // Calculate security score
     let score = 0;
     if (user?.phone) score += 25;
-    if (user?.email && user?.isEmailVerified) score += 25;
+    if (user?.email) score += 25;
     if (user?.passcode) score += 25;
     if (isTwoFactorEnabled) score += 25;
     setSecurityScore(score);
@@ -275,7 +275,7 @@ export default function SecurityScreen({ onClose }: Props) {
             icon={Mail} 
             label={t(language, 'email')} 
             value={user?.email || t(language, 'secEmailLinkDesc')} 
-            isVerified={user?.isEmailVerified}
+            isVerified={!!user?.email}
             color="bg-indigo-500"
             onClick={() => setIsEditingEmail(true)}
           />

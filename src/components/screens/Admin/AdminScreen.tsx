@@ -185,11 +185,6 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
       const data = await res.json();
       if (data.success) {
         setDashboardStats(data.stats);
-        setSysSettings(prev => ({
-          ...prev,
-          EXCHANGE_RATE: data.rate?.rate ? String(data.rate.rate) : prev.EXCHANGE_RATE,
-          RATE_FROZEN: data.rate?.isFrozen ? 'true' : 'false'
-        }));
       }
     } catch (e: any) {
       console.error('Failed to fetch dashboard:', e);

@@ -20,6 +20,8 @@ export async function GET(req: Request) {
       where.OR = [
         { username: { contains: search, mode: 'insensitive' } },
         { firstName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
         { telegramId: { contains: search } }
       ];
     }

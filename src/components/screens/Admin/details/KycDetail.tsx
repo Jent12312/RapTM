@@ -50,11 +50,19 @@ export default function KycDetail({ selectedKyc, language, kycLoading, processKy
           <ShieldCheck className="w-4 h-4 text-blue-500" /> {t(language, 'kycPassportScan')}
         </h3>
         {selectedKyc.kycPhotoUrl ? (
-          <div className="rounded-2xl overflow-hidden border-2 border-emerald-200">
-            <img src={selectedKyc.kycPhotoUrl} alt="KYC Document" className="w-full h-auto" />
+          <div className="rounded-2xl overflow-hidden border-2 border-emerald-200 bg-slate-50 min-h-[200px] flex items-center justify-center">
+            <img 
+              src={selectedKyc.kycPhotoUrl} 
+              alt="KYC Document" 
+              className="w-full h-auto max-h-[500px] object-contain"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'https://placehold.co/600x400?text=Image+Not+Found';
+                console.error('Failed to load KYC Document:', selectedKyc.kycPhotoUrl);
+              }}
+            />
           </div>
         ) : (
-          <div className="bg-slate-50 p-8 rounded-2xl text-center text-slate-400">
+          <div className="bg-slate-50 p-8 rounded-2xl text-center text-slate-400 font-bold">
             {t(language, 'adminPhotoNotUploaded')}
           </div>
         )}
@@ -66,11 +74,19 @@ export default function KycDetail({ selectedKyc, language, kycLoading, processKy
           <ShieldCheck className="w-4 h-4 text-purple-500" /> {t(language, 'kycSelfieWithPassport')}
         </h3>
         {selectedKyc.kycSelfieUrl ? (
-          <div className="rounded-2xl overflow-hidden border-2 border-emerald-200">
-            <img src={selectedKyc.kycSelfieUrl} alt="KYC Selfie" className="w-full h-auto" />
+          <div className="rounded-2xl overflow-hidden border-2 border-emerald-200 bg-slate-50 min-h-[200px] flex items-center justify-center">
+            <img 
+              src={selectedKyc.kycSelfieUrl} 
+              alt="KYC Selfie" 
+              className="w-full h-auto max-h-[500px] object-contain"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'https://placehold.co/600x400?text=Selfie+Not+Found';
+                console.error('Failed to load KYC Selfie:', selectedKyc.kycSelfieUrl);
+              }}
+            />
           </div>
         ) : (
-          <div className="bg-slate-50 p-8 rounded-2xl text-center text-slate-400">
+          <div className="bg-slate-50 p-8 rounded-2xl text-center text-slate-400 font-bold">
             {t(language, 'adminPhotoNotUploaded')}
           </div>
         )}

@@ -26,57 +26,88 @@ export async function POST(req: Request) {
     const { key, value } = await req.json();
     const ip = req.headers.get('x-forwarded-for') || '127.0.0.1';
 
+    console.log(`[ADMIN] Settings change request: ${key} = ${value} from IP ${ip}`);
+
     // Если меняем курс, записываем в историю и обновляем спец. таблицу
     if (key === 'EXCHANGE_RATE' || key === 'RATE_FROZEN') {
       const isRate = key === 'EXCHANGE_RATE';
-      const rateVal = isRate ? parseFloat(value) : undefined;
-      const frozenVal = !isRate ? (value === 'true') : undefined;
+      let rateVal: number | undefined;
+      let frozenVal: boolean | undefined;
 
       if (isRate) {
-        const oldSetting = await prisma.systemSetting.findUnique({ where: { key: 'EXCHANGE_RATE' } });
-        const oldRate = oldSetting ? parseFloat(oldSetting.value) : 0;
-        
-        await prisma.rateHistory.create({
-          data: {
-            oldRate,
-            newRate: rateVal!,
-            changedBy: authUser.userId
+        rateVal = parseFloat(value);
+        if (isNaN(rateVal)) {
+          return NextResponse.json({ error: 'Invalid rate value' }, { status: 400 });
+        }
+      } else {
+        frozenVal = value === 'true' || value === true;
+      }
+
+      if (isRate && rateVal !== undefined) {
+        try {
+          const oldSetting = await prisma.systemSetting.findUnique({ where: { key: 'EXCHANGE_RATE' } });
+          const oldRate = oldSetting ? parseFloat(oldSetting.value) : 0;
+          
+          await prisma.rateHistory.create({
+            data: {
+              oldRate,
+              newRate: rateVal,
+              changedBy: authUser.userId
+            }
+          });
+        } catch (historyError) {
+          console.error('[ADMIN] Failed to save rate history:', historyError);
+          // Продолжаем выполнение, даже если история не сохранилась
+        }
+      }
+
+      try {
+        await prisma.exchangeRate.upsert({
+          where: { id: 'global' },
+          update: { 
+            ...(rateVal !== undefined && { rate: rateVal }),
+            ...(frozenVal !== undefined && { isFrozen: frozenVal })
+          },
+          create: { 
+            id: 'global',
+            rate: rateVal || 19.5,
+            isFrozen: frozenVal || false
           }
         });
+        console.log(`[ADMIN] exchangeRate table updated: rate=${rateVal}, frozen=${frozenVal}`);
+      } catch (upsertError) {
+        console.error('[ADMIN] ExchangeRate table upsert failed:', upsertError);
+        return NextResponse.json({ error: 'Failed to update global exchange rate table', details: String(upsertError) }, { status: 500 });
       }
-
-      await prisma.exchangeRate.upsert({
-        where: { id: 'global' },
-        update: { 
-          ...(rateVal !== undefined && { rate: rateVal }),
-          ...(frozenVal !== undefined && { isFrozen: frozenVal })
-        },
-        create: { 
-          id: 'global',
-          rate: rateVal || 19.5,
-          isFrozen: frozenVal || false
-        }
-      });
     }
 
-    const setting = await prisma.systemSetting.upsert({
-      where: { key },
-      update: { value: String(value) },
-      create: { key, value: String(value) }
-    });
+    try {
+      const setting = await prisma.systemSetting.upsert({
+        where: { key },
+        update: { value: String(value) },
+        create: { key, value: String(value) }
+      });
 
-    // Audit log
-    await prisma.adminAction.create({
-      data: {
-        adminId: authUser.userId,
-        action: 'SETTINGS_CHANGE',
-        targetId: key,
-        details: `Изменена настройка ${key} на ${value}`,
-        ip
-      }
-    });
+      // Audit log
+      await prisma.adminAction.create({
+        data: {
+          adminId: authUser.userId,
+          action: 'SETTINGS_CHANGE',
+          targetId: key,
+          details: `Изменена настройка ${key} на ${value}`,
+          ip
+        }
+      });
 
-    return NextResponse.json(setting);
+      console.log(`[ADMIN] SystemSetting ${key} successfully updated to ${value}`);
+      return NextResponse.json(setting);
+    } catch (dbError) {
+      console.error(`[ADMIN] SystemSetting upsert failed for ${key}:`, dbError);
+      return NextResponse.json({ 
+        error: 'Failed to save setting to database', 
+        details: dbError instanceof Error ? dbError.message : String(dbError) 
+      }, { status: 500 });
+    }
   } catch (error) {
     console.error('Settings save error [ADMIN]:', error);
     return NextResponse.json({ 

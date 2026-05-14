@@ -57,6 +57,11 @@ async function fetchUSDTUSD(): Promise<number> {
 
 // Получение базовой цены для пары
 async function getBasePrice(asset: string, fiat: string): Promise<number> {
+  // Если валюты одинаковые, курс всегда 1.0
+  if (asset === fiat) {
+    return 1.00;
+  }
+
   const cacheKey = `${asset}/${fiat}`;
   const cached = cachedPrices[cacheKey];
   
@@ -67,34 +72,48 @@ async function getBasePrice(asset: string, fiat: string): Promise<number> {
 
   let price: number;
 
-  switch (cacheKey) {
-    case 'USDT/USD':
-      price = await fetchUSDTUSD();
-      break;
-    case 'USD/TMT':
-      price = await fetchUSDTMT();
-      break;
-    case 'USDT/TMT':
-      // Кросс-курс: USDT/TMT = USDT/USD × USD/TMT
-      const [usdtUsd, usdTmt] = await Promise.all([
-        fetchUSDTUSD(),
-        fetchUSDTMT(),
-      ]);
-      price = usdtUsd * usdTmt;
-      break;
-    case 'TMT/USDT':
-      const tmtUsd = await fetchUSDTMT();
-      price = 1 / tmtUsd; // Обратный курс
-      break;
-    case 'TMT/USD':
-      const tmtUsd2 = await fetchUSDTMT();
-      price = 1 / tmtUsd2; // Обратный курс
-      break;
-    case 'USD/USDT':
-      price = 1.00; // Почти всегда 1
-      break;
-    default:
-      throw new Error(`Unknown pair: ${cacheKey}`);
+  try {
+    switch (cacheKey) {
+      case 'USDT/USD':
+        price = await fetchUSDTUSD();
+        break;
+      case 'USD/TMT':
+        price = await fetchUSDTMT();
+        break;
+      case 'USDT/TMT':
+        // Кросс-курс: USDT/TMT = USDT/USD × USD/TMT
+        const [usdtUsd, usdTmt] = await Promise.all([
+          fetchUSDTUSD(),
+          fetchUSDTMT(),
+        ]);
+        price = usdtUsd * usdTmt;
+        break;
+      case 'TMT/USDT':
+        const tmtUsdtRate = await getBasePrice('USDT', 'TMT');
+        price = 1 / tmtUsdtRate; // Обратный курс
+        break;
+      case 'TMT/USD':
+        const tmtUsd2 = await fetchUSDTMT();
+        price = 1 / tmtUsd2; // Обратный курс
+        break;
+      case 'USD/USDT':
+        price = 1.00; // Почти всегда 1
+        break;
+      // Добавляем поддержку RUB через примерные кросс-курсы (в будущем можно добавить API)
+      case 'USD/RUB':
+      case 'USDT/RUB':
+        price = 92.50; // Fallback RUB
+        break;
+      case 'TMT/RUB':
+        price = 2.65; // Fallback TMT/RUB
+        break;
+      default:
+        console.warn(`Unknown pair requested: ${cacheKey}, returning fallback 1.0`);
+        price = 1.00;
+    }
+  } catch (error) {
+    console.error(`Error calculating price for ${cacheKey}:`, error);
+    price = 1.00; // Безопасный fallback
   }
 
   // Кэшируем результат

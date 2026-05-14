@@ -33,13 +33,20 @@ export async function PATCH(req: Request) {
       const { updateUserStats } = await import('@/lib/userStats');
       if (exchange.direction === 'USDT_TO_TMT') {
         // USDT и комиссия уже списаны при создании заявки
-        await prisma.exchangeRequest.update({
-          where: { id },
-          data: { status: 'COMPLETED' }
-        });
+        // Начисляем пользователю TMT на баланс
+        await prisma.$transaction([
+          prisma.wallet.update({
+            where: { userId: exchange.userId },
+            data: { tmtBalance: { increment: exchange.amountTmt } }
+          }),
+          prisma.exchangeRequest.update({
+            where: { id },
+            data: { status: 'COMPLETED' }
+          })
+        ]);
         await updateUserStats(exchange.userId, Number(exchange.amountUsdt));
       } else if (exchange.direction === 'TMT_TO_USDT') {
-        // Зачисляем пользователю USDT (комиссия была списана при создании)
+        // Зачисляем пользователю USDT (TMT и комиссия были списаны/переданы ранее)
         await prisma.$transaction([
           prisma.wallet.update({
             where: { userId: exchange.userId },
@@ -68,11 +75,14 @@ export async function PATCH(req: Request) {
           })
         ]);
       } else if (exchange.direction === 'TMT_TO_USDT') {
-        // Возвращаем только комиссию (TMT пользователь не передавал или админ не подтвердил)
+        // Возвращаем TMT + комиссию
         await prisma.$transaction([
           prisma.wallet.update({
             where: { userId: exchange.userId },
-            data: { usdtBalance: { increment: exchange.commission } }
+            data: { 
+              usdtBalance: { increment: exchange.commission },
+              tmtBalance: { increment: exchange.amountTmt }
+            }
           }),
           prisma.exchangeRequest.update({
             where: { id },

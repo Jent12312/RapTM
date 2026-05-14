@@ -13,7 +13,10 @@ export async function PATCH(
 
     const updateData: any = {};
     if (phone !== undefined) updateData.phone = phone;
-    if (email !== undefined) updateData.email = email;
+    if (email !== undefined) {
+      updateData.email = email;
+      updateData.isEmailVerified = !!email;
+    }
 
     const user = await prisma.user.update({
       where: { id },

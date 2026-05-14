@@ -115,11 +115,16 @@ export async function POST(req: Request) {
       exchange = transactionResult[1];
     } else {
       // При покупке USDT (TMT_TO_USDT):
-      // Списываем комиссию сейчас, а USDT зачислит админ при одобрении
+      if (Number(user.wallet.tmtBalance) < amountTmt) {
+        return NextResponse.json({ error: 'Недостаточно TMT на балансе' }, { status: 400 });
+      }
+
+      // Списываем комиссию (в USDT/Bonus) + сумму TMT сейчас, а USDT зачислит админ при одобрении
       const transactionResult = await prisma.$transaction([
         prisma.wallet.update({
           where: { userId },
           data: { 
+            tmtBalance: { decrement: amountTmt },
             usdtBalance: { decrement: feeDeductionFromMain },
             bonusBalance: { decrement: feeDeductionFromBonus }
           }

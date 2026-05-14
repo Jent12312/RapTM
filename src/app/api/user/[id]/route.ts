@@ -41,7 +41,10 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     if (kycStatus !== undefined) updateData.kycStatus = kycStatus;
     if (kycPhotoUrl !== undefined) updateData.kycPhotoUrl = kycPhotoUrl;
     if (phone !== undefined) updateData.phone = phone;
-    if (email !== undefined) updateData.email = email;
+    if (email !== undefined) {
+      updateData.email = email;
+      updateData.isEmailVerified = !!email;
+    }
     if (tgNotifications !== undefined) updateData.tgNotifications = tgNotifications;
     if (passcode !== undefined) updateData.passcode = passcode;
 

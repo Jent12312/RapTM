@@ -15,8 +15,13 @@ export type Dictionary = typeof ru;
 export type DictionaryKey = keyof Dictionary;
 
 export const t = (lang: Language, key: DictionaryKey): string => {
-  const currentDict = dict[lang] as Dictionary;
+  // Защита от неопределенного языка или отсутствующего словаря
+  const currentDict = (dict[lang] || dict['ru']) as Dictionary;
   const fallbackDict = dict['ru'] as Dictionary;
   
+  if (!currentDict) {
+    return (key as string);
+  }
+
   return currentDict[key] || fallbackDict[key] || (key as string);
 };
