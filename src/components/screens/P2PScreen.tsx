@@ -22,8 +22,8 @@ interface P2PScreenProps {
 }
 
 type TradeType = 'buy' | 'sell';
-type Asset = 'USDT' | 'TMT';
-type Fiat = 'TMT' | 'USD';
+type Asset = 'USDT' | 'TMT' | 'USD';
+type Fiat = 'TMT' | 'USD' | 'USDT';
 
 export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
   const { language, ads, isLoadingAds, fetchAds, user, addToast } = useAppStore();
@@ -51,7 +51,7 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
   useEffect(() => {
     const fetchMarketPrices = async () => {
       try {
-        const pairs = ['USDT/TMT', 'USDT/USD', 'TMT/USDT', 'TMT/USD'];
+        const pairs = ['USDT/TMT', 'USDT/USD', 'USDT/USDT', 'TMT/USDT', 'TMT/USD', 'USD/USDT'];
         const prices: Record<string, number> = {};
         
         await Promise.all(pairs.map(async (pair) => {
@@ -267,13 +267,27 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
 
           {/* Crypto / Fiat Selectors */}
           <div className="flex items-center gap-3">
-            <div className="flex gap-2 flex-1">
+            <div className="space-y-2 w-28">
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t(language, 'exYouGive')}</div>
+              <div className="flex gap-2 flex-1">
               <button onClick={() => { haptic.selection(); setAsset('USDT'); }} className={`flex-1 py-2.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 border transition-all ${asset === 'USDT' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-100 bg-transparent text-slate-500'}`}>
                 <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${asset === 'USDT' ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'}`}>₮</div> USDT
+              </button>
+              <button onClick={() => { haptic.selection(); setAsset('USD'); }} className={`flex-1 py-2.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 border transition-all ${asset === 'USD' ? 'border-green-500 bg-green-50 text-green-700' : 'border-slate-100 bg-transparent text-slate-500'}`}>
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${asset === 'USD' ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-500'}`}>$</div> USD
               </button>
               <button onClick={() => { haptic.selection(); setAsset('TMT'); }} className={`flex-1 py-2.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 border transition-all ${asset === 'TMT' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-100 bg-transparent text-slate-500'}`}>
                 <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${asset === 'TMT' ? 'bg-blue-500 text-white' : 'bg-slate-200 text-slate-500'}`}>M</div> TMT
               </button>
+              </div>
+            </div>
+            <div className="space-y-2 w-24">
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t(language, 'receiveAmount')}</div>
+              <div className="flex gap-2">
+                <button onClick={() => { haptic.selection(); setFiat('TMT'); }} className={`flex-1 py-2.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-1 border transition-all ${fiat === 'TMT' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-100 bg-transparent text-slate-500'}`}>TMT</button>
+                <button onClick={() => { haptic.selection(); setFiat('USD'); }} className={`flex-1 py-2.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-1 border transition-all ${fiat === 'USD' ? 'border-green-500 bg-green-50 text-green-700' : 'border-slate-100 bg-transparent text-slate-500'}`}>USD</button>
+                <button onClick={() => { haptic.selection(); setFiat('USDT'); }} className={`flex-1 py-2.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-1 border transition-all ${fiat === 'USDT' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-100 bg-transparent text-slate-500'}`}>USDT</button>
+              </div>
             </div>
           </div>
 
@@ -283,6 +297,7 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
               <div className="flex bg-slate-100 p-1 rounded-xl shrink-0">
                 <button onClick={() => { haptic.selection(); setFiat('TMT'); }} className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${fiat === 'TMT' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}>TMT</button>
                 <button onClick={() => { haptic.selection(); setFiat('USD'); }} className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${fiat === 'USD' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}>USD</button>
+                <button onClick={() => { haptic.selection(); setFiat('USDT'); }} className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${fiat === 'USDT' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}>USDT</button>
               </div>
               <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 transition-all focus-within:border-blue-400 focus-within:bg-white flex-1">
                 <Filter className="w-3.5 h-3.5 text-slate-400" />

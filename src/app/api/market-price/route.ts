@@ -99,14 +99,6 @@ async function getBasePrice(asset: string, fiat: string): Promise<number> {
       case 'USD/USDT':
         price = 1.00; // Почти всегда 1
         break;
-      // Добавляем поддержку RUB через примерные кросс-курсы (в будущем можно добавить API)
-      case 'USD/RUB':
-      case 'USDT/RUB':
-        price = 92.50; // Fallback RUB
-        break;
-      case 'TMT/RUB':
-        price = 2.65; // Fallback TMT/RUB
-        break;
       default:
         console.warn(`Unknown pair requested: ${cacheKey}, returning fallback 1.0`);
         price = 1.00;

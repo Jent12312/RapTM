@@ -226,7 +226,7 @@ export default function CreateAdScreen({ onClose }: Props) {
                 <select value={fiat} onChange={(e) => setFiat(e.target.value)} className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-2xl px-4 py-3 text-sm font-bold appearance-none outline-none">
                   <option value="TMT">TMT (Манат)</option>
                   <option value="USD">USD (Доллар)</option>
-                  <option value="RUB">RUB (Рубль)</option>
+                  <option value="USDT">USDT (Tether)</option>
                 </select>
                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               </div>
