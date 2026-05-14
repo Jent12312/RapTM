@@ -170,14 +170,26 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
       // Проверка баланса перед сделкой (только если мы продаем актив или покупаем у мерчанта актив)
       const assetField = selectedAd.asset === 'TMT' ? 'tmtBalance' : 'usdtBalance';
       const sellerId = selectedAd.type === 'buy' ? user.id : selectedAd.userId;
-      const balanceRes = await fetch(`/api/wallet/balance?userId=${sellerId}`);
-      const balanceData = await balanceRes.json();
       
-      const sellerBalance = Number(balanceData[assetField] || 0);
-      if (sellerBalance < amountAsset) {
-        addToast(t(language, selectedAd.asset === 'TMT' ? 'insufficientTmtSeller' : 'insufficientUsdtSeller'), 'error');
-        setIsProcessing(false);
-        return;
+      try {
+        const balanceRes = await fetch(`/api/wallet/balance?userId=${sellerId}`);
+        if (!balanceRes.ok) {
+          const errData = await balanceRes.json();
+          throw new Error(errData.error || 'Failed to check balance');
+        }
+        
+        const balanceData = await balanceRes.json();
+        const sellerBalance = Number(balanceData[assetField] || 0);
+        
+        if (sellerBalance < amountAsset) {
+          addToast(t(language, selectedAd.asset === 'TMT' ? 'insufficientTmtSeller' : 'insufficientUsdtSeller'), 'error');
+          setIsProcessing(false);
+          return;
+        }
+      } catch (balanceError: any) {
+        console.error('Balance check error:', balanceError);
+        // Мы не блокируем сделку здесь, так как сервер все равно проверит баланс,
+        // но логируем ошибку для отладки.
       }
 
       const res = await fetch('/api/orders', {

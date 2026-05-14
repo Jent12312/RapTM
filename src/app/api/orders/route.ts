@@ -4,6 +4,8 @@ import prisma from '@/lib/prisma';
 import { notifyUser } from '@/lib/telegram';
 import { getAuthUser } from '@/lib/getAuthUser';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
+import { calculateP2PFee } from '@/lib/fees';
 
 import { validateRequest } from '@/lib/api-utils';
 import { createP2POrderSchema } from '@/lib/validations/common';
@@ -18,10 +20,16 @@ export async function POST(req: Request) {
 
     // 2. Валидация запроса через общую утилиту
     const { data, error } = await validateRequest(req, createP2POrderSchema);
-    if (error) return error;
+    if (error) {
+      console.warn('Validation error creating order:', error);
+      return error;
+    }
 
-    const { adId, amountAsset, amountFiat } = data;
+    const { adId, amountAsset: amountAssetNum, amountFiat: amountFiatNum } = data;
     const takerId = authUser.userId;
+
+    const amountAsset = new Prisma.Decimal(amountAssetNum);
+    const amountFiat = new Prisma.Decimal(amountFiatNum);
 
     // 3. Поиск объявления
     const ad = await prisma.p2PAd.findUnique({ 
@@ -66,23 +74,29 @@ export async function POST(req: Request) {
     }
 
     // Расчет комиссии
-    let feeAmount = 0;
+    let feeAmount = new Prisma.Decimal(0);
     try {
       const settings = await prisma.systemSetting.findMany({ where: { key: 'EXCHANGE_RATE' } });
       const exchangeRate = parseFloat(settings[0]?.value || '19.5');
-      const { calculateP2PFee } = await import('@/lib/fees');
-      feeAmount = calculateP2PFee(amountAsset, ad.fiat, seller.level, exchangeRate);
+      
+      const feeNum = calculateP2PFee(amountAssetNum, ad.fiat, seller.level, exchangeRate);
+      feeAmount = new Prisma.Decimal(feeNum).toDecimalPlaces(8);
     } catch (e) {
       console.error("Ошибка расчета комиссии, используется 0:", e);
-      feeAmount = 0; 
+      feeAmount = new Prisma.Decimal(0); 
     }
 
     const asset = ad.asset; // 'USDT' или 'TMT'
     const balanceField = asset === 'TMT' ? 'tmtBalance' : 'usdtBalance';
-    const sellerBalance = Number(seller.wallet[balanceField]);
+    const sellerBalance = new Prisma.Decimal(seller.wallet[balanceField] as any);
 
-    if (sellerBalance < (amountAsset + feeAmount)) {
-      return NextResponse.json({ error: `У продавца недостаточно ${asset} на балансе (включая комиссию)` }, { status: 400 });
+    const totalRequired = amountAsset.plus(feeAmount);
+
+    if (sellerBalance.lt(totalRequired)) {
+      console.warn(`Insufficient balance for order: sellerBalance=${sellerBalance}, totalRequired=${totalRequired}`);
+      return NextResponse.json({ 
+        error: `Недостаточно ${asset} на балансе (включая комиссию ${feeAmount.toString()}). Доступно: ${sellerBalance.toString()}` 
+      }, { status: 400 });
     }
 
     // 6. АТОМАРНАЯ ТРАНЗАКЦИЯ: Заморозка средств + создание ордера + первое сообщение
@@ -91,12 +105,12 @@ export async function POST(req: Request) {
       await tx.wallet.update({
         where: { userId: sellerId },
         data: {
-          [balanceField]: { decrement: amountAsset + feeAmount },
-          frozenBalance: { increment: amountAsset + feeAmount }
+          [balanceField]: { decrement: totalRequired },
+          frozenBalance: { increment: totalRequired }
         }
       });
 
-      // 6.2 Создаем сделку (БЕЗ поля price, так как его нет в базе данных)
+      // 6.2 Создаем сделку
       const newOrder = await tx.order.create({
         data: {
           adId,
@@ -127,7 +141,7 @@ export async function POST(req: Request) {
           orderId: newOrder.id,
           senderId: sellerId,
           isSystem: true,
-          text: `👋 Сделка открыта!\n\n💰 Сумма к оплате: ${amountFiat} ${ad.fiat}\n\nℹ️ ${paymentInfo}\n\n⚠️ Внимание: Не нажимайте 'Я оплатил' до фактического перевода средств.`
+          text: `👋 Сделка открыта!\n\n💰 Сумма к оплате: ${amountFiat.toString()} ${ad.fiat}\n\nℹ️ ${paymentInfo}\n\n⚠️ Внимание: Не нажимайте 'Я оплатил' до фактического перевода средств.`
         }
       });
 
@@ -138,9 +152,9 @@ export async function POST(req: Request) {
     try {
       await notifyUser(buyerId, 'order_created', {
         orderId: order.id,
-        amountFiat: order.amountFiat,
+        amountFiat: order.amountFiat.toString(),
         fiat: ad.fiat,
-        amountAsset: order.amountAsset,
+        amountAsset: order.amountAsset.toString(),
         asset: ad.asset,
         buyerName: order.buyer.firstName || order.buyer.username || 'Покупатель',
         sellerName: order.seller.firstName || order.seller.username || 'Продавец',
@@ -149,9 +163,9 @@ export async function POST(req: Request) {
 
       await notifyUser(sellerId, 'order_created', {
         orderId: order.id,
-        amountFiat: order.amountFiat,
+        amountFiat: order.amountFiat.toString(),
         fiat: ad.fiat,
-        amountAsset: order.amountAsset,
+        amountAsset: order.amountAsset.toString(),
         asset: ad.asset,
         buyerName: order.buyer.firstName || order.buyer.username || 'Покупатель',
         sellerName: order.seller.firstName || order.seller.username || 'Продавец',
@@ -163,9 +177,17 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, order });
 
-  } catch (error) {
-    console.error('Create order error:', error);
-    return NextResponse.json({ error: 'Внутренняя ошибка сервера при создании сделки' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Create order error details:', {
+      message: error.message,
+      code: error.code,
+      meta: error.meta,
+      stack: error.stack
+    });
+    return NextResponse.json({ 
+      error: 'Внутренняя ошибка сервера при создании сделки',
+      details: error.message 
+    }, { status: 500 });
   }
 }
 
