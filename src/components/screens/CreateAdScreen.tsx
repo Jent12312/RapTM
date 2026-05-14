@@ -34,7 +34,8 @@ interface MarketPrice {
 }
 
 export default function CreateAdScreen({ onClose }: Props) {
-  const { user, language, balances, addToast } = useAppStore();
+  // ДОБАВЛЕНО: Достаем token из стора для авторизации API-запроса
+  const { language, token, addToast } = useAppStore();
 
   // 1. Тип: Купить/Продать
   const [adDirection, setAdDirection] = useState<'buy' | 'sell'>('buy');
@@ -106,11 +107,15 @@ export default function CreateAdScreen({ onClose }: Props) {
   };
 
   const handlePublish = async () => {
+    // Валидация перед отправкой
     if ((priceType === 'fixed' && !price) || (priceType === 'floating' && !pricePercent)) {
       addToast(t(language, 'priceOrPercentError'), 'error'); return;
     }
     if (!minLimit || !maxLimit) {
       addToast(t(language, 'limitsError'), 'error'); return;
+    }
+    if (Number(minLimit) >= Number(maxLimit)) {
+      addToast("Максимальный лимит должен быть больше минимального", 'error'); return;
     }
     if (selectedMethods.length === 0) {
       addToast(t(language, 'paymentMethodError'), 'error'); return;
@@ -119,18 +124,21 @@ export default function CreateAdScreen({ onClose }: Props) {
     try {
       const res = await fetch('/api/p2p', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // ИСПРАВЛЕНИЕ 1: Токен для бекенда
+        },
         body: JSON.stringify({
-          userId: user?.id,
-          type: adDirection,
+          // userId убран, так как бекенд сам берет его из токена
+          type: adDirection.toUpperCase(), // ИСПРАВЛЕНИЕ 2: BUY / SELL вместо buy / sell
           asset,
           fiat,
-          priceType,
+          priceType: priceType.toUpperCase(), // ИСПРАВЛЕНИЕ 3: FIXED / FLOATING
           price: priceType === 'floating' ? parseFloat(pricePercent) : parseFloat(price),
           minLimit: Number(minLimit),
           maxLimit: Number(maxLimit),
           paymentMethods: selectedMethods,
-          city: selectedMethods.includes('cash') ? city : null,
+          city: selectedMethods.includes('cash') ? city : 'Ашхабад', // ИСПРАВЛЕНИЕ 4: city всегда строка
           description,
           paymentTime: Number(paymentTime),
           reqKyc,
@@ -141,13 +149,17 @@ export default function CreateAdScreen({ onClose }: Props) {
         })
       });
 
+      const data = await res.json();
+
       if (res.ok) {
         addToast(t(language, 'success'), 'success');
         onClose();
       } else {
-        addToast(t(language, 'error'), 'error');
+        console.error("Ошибка от сервера:", data);
+        addToast(data.error || t(language, 'error'), 'error');
       }
     } catch (e) {
+      console.error("Ошибка запроса:", e);
       addToast(t(language, 'serverError'), 'error');
     }
   };
@@ -376,7 +388,8 @@ export default function CreateAdScreen({ onClose }: Props) {
               </div>
               <div className="space-y-1.5">
                 <span className="text-[10px] font-bold text-slate-400 uppercase ml-1 flex items-center gap-1"><Star className="w-3 h-3" /> {t(language, 'rating')}</span>
-                <input type="number" value={reqMinRating} onChange={(e) => setReqMinRating(e.target.value)} placeholder="0" className="w-full bg-slate-50 p-3 rounded-xl text-sm font-bold outline-none" />
+                {/* ИСПРАВЛЕНИЕ 5: Добавлено max="5" так как бекенд не пропустит больше 5 */}
+                <input type="number" max="5" min="0" value={reqMinRating} onChange={(e) => setReqMinRating(e.target.value)} placeholder="0" className="w-full bg-slate-50 p-3 rounded-xl text-sm font-bold outline-none" />
               </div>
             </div>
 

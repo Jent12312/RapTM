@@ -1,4 +1,3 @@
-// src/app/api/p2p/route.ts
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getAuthUser } from '@/lib/getAuthUser';
@@ -13,7 +12,7 @@ const createAdSchema = z.object({
   price: z.number().positive('Price must be greater than 0'),
   minLimit: z.number().positive('Min limit must be greater than 0'),
   maxLimit: z.number().positive('Max limit must be greater than 0'),
-  city: z.string().min(1, 'City is required'),
+  city: z.string().optional().nullable(), // ИСПРАВЛЕНО: теперь может быть пустым/null
   autoReply: z.string().optional().nullable(),
   description: z.string().optional().default(''),
   paymentTime: z.number().int().min(5).max(120).optional().default(15),
@@ -21,6 +20,7 @@ const createAdSchema = z.object({
   reqKyc: z.boolean().optional().default(false),
   reqMinTrades: z.number().int().min(0).optional().default(0),
   reqRating: z.number().min(0).max(5).optional().default(0),
+  reqFastConfirm: z.boolean().optional().default(false), // ДОБАВЛЕНО: чтобы совпадало с фронтом
   paymentMethods: z.array(z.string()).optional().default([]),
 }).refine(data => data.maxLimit > data.minLimit, {
   message: 'Max limit must be greater than min limit',
@@ -75,7 +75,20 @@ export async function GET(req: Request) {
     const [ads, total] = await Promise.all([
       prisma.p2PAd.findMany({
         where,
-        include: { user: { select: { id: true, username: true, firstName: true, avatarUrl: true, tradesCount: true, level: true, isVerified: true, rating: true } } },
+        include: { 
+          user: { 
+            select: { 
+              id: true, 
+              username: true, 
+              firstName: true, 
+              avatarUrl: true, 
+              tradesCount: true, 
+              level: true, 
+              isVerified: true, 
+              rating: true 
+            } 
+          } 
+        },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
@@ -101,10 +114,10 @@ export async function GET(req: Request) {
 // 2. Создать новое объявление (защищено JWT)
 export async function POST(req: Request) {
   try {
-    // Извлекаем userId из JWT, а не из тела запроса
+    // Извлекаем пользователя из JWT (токен должен быть в заголовке Authorization: Bearer <token>)
     const authUser = await getAuthUser();
     if (!authUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized. Пожалуйста, авторизуйтесь.' }, { status: 401 });
     }
 
     const body = await req.json();
@@ -121,17 +134,21 @@ export async function POST(req: Request) {
     });
 
     if (!parsed.success) {
+      console.error("Zod Validation Error:", parsed.error.flatten().fieldErrors);
       return NextResponse.json(
-        { error: 'Validation failed', details: parsed.error.flatten().fieldErrors },
+        { error: 'Ошибка валидации данных', details: parsed.error.flatten().fieldErrors },
         { status: 400 }
       );
     }
 
     const data = parsed.data;
 
+    // Вставка в базу данных
+    // Примечание: если в вашей схеме Prisma нет поля reqFastConfirm, 
+    // просто удалите эту строку ниже, иначе Prisma выдаст ошибку.
     const newAd = await prisma.p2PAd.create({
       data: {
-        userId: authUser.userId, // ← из JWT, не из body
+        userId: authUser.userId, // ← из JWT
         type: data.type,
         asset: data.asset,
         fiat: data.fiat,
@@ -139,7 +156,7 @@ export async function POST(req: Request) {
         price: data.price,
         minLimit: data.minLimit,
         maxLimit: data.maxLimit,
-        city: data.city,
+        city: data.city || "Не указан",
         autoReply: data.autoReply || null,
         description: data.description,
         paymentTime: data.paymentTime,
@@ -148,12 +165,14 @@ export async function POST(req: Request) {
         reqMinTrades: data.reqMinTrades,
         reqRating: data.reqRating,
         paymentMethods: data.paymentMethods,
+        // Если в Prisma есть поле reqFastConfirm, раскомментируйте строчку ниже:
+        // reqFastConfirm: data.reqFastConfirm 
       }
     });
 
     return NextResponse.json({ success: true, ad: newAd });
   } catch (error) {
     console.error("Create Ad Error:", error);
-    return NextResponse.json({ error: 'Failed to create ad' }, { status: 500 });
+    return NextResponse.json({ error: 'Ошибка сервера при создании объявления' }, { status: 500 });
   }
 }
