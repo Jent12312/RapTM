@@ -67,8 +67,8 @@ export default function ExchangeScreen() {
     const num = parseFloat(amount) || 0;
     const rate = settings.EXCHANGE_RATE;
 
-    // Фиатные пары: 20 TMT фикс (списывается в USDT эквиваленте)
-    const feeInUsdt = 20 / rate;
+    // Используем комиссию из настроек (в ТМТ), переводим в USDT
+    const feeInUsdt = (settings.EXCHANGE_FEE || 20) / rate;
 
     let receive = 0;
 
@@ -200,7 +200,7 @@ export default function ExchangeScreen() {
           <div className="text-right">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">{t(language, 'exCommission')}</p>
             <div className="flex items-center gap-1 justify-end">
-              <span className="text-sm font-black text-indigo-600">20 TMT (fix)</span>
+              <span className="text-sm font-black text-indigo-600">{settings.EXCHANGE_FEE} TMT (fix)</span>
               <Info className="w-3 h-3 text-slate-300" />
             </div>
           </div>

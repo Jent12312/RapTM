@@ -230,9 +230,12 @@ export default function AdminScreen({ onClose }: { onClose: () => void }) {
       const res = await fetch('/api/admin/reconciliation', { method: 'POST' });
       if (!res.ok) throw new Error(t(language, 'serverError'));
       const data = await res.json();
-      if (data.success) {
+      if (data.success && data.log) {
         setReconLogs(prev => [data.log, ...prev]);
         setSuccess('Сверка завершена: ' + (data.log.isMatch ? 'Успешно' : 'Найдено расхождение'));
+      } else if (data.success) {
+        setSuccess('Сверка завершена');
+        fetch('/api/admin/reconciliation').then(r => r.json()).then(d => setReconLogs(d.logs || []));
       }
     } catch (e: any) {
       console.error(e);

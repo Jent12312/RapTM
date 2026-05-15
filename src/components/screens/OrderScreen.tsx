@@ -122,7 +122,7 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
       const data = await res.json();
       
       if (res.ok) {
-        setOrder(data);
+        setOrder(data.order);
         addToast(t(language, 'success'), 'success');
         setStatus(newStatus);
       } else {
@@ -167,7 +167,7 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
         setComment('');
         setSelectedRating(rating);
         setHasReviewed(true);
-        setOrder(data);
+        setOrder(data.order);
       } else {
         alert(data.error || t(language, 'orderReviewError'));
       }
@@ -189,7 +189,7 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
       
       const data = await res.json();
       if (res.ok) {
-        setOrder(data);
+        setOrder(data.order);
         alert(t(language, 'orderDisputeSent'));
         setStatus('DISPUTED');
       } else {

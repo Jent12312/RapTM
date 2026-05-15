@@ -31,7 +31,7 @@ export default function StabilityTab({ reconLogs, reconLoading, runReconciliatio
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50 font-bold">
-            {(reconLogs || []).map((log) => (
+            {(reconLogs || []).filter(l => !!l).map((log) => (
               <tr key={log.id}>
                 <td className="px-5 py-4 text-slate-400">{new Date(log.createdAt).toLocaleString('ru-RU')}</td>
                 <td className="px-5 py-4">
