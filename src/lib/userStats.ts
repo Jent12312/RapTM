@@ -1,6 +1,7 @@
 import prisma from './prisma';
 
-export async function updateUserStats(userId: string, volumeUsdt: number) {
+export async function updateUserStats(userId: string, volumeUsdt: number) 
+{
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: { reviewsReceived: true }
@@ -12,8 +13,10 @@ export async function updateUserStats(userId: string, volumeUsdt: number) {
   const newVolumeTotal = Number(user.volumeTotal) + volumeUsdt;
 
   // Логика реферального бонуса: +15 USDT за активного реферала (первая сделка)
-  if (user.tradesCount === 0 && user.referrerId) {
-    try {
+  if (user.tradesCount === 0 && user.referrerId) 
+  {
+    try 
+    {
       await prisma.$transaction(async (tx) => {
         // Начисляем USDT и отслеживаем бонус
         await tx.wallet.update({
@@ -45,14 +48,14 @@ export async function updateUserStats(userId: string, volumeUsdt: number) {
         asset: 'USDT',
         referralName: user.nickname || user.firstName || user.telegramId
       });
-    } catch (e) {
-      console.error('Referral Reward Error:', e);
-    }
+    } 
+    catch (e) { console.error('Referral Reward Error:', e); }
   }
 
   // Рассчитываем рейтинг
   let averageRating = 0;
-  if (user.reviewsReceived && user.reviewsReceived.length > 0) {
+  if (user.reviewsReceived && user.reviewsReceived.length > 0) 
+  {
     const ratingValues = { EXCELLENT: 5, NEUTRAL: 3, BAD: 1 };
     const totalPoints = user.reviewsReceived.reduce((sum, r) => sum + (ratingValues[r.rating] || 0), 0);
     averageRating = (totalPoints / user.reviewsReceived.length);
@@ -70,10 +73,10 @@ export async function updateUserStats(userId: string, volumeUsdt: number) {
   });
 }
 
-export async function isEligibleForPro(userId: string) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-  });
+export async function isEligibleForPro(userId: string) 
+{
+
+  const user = await prisma.user.findUnique({ where: { id: userId }, });
 
   if (!user || user.level !== 'Standard') return false;
 
@@ -88,4 +91,3 @@ export async function isEligibleForPro(userId: string) {
     daysSinceFirstTrade >= 14
   );
 }
-

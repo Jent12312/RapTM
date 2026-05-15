@@ -14,11 +14,11 @@ interface Props {
 export default function OrderScreen({ order: initialOrder, onClose }: Props) {
   const { user, language, addToast } = useAppStore();
   const [order, setOrder] = useState(initialOrder);
-  const [status, setStatus] = useState(initialOrder.status);
+  const [status, setStatus] = useState(initialOrder?.status || 'PENDING');
   const [isChatOpen, setIsChatOpen] = useState(false);
   
-  // ИЩЕМ ТОЛЬКО МОЙ ОТЗЫВ В МАССИВЕ REVIEWS
-  const myReview = initialOrder.reviews?.find((r: any) => r.authorId === user.id);
+  // БЕЗОПАСНОЕ ЧТЕНИЕ: Добавлены знаки вопроса на случай, если order вдруг пуст
+  const myReview = order?.reviews?.find((r: any) => r.authorId === user?.id);
   const [hasReviewed, setHasReviewed] = useState(!!myReview);
   const [selectedRating, setSelectedRating] = useState<string | null>(myReview?.rating || null);
   const [comment, setComment] = useState('');
@@ -28,20 +28,7 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number>(0);
 
-  // ИСПРАВЛЕНО: РОЛИ ЖЕЛЕЗОБЕТОННЫЕ с защитой от undefined
-  const actualBuyerId = order?.buyerId || order?.buyer?.id;
-  const actualSellerId = order?.sellerId || order?.seller?.id;
-  const currentUserId = user?.id; // Текущий авторизованный юзер
-  const isBuyer = Boolean(currentUserId && currentUserId === order?.buyerId);
-  const isSeller = Boolean(currentUserId && currentUserId === order?.sellerId);
-  
-  const partnerName = isBuyer 
-    ? (order.seller?.nickname || order.seller?.firstName || 'User') 
-    : (order.buyer?.nickname || order.buyer?.firstName || 'User');
-  const partnerId = isBuyer ? order.sellerId : order.buyerId;
-
   useEffect(() => {
-    // ИСПРАВЛЕНО: Защита от краша, если order не прогрузился
     if (!order || !order.id) return;
 
     if (status === 'COMPLETED' || status === 'CANCELLED') {
@@ -50,8 +37,9 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
     }
 
     const calculateTimeLeft = () => {
-      const createdAt = new Date(order.createdAt).getTime();
-      const limitMs = (order.ad.paymentTime || 15) * 60 * 1000;
+      // Безопасное чтение через ?
+      const createdAt = new Date(order?.createdAt || new Date()).getTime();
+      const limitMs = (order?.ad?.paymentTime || 15) * 60 * 1000;
       const now = new Date().getTime();
       const diff = Math.max(0, (createdAt + limitMs) - now);
       setTimeLeft(diff);
@@ -65,7 +53,7 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
         const res = await fetch(`/api/orders/${order.id}`);
         const freshOrder = await res.json();
         
-        // ИСПРАВЛЕНО: Проверка на валидность пришедшего объекта
+        // Защита: Обновляем стейт ТОЛЬКО если сервер вернул реальный объект с ID
         if (res.ok && freshOrder && freshOrder.id) {
           if (freshOrder.status !== status || freshOrder.isDisputed !== order.isDisputed) {
             setStatus(freshOrder.status);
@@ -73,7 +61,7 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
           setOrder(freshOrder);
           
           if (freshOrder.reviews) {
-             const newMyReview = freshOrder.reviews.find((r: any) => r.authorId === user.id);
+             const newMyReview = freshOrder.reviews.find((r: any) => r.authorId === user?.id);
              if (newMyReview && !hasReviewed) {
                setHasReviewed(true);
                setSelectedRating(newMyReview.rating);
@@ -89,7 +77,7 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
       clearInterval(timer);
       clearInterval(updateInterval);
     };
-  }, [order?.id, status, hasReviewed, user.id]);
+  }, [order?.id, status, hasReviewed, user?.id]);
 
   const formatTime = (ms: number) => {
     const mins = Math.floor(ms / 60000);
@@ -98,10 +86,9 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
   };
 
   const updateOrderStatus = async (newStatus: string) => {
-    // ИСПРАВЛЕНО: Убрано обязательное требование фото. Чек - опциональная вещь.
     setIsUploadingPhoto(true);
     try {
-      if (newStatus === 'PAID' && paymentPhoto) {
+      if (newStatus === 'PAID' && paymentPhoto && order?.id) {
         const formData = new FormData();
         formData.append('image', paymentPhoto);
         formData.append('senderId', user.id);
@@ -121,7 +108,8 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
       });
       const data = await res.json();
       
-      if (res.ok) {
+      // Защита: сохраняем только если сервер вернул data.order
+      if (res.ok && data.order) {
         setOrder(data.order);
         addToast(t(language, 'success'), 'success');
         setStatus(newStatus);
@@ -140,9 +128,7 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
     if (file) {
       setPaymentPhoto(file);
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setPaymentPhotoPreview(reader.result as string);
-      };
+      reader.onloadend = () => setPaymentPhotoPreview(reader.result as string);
       reader.readAsDataURL(file);
     }
   };
@@ -155,14 +141,11 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
       const res = await fetch(`/api/orders/${order.id}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          rating,
-          comment: comment.trim() || null
-        })
+        body: JSON.stringify({ rating, comment: comment.trim() || null })
       });
       
       const data = await res.json();
-      if (res.ok) {
+      if (res.ok && data.order) {
         addToast(t(language, 'success'), 'success');
         setComment('');
         setSelectedRating(rating);
@@ -188,7 +171,7 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
       });
       
       const data = await res.json();
-      if (res.ok) {
+      if (res.ok && data.order) {
         setOrder(data.order);
         alert(t(language, 'orderDisputeSent'));
         setStatus('DISPUTED');
@@ -201,20 +184,32 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
   };
 
   const canShowDisputeButton = () => {
-    if (status !== 'PAID') return false;
+    if (status !== 'PAID' || !order?.updatedAt) return false;
     const paidTime = new Date(order.updatedAt);
     const oneMinuteLater = new Date(paidTime.getTime() + 1 * 60 * 1000);
     return new Date() >= oneMinuteLater;
   };
 
+  // =======================================================
+  // ЗАЩИТА ОТ КРАША: Если order вдруг пропал, закрываем окно
+  // =======================================================
+  if (!order || !order.id) {
+    return null;
+  }
+
+  // ЖЕЛЕЗОБЕТОННОЕ ОПРЕДЕЛЕНИЕ РОЛЕЙ
+  const currentUserId = user?.id;
+  const isBuyer = Boolean(currentUserId && order?.buyerId && currentUserId === order.buyerId);
+  const isSeller = Boolean(currentUserId && order?.sellerId && currentUserId === order.sellerId);
+  
+  const partnerName = isBuyer 
+    ? (order?.seller?.nickname || order?.seller?.firstName || 'User') 
+    : (order?.buyer?.nickname || order?.buyer?.firstName || 'User');
+
   return (
     <>
       {isChatOpen && (
-        <ChatScreen
-          orderId={order.id}
-          partnerName={partnerName}
-          onClose={() => setIsChatOpen(false)}
-        />
+        <ChatScreen orderId={order.id} partnerName={partnerName} onClose={() => setIsChatOpen(false)} />
       )}
 
       <div className="fixed inset-0 z-[150] bg-slate-50 overflow-y-auto animate-in fade-in duration-300">
@@ -232,9 +227,7 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
             onClick={() => setIsChatOpen(true)}
             disabled={['COMPLETED', 'CANCELLED'].includes(status)}
             className={`p-2 rounded-full relative ${
-              ['COMPLETED', 'CANCELLED'].includes(status)
-                ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                : 'bg-slate-50 text-blue-500'
+              ['COMPLETED', 'CANCELLED'].includes(status) ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-slate-50 text-blue-500'
             }`}
           >
             <MessageCircle className="w-6 h-6" />
@@ -259,10 +252,9 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
                   <Clock className="w-4 h-4" /> {timeLeft > 0 ? formatTime(timeLeft) : t(language, 'statusCancelled')}
                 </div>
                 <h3 className="text-2xl font-black text-slate-800 mb-2">
-                  {/* ИСПРАВЛЕНО: Четкое разделение кто сколько кому платит */}
                   {isBuyer 
-                    ? `${t(language, 'adminSendAmount')} ${order.amountFiat} ${order.ad.fiat}` 
-                    : `${t(language, 'adminReceiveAmount')} ${order.amountFiat} ${order.ad.fiat}`}
+                    ? `${t(language, 'adminSendAmount')} ${order?.amountFiat} ${order?.ad?.fiat}` 
+                    : `${t(language, 'adminReceiveAmount')} ${order?.amountFiat} ${order?.ad?.fiat}`}
                 </h3>
                 <p className="text-sm text-slate-500 font-medium">{t(language, 'step1')}</p>
               </>
@@ -270,7 +262,6 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
 
             {status === 'PAID' && (
               <>
-                {/* ИСПРАВЛЕНО: Убрана визуальная обманка с пустой камерой */}
                 <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner animate-pulse">
                   <Clock className="w-8 h-8" />
                 </div>
@@ -288,37 +279,32 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
                 </div>
                 <h3 className="text-2xl font-black text-slate-800 mb-6">{t(language, 'statusCompleted')}</h3>
 
-                {/* НОВЫЙ БЛОК: Детальный чек сделки, который показывает и 59, и 50 */}
                 <div className="flex flex-col gap-3 mb-8 text-left">
-                  
-                  {/* Блок Фиата (внешняя оплата) */}
                   <div className={`p-4 rounded-2xl border ${isBuyer ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100'}`}>
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">
-                      Внешняя оплата (Наличные / Перевод)
+                      Внешняя оплата (Фиат)
                     </p>
                     <p className={`text-lg font-black ${isBuyer ? 'text-red-600' : 'text-emerald-600'}`}>
-                      {isBuyer ? '-' : '+'}{order.amountFiat} {order.ad.fiat}
+                      {isBuyer ? '-' : '+'}{order?.amountFiat} {order?.ad?.fiat}
                     </p>
                     <p className="text-xs font-bold text-slate-500 mt-0.5">
                       {isBuyer ? 'Отправлено партнеру' : 'Получено от партнера'}
                     </p>
                   </div>
 
-                  {/* Блок Крипты (баланс кошелька RapTM) */}
                   <div className={`p-4 rounded-2xl border ${isBuyer ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">
-                      Баланс RapTM Wallet
+                      Баланс кошелька
                     </p>
                     <p className={`text-lg font-black ${isBuyer ? 'text-emerald-600' : 'text-red-600'}`}>
-                      {isBuyer ? '+' : '-'}{order.amountAsset} {order.ad.asset}
+                      {isBuyer ? '+' : '-'}{order?.amountAsset} {order?.ad?.asset}
                     </p>
                     <p className="text-xs font-bold text-slate-500 mt-0.5">
                       {isBuyer ? t(language, 'adminCredited') : t(language, 'adminDebited')}
                     </p>
                   </div>
-
                 </div>
-
+                
                 <div className="border-t border-slate-100 pt-6">
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
                     {t(language, 'reviewTitle')} {partnerName}
@@ -361,49 +347,43 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
             <div className="space-y-4">
               <div className="bg-white p-6 rounded-[2rem] shadow-sm ring-1 ring-slate-100 space-y-4">
                 <div className="flex justify-between items-center pb-4 border-b border-slate-50">
-                  {/* ИСПРАВЛЕНО: Динамический текст Отдает / Получает для фиата */}
                   <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
                     {isBuyer ? t(language, 'adminSendAmount') : t(language, 'adminReceiveAmount')}
                   </span>
-                  <span className="text-lg font-black text-slate-800">{order.amountFiat} {order.ad.fiat}</span>
+                  <span className="text-lg font-black text-slate-800">{order?.amountFiat} {order?.ad?.fiat}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t(language, 'meetingCity')}</span>
                   <span className="text-sm font-bold text-slate-700 flex items-center gap-1">
-                    <MapPin className="w-4 h-4 text-emerald-500" /> {order.ad.city}
+                    <MapPin className="w-4 h-4 text-emerald-500" /> {order?.ad?.city || 'Онлайн'}
                   </span>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                  {/* ИСПРАВЛЕНО: Логика поменяна. Покупатель получает крипту (Credited), продавец отдает (Debited) */}
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
                     {isBuyer ? t(language, 'orderCredited') : t(language, 'orderDebited')}
                   </p>
-                  <p className="text-sm font-black text-slate-800">RapTM Wallet</p>
+                  <p className="text-sm font-black text-slate-800">
+                    {order?.amountAsset} {order?.ad?.asset}
+                  </p>
                 </div>
               </div>
 
               {isBuyer && status === 'PENDING' && (
                 <div className="bg-blue-50 p-6 rounded-[2rem] ring-1 ring-blue-100 space-y-4">
-                  {order.ad.paymentMethods?.map((method: string) => (
+                  {order?.ad?.paymentMethods?.map((method: string) => (
                     <div key={method} className="bg-white p-4 rounded-2xl border border-blue-100 mb-2">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t(language, 'p2pMethod')}</p>
                       <p className="text-sm font-black text-slate-800">
-                        {/* ИСПРАВЛЕНО: Выводит реальное название метода, если это не Cash/Card/Tmcell */}
-                        {method === 'Cash' ? t(language, 'orderCash') : 
-                        method === 'Card' ? t(language, 'orderCard') : 
-                        method === 'Tmcell' ? t(language, 'orderTmcell') : 
-                        method} 
+                        {method === 'Cash' ? t(language, 'orderCash') : method === 'Card' ? t(language, 'orderCard') : method === 'Tmcell' ? t(language, 'orderTmcell') : method}
                       </p>
                       <p className="text-[11px] font-bold text-slate-400 mt-0.5">
-                        {method === 'Cash' ? order.ad.city : t(language, 'orderDetailsInChat')}
+                        {method === 'Cash' ? (order?.ad?.city || t(language, 'orderDetailsInChat')) : t(language, 'orderDetailsInChat')}
                       </p>
                     </div>
                   ))}
                   
-                  {/* ИСПРАВЛЕНО: Показываем блок загрузки фото всегда (опционально) */}
                   {timeLeft > 0 && (
                     <div className="pt-4 border-t border-blue-200 mt-4">
-                      {/* ИСПРАВЛЕНО: Явно пишем, что чек опционален */}
                       <p className="text-xs font-bold text-blue-800 uppercase mb-3 flex items-center gap-2">
                         <Camera className="w-4 h-4" /> Чек (Необязательно)
                       </p>
@@ -454,7 +434,7 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
             </div>
           )}
 
-          {/* КНОПКИ ПОКУПАТЕЛЯ (Тот, кто переводит фиат) */}
+          {/* КНОПКИ ПОКУПАТЕЛЯ */}
           {status === 'PENDING' && isBuyer && !order.isDisputed && (
             <div className="flex gap-3">
               <button 
@@ -482,21 +462,21 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
             </div>
           )}
 
-          {/* КНОПКА ПРОДАВЦА (Тот, кто получает фиат и отдает крипту) */}
+          {/* КНОПКА ПРОДАВЦА */}
           {status === 'PAID' && isSeller && !order.isDisputed && (
             <button onClick={() => updateOrderStatus('COMPLETED')} className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-200 active:scale-95 transition-all uppercase tracking-wide">
               {t(language, 'confirmRec')}
             </button>
           )}
 
-          {/* КНОПКИ ЗАВЕРШЕНИЯ (Для обоих) */}
+          {/* КНОПКИ ЗАВЕРШЕНИЯ */}
           {(status === 'COMPLETED' || status === 'CANCELLED') && (
             <button onClick={onClose} className="w-full bg-slate-100 text-slate-600 font-bold py-4 rounded-2xl active:scale-95 transition-all uppercase tracking-wide">
               {t(language, 'returnToWallet')}
             </button>
           )}
 
-          {/* КНОПКА СПОРА (Доступна обоим, но проверяем функцию) */}
+          {/* КНОПКА СПОРА */}
           {status === 'PAID' && canShowDisputeButton() && !order.isDisputed && !['COMPLETED', 'CANCELLED'].includes(status) && (
             <button
               onClick={handleDispute}
@@ -507,7 +487,7 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
             </button>
           )}
 
-          {/* ТЕКСТЫ ОЖИДАНИЯ (Когда другой юзер должен нажать кнопку) */}
+          {/* ТЕКСТЫ ОЖИДАНИЯ */}
           {status === 'PENDING' && isSeller && (
             <div className="text-center text-slate-500 font-bold text-sm">Ожидание оплаты от покупателя...</div>
           )}

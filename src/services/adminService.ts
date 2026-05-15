@@ -1,9 +1,8 @@
 import prisma from '@/lib/prisma';
-import { UserLevel, KycStatus, TransactionType, TransactionStatus } from '@prisma/client';
+import { UserLevel } from '@prisma/client';
 import { notifyUser } from '@/lib/telegram';
 
 export const adminService = {
-  // Stats for Dashboard
   async getDashboardStats() {
     const now = new Date();
     const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -61,24 +60,23 @@ export const adminService = {
     };
   },
 
-  async updateExchangeRate(newRate: string, freeze: boolean, adminId: string) {
+  async updateExchangeRate(newRate: string, freeze: boolean, adminId: string) 
+  {
     const rate = await prisma.exchangeRate.upsert({
       where: { id: 'global' },
       update: { rate: newRate, isFrozen: freeze },
       create: { id: 'global', rate: newRate, isFrozen: freeze },
     });
 
-    // Sync with SystemSetting
     await prisma.systemSetting.upsert({
       where: { key: 'EXCHANGE_RATE' },
       update: { value: newRate },
       create: { key: 'EXCHANGE_RATE', value: newRate }
     });
     
-    // Log history
     await prisma.rateHistory.create({
       data: {
-        oldRate: 0, // Simplified
+        oldRate: 0, 
         newRate: Number(newRate),
         changedBy: adminId
       }
@@ -94,7 +92,8 @@ export const adminService = {
     return rate;
   },
 
-  async promoteUser(userId: string, level: UserLevel, adminId: string) {
+  async promoteUser(userId: string, level: UserLevel, adminId: string) 
+  {
     const user = await prisma.user.update({
       where: { id: userId },
       data: { level },
@@ -110,7 +109,8 @@ export const adminService = {
     return user;
   },
 
-  async setDailyLimit(userId: string, limit: number, adminId: string) {
+  async setDailyLimit(userId: string, limit: number, adminId: string) 
+  {
     const user = await prisma.user.update({
       where: { id: userId },
       data: { dailyLimitOverride: limit },
@@ -126,7 +126,8 @@ export const adminService = {
     return user;
   },
 
-  async adjustBalance(userId: string, type: 'MAIN' | 'BONUS', amount: number, adminId: string) {
+  async adjustBalance(userId: string, type: 'MAIN' | 'BONUS', amount: number, adminId: string) 
+  {
     const updateData = type === 'MAIN' 
       ? { usdtBalance: { increment: amount } }
       : { bonusBalance: { increment: amount } };
@@ -147,7 +148,8 @@ export const adminService = {
     return wallet;
   },
 
-  async lockUser(userId: string, lock: boolean, adminId: string) {
+  async lockUser(userId: string, lock: boolean, adminId: string) 
+  {
     const user = await prisma.user.update({
       where: { id: userId },
       data: { isFrozen: lock },
@@ -162,21 +164,24 @@ export const adminService = {
     return user;
   },
 
-  async getVerificationQueue() {
+  async getVerificationQueue() 
+  {
     return prisma.levelApplication.findMany({
       where: { status: 'PENDING' },
       include: { user: true }
     });
   },
 
-  async getWithdrawalQueue() {
+  async getWithdrawalQueue() 
+  {
     return prisma.transaction.findMany({
       where: { type: 'WITHDRAWAL', status: 'PENDING' },
       include: { user: true }
     });
   },
 
-  async resolveDispute(orderId: string, resolution: 'COMPLETED' | 'CANCELLED', adminId: string) {
+  async resolveDispute(orderId: string, resolution: 'COMPLETED' | 'CANCELLED', adminId: string) 
+  {
     const order = await prisma.order.update({
       where: { id: orderId },
       data: { status: resolution, isDisputed: false },
@@ -191,14 +196,14 @@ export const adminService = {
       },
     });
 
-    // Notify participants
     await notifyUser(order.buyerId, 'dispute_resolved', { orderId, resolution });
     await notifyUser(order.sellerId, 'dispute_resolved', { orderId, resolution });
 
     return order;
   },
 
-  async manageBlacklist(type: string, value: string, reason: string, adminId: string) {
+  async manageBlacklist(type: string, value: string, reason: string, adminId: string) 
+  {
     const entry = await prisma.blacklistEntry.upsert({
       where: { value },
       update: { type, reason, addedBy: adminId },
@@ -215,7 +220,8 @@ export const adminService = {
     return entry;
   },
 
-  async getPnL(start: Date, end: Date) {
+  async getPnL(start: Date, end: Date) 
+  {
     const fees = await prisma.transaction.aggregate({
       where: { createdAt: { gte: start, lte: end }, status: 'COMPLETED' },
       _sum: { fee: true },
@@ -234,7 +240,8 @@ export const adminService = {
     };
   },
 
-  async getCashBalances() {
+  async getCashBalances() 
+  {
     const balances = await prisma.transaction.groupBy({
       by: ['city'],
       where: { method: 'CASH', status: 'COMPLETED' },

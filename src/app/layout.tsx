@@ -27,7 +27,7 @@ export default function RootLayout({
       </head>
       <body className={`${inter.className} bg-[#f8fafc] text-slate-900 pb-28 min-h-screen overflow-x-hidden selection:bg-emerald-200`}>
         <TelegramProvider>
-          <GlobalNotifications /> {/* <-- НОВОЕ */}
+          <GlobalNotifications />
           {children}
         </TelegramProvider>
       </body>

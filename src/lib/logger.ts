@@ -11,7 +11,8 @@ export async function logAction(params: {
   ip?: string;
   userAgent?: string;
 }) {
-  try {
+  try 
+  {
     await prisma.log.create({
       data: {
         userId: params.userId,
@@ -22,14 +23,13 @@ export async function logAction(params: {
         userAgent: params.userAgent,
       },
     });
-  } catch (error) {
-    console.error('Failed to write log:', error);
-    // Не выбрасываем ошибку, чтобы сбой логгера не нарушил работу приложения
-  }
+  } 
+  catch (error) { console.error('Failed to write log:', error); }
 }
 
 // Быстрый вызов для алертов безопасности
-export async function logSecurityAlert(userId: string, action: string, details: string) {
+export async function logSecurityAlert(userId: string, action: string, details: string) 
+{
   return logAction({
     userId,
     action,

@@ -7,13 +7,15 @@ import { haptic } from '../lib/haptic';
 type Tab = 'wallet' | 'exchange' | 'p2p' | 'profile';
 export type ToastType = 'success' | 'error' | 'info';
 
-export interface ToastMessage {
+export interface ToastMessage 
+{
   id: string;
   message: string;
   type: ToastType;
 }
 
-interface AppState {
+interface AppState 
+{
   language: Language;
   activeTab: Tab;
   isBalanceVisible: boolean;
@@ -63,14 +65,16 @@ export const useAppStore = create<AppState>()(
       },
 
       initUser: async (initData: string) => {
-        try {
+        try 
+        {
           const res = await fetch('/api/auth', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ initData }),
           });
           
-          if (!res.ok) {
+          if (!res.ok) 
+          {
             const errorText = await res.text();
             console.error("Auth server error:", errorText);
             get().addToast("Ошибка сервера при авторизации.", "error");
@@ -78,7 +82,8 @@ export const useAppStore = create<AppState>()(
           }
 
           const data = await res.json();
-          if (data.success && data.user) {
+          if (data.success && data.user) 
+          {
             set({
               user: data.user,
               token: data.token,
@@ -89,11 +94,14 @@ export const useAppStore = create<AppState>()(
               },
               referralInfo: data.isNewReferral ? { isNew: true, referrerName: data.referrerName } : null
             });
-          } else {
+          } 
+          else 
+          {
             console.error("Ошибка авторизации: ", data.error);
             get().addToast("Ошибка авторизации. Перезапустите приложение.", "error");
           }
-        } catch (err) {
+        } 
+        catch (err) {
           console.error("Ошибка авторизации (Network/JSON):", err);
           get().addToast("Ошибка сети при авторизации.", "error");
         }
@@ -110,23 +118,28 @@ export const useAppStore = create<AppState>()(
 
       fetchAds: async () => {
         set({ isLoadingAds: true });
-        try {
+        try 
+        {
           const currentToken = get().token;
           const res = await fetch('/api/p2p',{
             headers: currentToken ? {
               'Authorization': `Bearer ${currentToken}`
             } : {}
           });
-          if (res.ok) {
+          if (res.ok) 
+          {
             const data = await res.json();
-            // Безопасное извлечение массива
             const adsArray = Array.isArray(data) ? data : (data?.ads || data?.data || []);
             set({ ads: Array.isArray(adsArray) ? adsArray : [], isLoadingAds: false });
-          } else {
+          } 
+          else 
+          {
             console.error("Ads fetch error: status", res.status);
             set({ ads: [], isLoadingAds: false });
           }
-        } catch (error) {
+        } 
+        catch (error) 
+        {
           console.error("Ошибка загрузки объявлений:", error);
           set({ ads: [], isLoadingAds: false });
         }
@@ -149,8 +162,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'rapira-app-storage',
-      // Сохраняем в кэш телефона только настройки интерфейса, 
-      // чтобы юзер и балансы всегда загружались свежими с сервера
+      // Кэш
       partialize: (state) => ({
         language: state.language,
         isBalanceVisible: state.isBalanceVisible,

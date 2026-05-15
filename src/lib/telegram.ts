@@ -23,13 +23,8 @@ export type NotificationType =
   | 'deposit_received'    // Депозит получен
   | 'welcome';           // Приветственное сообщение
 
-interface NotificationData {
-  type: NotificationType;
-  userId: string;
-  data: Record<string, any>;
-}
-
-interface TelegramMessage {
+interface TelegramMessage 
+{
   text: string;
   reply_markup?: {
     inline_keyboard: Array<Array<{
@@ -40,36 +35,37 @@ interface TelegramMessage {
   };
 }
 
-/**
- * Получение локализованного текста
- */
-function getLocalizedText(lang: Language, key: keyof typeof import('./dictionaries')['dict']['ru'], replacements?: Record<string, string | number>): string {
+// Получение локализованного текста
+function getLocalizedText(lang: Language, key: keyof typeof import('./dictionaries')['dict']['ru'], replacements?: Record<string, string | number>): string 
+{
   let text = t(lang, key);
-  if (replacements) {
-    for (const [placeholder, value] of Object.entries(replacements)) {
+  if (replacements) 
+  {
+    for (const [placeholder, value] of Object.entries(replacements)) 
+    {
       text = text.replace(new RegExp(`\\{${placeholder}\\}`, 'g'), String(value));
     }
   }
   return text;
 }
 
-/**
- * Отправка уведомления пользователю с локализацией
- */
+// Отправка уведомления пользователю с локализацией
 export async function sendNotification(
   chatId: string | null | undefined,
   type: NotificationType,
   data: Record<string, any> = {},
   language: Language = 'ru'
 ): Promise<boolean> {
-  if (!chatId || !TELEGRAM_BOT_TOKEN) {
+  if (!chatId || !TELEGRAM_BOT_TOKEN) 
+  {
     console.log('Telegram notifications disabled:', { chatId, hasToken: !!TELEGRAM_BOT_TOKEN });
     return false;
   }
 
   const messageObj = formatNotification(type, data, language);
 
-  try {
+  try 
+  {
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
 
     const response = await fetch(url, {
@@ -85,29 +81,26 @@ export async function sendNotification(
 
     const result = await response.json();
 
-    if (!result.ok) {
-      console.error('Telegram API Error:', result);
-    }
+    if (!result.ok) console.error('Telegram API Error:', result);
 
     return result.ok;
-  } catch (error) {
+  } 
+  catch (error) 
+  {
     console.error('Failed to send Telegram notification:', error);
     return false;
   }
 }
 
-/**
- * Отправка уведомления администратору
- */
+// Отправка уведомления администратору
 export async function sendAdminNotification(
   message: string,
   extraData?: Record<string, any>
 ): Promise<boolean> {
-  if (!TELEGRAM_BOT_TOKEN) {
-    return false;
-  }
+  if (!TELEGRAM_BOT_TOKEN) return false;
 
-  try {
+  try 
+  {
     // Получаем всех администраторов из БД
     const { default: prisma } = await import('@/lib/prisma');
     const admins = await prisma.user.findMany({
@@ -115,9 +108,11 @@ export async function sendAdminNotification(
       select: { tgChatId: true },
     });
 
-    if (admins.length === 0) {
+    if (admins.length === 0) 
+    {
       const FALLBACK_ADMIN = process.env.TELEGRAM_ADMIN_CHAT_ID;
-      if (FALLBACK_ADMIN) {
+      if (FALLBACK_ADMIN) 
+      {
         console.log('No admins found in DB, using fallback admin ID');
         const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
         await fetch(url, {
@@ -142,7 +137,8 @@ export async function sendAdminNotification(
     const promises = admins.map(async (admin) => {
       if (!admin.tgChatId) return;
 
-      try {
+      try 
+      {
         await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -153,22 +149,21 @@ export async function sendAdminNotification(
             ...(extraData?.reply_markup && { reply_markup: extraData.reply_markup }),
           }),
         });
-      } catch (error) {
-        console.error(`Failed to send admin notification to ${admin.tgChatId}:`, error);
-      }
+      } 
+      catch (error) { console.error(`Failed to send admin notification to ${admin.tgChatId}:`, error); }
     });
 
     await Promise.all(promises);
     return true;
-  } catch (error) {
+  } 
+  catch (error) 
+  {
     console.error('Failed to send admin notification:', error);
     return false;
   }
 }
 
-/**
- * Форматирование сообщения в зависимости от типа уведомления с локализацией
- */
+// Форматирование сообщения в зависимости от типа уведомления с локализацией
 function formatNotification(
   type: NotificationType,
   data: Record<string, any>,
@@ -176,8 +171,10 @@ function formatNotification(
 ): TelegramMessage {
   const appUrl = APP_URL.replace('https://', '').replace('http://', '');
 
-  switch (type) {
-    case 'order_created': {
+  switch (type) 
+  {
+    case 'order_created': 
+    {
       const orderId = data.orderId;
       return {
         text: `
@@ -203,7 +200,8 @@ ${getLocalizedText(language, 'botPaymentTime')}: ${data.paymentTime} ${getLocali
       };
     }
 
-    case 'order_paid': {
+    case 'order_paid': 
+    {
       const orderId = data.orderId;
       return {
         text: `
@@ -225,7 +223,8 @@ ${getLocalizedText(language, 'orderPaidSellerMessage', { seller: getLocalizedTex
       };
     }
 
-    case 'order_completed': {
+    case 'order_completed': 
+    {
       const orderId = data.orderId;
       return {
         text: `
@@ -248,7 +247,8 @@ ${getLocalizedText(language, 'botThankYou')}
       };
     }
 
-    case 'order_cancelled': {
+    case 'order_cancelled': 
+    {
       const orderId = data.orderId;
       return {
         text: `
@@ -270,7 +270,8 @@ ${getLocalizedText(language, 'botReason')}: ${data.reason || getLocalizedText(la
       };
     }
 
-    case 'order_disputed': {
+    case 'order_disputed': 
+    {
       const orderId = data.orderId;
       return {
         text: `
@@ -337,7 +338,8 @@ ${getLocalizedText(language, 'botReason')}: ${data.reason}
         }
       };
 
-    case 'new_message': {
+    case 'new_message': 
+    {
       const orderId = data.orderId;
       return {
         text: `
@@ -494,16 +496,12 @@ ${getLocalizedText(language, 'botTip')}
   }
 }
 
-/**
- * Отправка уведомления пользователю по userId
- * (требуется подключение к БД)
- */
+// Отправка уведомления пользователю по userId
 export async function notifyUser(
   userId: string,
   type: NotificationType,
   data: Record<string, any> = {}
 ): Promise<boolean> {
-  // Динамический импорт prisma для избежания циклических зависимостей
   const { default: prisma } = await import('@/lib/prisma');
 
   const user = await prisma.user.findUnique({
@@ -511,9 +509,7 @@ export async function notifyUser(
     select: { tgChatId: true, tgNotifications: true, language: true },
   });
 
-  if (!user?.tgChatId || user.tgNotifications === false) {
-    return false;
-  }
+  if (!user?.tgChatId || user.tgNotifications === false) return false;
 
   return sendNotification(
     user.tgChatId,
@@ -523,18 +519,19 @@ export async function notifyUser(
   );
 }
 
-/**
- * Установка webhook для Telegram Bot
- */
-export async function setWebhook(): Promise<boolean> {
+// Установка webhook для Telegram Bot
+export async function setWebhook(): Promise<boolean> 
+{
   const TELEGRAM_WEBHOOK_URL = process.env.TELEGRAM_WEBHOOK_URL;
 
-  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_WEBHOOK_URL) {
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_WEBHOOK_URL) 
+  {
     console.warn('Telegram webhook not configured');
     return false;
   }
 
-  try {
+  try 
+  {
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook`;
 
     const response = await fetch(url, {
@@ -550,27 +547,29 @@ export async function setWebhook(): Promise<boolean> {
     console.log('Telegram webhook result:', result);
 
     return result.ok;
-  } catch (error) {
+  } 
+  catch (error) 
+  {
     console.error('Failed to set Telegram webhook:', error);
     return false;
   }
 }
 
-/**
- * Удаление webhook
- */
-export async function deleteWebhook(): Promise<boolean> {
-  if (!TELEGRAM_BOT_TOKEN) {
-    return false;
-  }
+// Удаление webhook
+export async function deleteWebhook(): Promise<boolean> 
+{
+  if (!TELEGRAM_BOT_TOKEN) return false;
 
-  try {
+  try 
+  {
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/deleteWebhook`;
     const response = await fetch(url);
     const result = await response.json();
 
     return result.ok;
-  } catch (error) {
+  } 
+  catch (error) 
+  {
     console.error('Failed to delete Telegram webhook:', error);
     return false;
   }

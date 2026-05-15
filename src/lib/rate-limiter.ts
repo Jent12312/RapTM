@@ -1,37 +1,35 @@
 // src/lib/rate-limiter.ts
 
-export interface RateLimitConfig {
-  limit: number;     // Максимальное количество запросов
-  window: number;    // Временное окно в миллисекундах
+export interface RateLimitConfig 
+{
+  limit: number;     
+  window: number;    
 }
 
-export interface RateLimitResult {
+export interface RateLimitResult 
+{
   success: boolean;
   limit: number;
   remaining: number;
   reset: number;
 }
 
-interface RateLimitInfo {
+interface RateLimitInfo 
+{
   count: number;
   resetTime: number;
 }
 
 const cache = new Map<string, RateLimitInfo>();
 
-/**
- * Универсальный ограничитель частоты запросов в оперативной памяти.
- * 
- * @param key - Уникальный ключ для ограничения (например, IP или ID пользователя)
- * @param config - Конфигурация лимитов
- * @returns Подробный результат проверки
- */
-export function rateLimit(key: string, config: RateLimitConfig): RateLimitResult {
+// Универсальный ограничитель частоты запросов в оперативной памяти.
+export function rateLimit(key: string, config: RateLimitConfig): RateLimitResult 
+{
   const now = Date.now();
   const info = cache.get(key);
 
-  if (!info || now > info.resetTime) {
-    // Новое окно
+  if (!info || now > info.resetTime) 
+  {
     const resetTime = now + config.window;
     cache.set(key, {
       count: 1,
@@ -45,7 +43,8 @@ export function rateLimit(key: string, config: RateLimitConfig): RateLimitResult
     };
   }
 
-  if (info.count >= config.limit) {
+  if (info.count >= config.limit) 
+  {
     return {
       success: false,
       limit: config.limit,
@@ -63,17 +62,18 @@ export function rateLimit(key: string, config: RateLimitConfig): RateLimitResult
   };
 }
 
-/**
- * Упрощенная проверка лимита (возвращает только boolean).
- * Удобно для использования внутри API роутов.
- */
-export function isRateLimited(key: string, limit: number = 5, windowMs: number = 1000): boolean {
+
+//Упрощенная проверка лимита (возвращает только boolean)
+
+export function isRateLimited(key: string, limit: number = 5, windowMs: number = 1000): boolean 
+{
   const result = rateLimit(key, { limit, window: windowMs });
   return !result.success;
 }
 
 // Очистка устаревших записей каждые 5 минут для экономии памяти
-if (typeof setInterval !== 'undefined') {
+if (typeof setInterval !== 'undefined') 
+{
   setInterval(() => {
     const now = Date.now();
     for (const [key, info] of cache.entries()) {

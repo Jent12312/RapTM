@@ -2,40 +2,40 @@
 import prisma from './prisma';
 import { Decimal } from '@prisma/client/runtime/library';
 
-/**
- * Выполняет проверку финансовой согласованности.
- * Сумма(Депозиты) - Сумма(Выводы) - Сумма(Комиссии системы) == Сумма(Балансы пользователей)
- */
-export async function performReconciliation() {
-  try {
+//Выполняет проверку финансовой согласованности.
+//Сумма(Депозиты) - Сумма(Выводы) - Сумма(Комиссии системы) == Сумма(Балансы пользователей)
+
+export async function performReconciliation() 
+{
+  try 
+  {
     console.log('[Reconciliation] Starting financial check...');
 
-    // 1. Сумма всех завершенных депозитов
+    // Сумма всех завершенных депозитов
     const deposits = await prisma.transaction.aggregate({
       where: { type: 'DEPOSIT', status: 'COMPLETED' },
       _sum: { amount: true }
     });
 
-    // 2. Сумма всех завершенных выводов (включая комиссии)
+    // Сумма всех завершенных выводов (включая комиссии)
     const withdrawals = await prisma.transaction.aggregate({
       where: { type: 'WITHDRAWAL', status: 'COMPLETED' },
       _sum: { amount: true }
     });
 
-    // 3. Сумма всех бонусов (добавляются к балансу)
+    // Сумма всех бонусов (добавляются к балансу)
     const bonuses = await prisma.transaction.aggregate({
       where: { type: 'BONUS', status: 'COMPLETED' },
       _sum: { amount: true }
     });
 
-    // 4. Сумма всех комиссий, собранных системой
+    // Сумма всех комиссий, собранных системой
     const fees = await prisma.transaction.aggregate({
       where: { status: 'COMPLETED' },
       _sum: { fee: true }
     });
 
-    // 5. Сумма всех текущих балансов кошельков (USDT + TMT конвертированные или отдельно)
-    // Для простоты давайте проверим USDT и TMT отдельно
+    // Сумма всех текущих балансов кошельков 
     const wallets = await prisma.wallet.aggregate({
       _sum: {
         usdtBalance: true,
@@ -78,7 +78,9 @@ export async function performReconciliation() {
 
     console.log('[Reconciliation] Completed. ID:', log.id);
     return log;
-  } catch (error) {
+  } 
+  catch (error) 
+  {
     console.error('[Reconciliation] Failed:', error);
     throw error;
   }

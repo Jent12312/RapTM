@@ -3,20 +3,22 @@ import prisma from './prisma';
 import { Decimal } from '@prisma/client/runtime/library';
 import { sendAdminNotification } from './telegram';
 
-/**
- * Проверяет горячие кошельки и выполняет автоматический перевод в холодное хранилище при достижении порога.
- */
-export async function manageHotColdStorage() {
-  try {
+// Проверяет горячие кошельки и выполняет автоматический перевод в холодное хранилище при достижении порога.
+export async function manageHotColdStorage() 
+{
+  try 
+  {
     const hotWallets = await prisma.systemWallet.findMany({
       where: { type: 'HOT' }
     });
 
-    for (const wallet of hotWallets) {
+    for (const wallet of hotWallets) 
+    {
       const balance = new Decimal(wallet.balance);
       const threshold = new Decimal(wallet.threshold);
 
-      if (balance.gt(threshold)) {
+      if (balance.gt(threshold)) 
+      {
         const sweepAmount = balance.minus(threshold);
         
         // Находим соответствующий холодный кошелек
@@ -24,7 +26,8 @@ export async function manageHotColdStorage() {
           where: { type: 'COLD', network: wallet.network }
         });
 
-        if (!coldWallet) {
+        if (!coldWallet) 
+        {
           console.warn(`[Hot/Cold] No cold wallet found for network ${wallet.network}`);
           continue;
         }
@@ -59,7 +62,6 @@ export async function manageHotColdStorage() {
         );
       }
     }
-  } catch (error) {
-    console.error('[Hot/Cold] Management failed:', error);
-  }
+  } 
+  catch (error) { console.error('[Hot/Cold] Management failed:', error); }
 }
