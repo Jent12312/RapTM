@@ -47,10 +47,14 @@ export default function MerchantProfileModal({ merchant, onClose }: Props) {
     // Грузим рыночные цены для расчета цен объявлений
     const fetchMarketPrices = async () => {
       try {
-        const pairs = ['USDT/TMT', 'USDT/USD', 'TMT/USDT', 'TMT/USD'];
+        const pairs = ['USDT/TMT', 'USDT/USD', 'USDT/USDT', 'TMT/USDT', 'TMT/USD', 'USD/USD', 'TMT/TMT'];
         const prices: Record<string, number> = {};
         for (const pair of pairs) {
           const [asset, fiat] = pair.split('/');
+          if (asset === fiat) {
+            prices[pair] = 1.00;
+            continue;
+          }
           const res = await fetch(`/api/market-price?asset=${asset}&fiat=${fiat}`);
           const data = await res.json();
           if (data.basePrice) prices[pair] = data.basePrice;
@@ -62,12 +66,16 @@ export default function MerchantProfileModal({ merchant, onClose }: Props) {
   }, [merchant.id]);
 
   const getAdPrice = (ad: any) => {
-    const pair = `${ad.asset}/${ad.fiat}`;
-    const basePrice = marketPrices[pair] || 0;
-    if (ad.priceType === 'FLOATING') {
-      return basePrice * (1 + (ad.price || 0) / 100);
+    if (ad.priceType?.toUpperCase() === 'FIXED') {
+      return Number(ad.price) || 0;
     }
-    return ad.price || 0;
+    const pair = `${ad.asset}/${ad.fiat}`;
+    let basePrice = marketPrices[pair];
+    if (ad.asset === ad.fiat) basePrice = 1.00;
+    if (basePrice === undefined) basePrice = 0;
+    
+    const percent = Number(ad.price) || 0;
+    return basePrice * (1 + percent / 100);
   };
 
   const handleShare = () => {

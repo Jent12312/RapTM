@@ -13,6 +13,7 @@ interface Props {
 export default function MyAdsScreen({ onClose }: Props) {
   const { user, language } = useAppStore();
   const [myAds, setMyAds] = useState<any[]>([]);
+  const [marketPrices, setMarketPrices] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
 
   // Загружаем только объявления текущего юзера
@@ -37,10 +38,48 @@ export default function MyAdsScreen({ onClose }: Props) {
       setIsLoading(false);
     }
   };
+  
+  const fetchMarketPrices = async () => {
+    try {
+      const pairs = ['USDT/TMT', 'USDT/USD', 'USDT/USDT', 'TMT/USDT', 'TMT/USD', 'USD/USDT', 'USD/USD', 'TMT/TMT'];
+      const prices: Record<string, number> = {};
+      
+      await Promise.all(pairs.map(async (pair) => {
+        const [a, f] = pair.split('/');
+        if (a === f) {
+          prices[pair] = 1.00;
+          return;
+        }
+        const res = await fetch(`/api/market-price?asset=${a}&fiat=${f}`);
+        const data = await res.json();
+        if (data.basePrice) prices[pair] = data.basePrice;
+      }));
+      
+      setMarketPrices(prices);
+    } catch (error) {
+      console.error('Failed to fetch market prices:', error);
+    }
+  };
 
   useEffect(() => {
-    if (user?.id) loadMyAds();
+    if (user?.id) {
+      loadMyAds();
+      fetchMarketPrices();
+    }
   }, [user?.id]); // Безопасная зависимость
+
+  const getAdPrice = (ad: any) => {
+    if (ad.priceType?.toUpperCase() === 'FIXED') {
+      return Number(ad.price) || 0;
+    }
+    const pair = `${ad.asset}/${ad.fiat}`;
+    let basePrice = marketPrices[pair];
+    if (ad.asset === ad.fiat) basePrice = 1.00;
+    if (basePrice === undefined) basePrice = 0;
+    
+    const percent = Number(ad.price) || 0;
+    return basePrice * (1 + percent / 100);
+  };
 
   // Гарантируем, что myAds всегда массив перед использованием
   const safeMyAds = Array.isArray(myAds) ? myAds : [];
@@ -153,7 +192,7 @@ export default function MyAdsScreen({ onClose }: Props) {
               <div className="flex justify-between items-end border-t border-slate-50 pt-4">
                 <div>
                   <div className="text-xl font-bold text-slate-800">
-                    {Number(ad.price)?.toFixed(2) || '0.00'} <span className="text-xs font-medium text-slate-400">{ad.fiat}</span>
+                    {getAdPrice(ad).toFixed(2)} <span className="text-xs font-medium text-slate-400">{ad.fiat}</span>
                   </div>
                   <div className="text-[10px] text-slate-500 font-medium mt-1">
                     {t(language, 'p2pLimit')}: {ad.minLimit} - {ad.maxLimit} {ad.fiat}

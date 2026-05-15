@@ -4,8 +4,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { t } from '@/lib/dictionaries';
-import { 
-  ArrowDownUp, Info, RefreshCw, TrendingUp, TrendingDown, Clock, 
+import {
+  ArrowDownUp, Info, RefreshCw, TrendingUp, TrendingDown, Clock,
   ArrowRight, ShieldCheck, Zap, Star, Phone, ArrowRightLeft, Wallet,
   WalletIcon
 } from 'lucide-react';
@@ -16,7 +16,7 @@ import PullToRefresh from '@/components/ui/PullToRefresh';
 
 export default function ExchangeScreen() {
   const { language, balances, user, initUser, addToast } = useAppStore();
-  
+
   const [direction, setDirection] = useState<'USDT_TO_TMT' | 'TMT_TO_USDT'>('USDT_TO_TMT');
   const [amount, setAmount] = useState('');
   const [history, setHistory] = useState<any[]>([]);
@@ -36,7 +36,7 @@ export default function ExchangeScreen() {
         fetch(`/api/exchange?userId=${user.id}`),
         fetch('/api/settings')
       ]);
-      
+
       if (historyRes.ok) {
         const data = await historyRes.json();
         setHistory(Array.isArray(data) ? data : []);
@@ -66,17 +66,17 @@ export default function ExchangeScreen() {
   const calculated = useMemo((): { receive: string; fee: string; totalWithFee: string } => {
     const num = parseFloat(amount) || 0;
     const rate = settings.EXCHANGE_RATE;
-    
+
     // Фиатные пары: 20 TMT фикс (списывается в USDT эквиваленте)
     const feeInUsdt = 20 / rate;
-    
+
     let receive = 0;
 
     if (direction === 'USDT_TO_TMT') {
       receive = num * rate;
     } else {
       // При покупке USDT
-      receive = num / rate; 
+      receive = num / rate;
     }
 
     return {
@@ -101,7 +101,7 @@ export default function ExchangeScreen() {
     // Проверка баланса (включая комиссию)
     const feeNum = parseFloat(calculated.fee);
     const amountNum = parseFloat(amount);
-    
+
     if (direction === 'USDT_TO_TMT') {
       const totalUsdtNeeded = amountNum + Math.max(0, feeNum - balances.bonus);
       if (totalUsdtNeeded > balances.usdt) {
@@ -137,7 +137,7 @@ export default function ExchangeScreen() {
       });
 
       const data = await res.json();
-      
+
       if (res.ok && data.success) {
         addToast(t(language, 'success'), 'success');
         setAmount('');
@@ -157,27 +157,24 @@ export default function ExchangeScreen() {
 
   return (
     <div className="px-5 py-4 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-32 max-w-lg mx-auto">
-      
+
       {/* Кастомные Табы с эффектом стекла */}
       <div className="bg-slate-200/30 backdrop-blur-xl p-1.5 rounded-3xl ring-1 ring-white/20 shadow-inner flex relative overflow-hidden">
-        <div 
-          className={`absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-white rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] ring-1 ring-slate-100 transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1) z-0 ${
-            direction === 'TMT_TO_USDT' ? 'translate-x-full' : 'translate-x-0'
-          }`}
+        <div
+          className={`absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-white rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] ring-1 ring-slate-100 transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1) z-0 ${direction === 'TMT_TO_USDT' ? 'translate-x-full' : 'translate-x-0'
+            }`}
         />
         <button
           onClick={() => setDirection('USDT_TO_TMT')}
-          className={`flex-1 py-3.5 text-xs font-black uppercase tracking-widest transition-all relative z-10 ${
-            direction === 'USDT_TO_TMT' ? 'text-slate-900' : 'text-slate-400'
-          }`}
+          className={`flex-1 py-3.5 text-xs font-black uppercase tracking-widest transition-all relative z-10 ${direction === 'USDT_TO_TMT' ? 'text-slate-900' : 'text-slate-400'
+            }`}
         >
           {t(language, 'sell')} USDT
         </button>
         <button
           onClick={() => setDirection('TMT_TO_USDT')}
-          className={`flex-1 py-3.5 text-xs font-black uppercase tracking-widest transition-all relative z-10 ${
-            direction === 'TMT_TO_USDT' ? 'text-slate-900' : 'text-slate-400'
-          }`}
+          className={`flex-1 py-3.5 text-xs font-black uppercase tracking-widest transition-all relative z-10 ${direction === 'TMT_TO_USDT' ? 'text-slate-900' : 'text-slate-400'
+            }`}
         >
           {t(language, 'buy')} USDT
         </button>
@@ -188,7 +185,7 @@ export default function ExchangeScreen() {
         {/* Декоративные градиенты */}
         <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-100/40 rounded-full -mr-20 -mt-20 blur-3xl opacity-60 group-hover:opacity-80 transition-opacity duration-700" />
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-rose-100/30 rounded-full -ml-20 -mb-20 blur-3xl opacity-60 group-hover:opacity-80 transition-opacity duration-700" />
-        
+
         {/* Курс и Инфо */}
         <div className="flex justify-between items-center bg-slate-50/50 backdrop-blur-sm p-4 rounded-[2rem] ring-1 ring-slate-100/80">
           <div className="flex items-center gap-3">
@@ -228,13 +225,13 @@ export default function ExchangeScreen() {
                 {direction === 'USDT_TO_TMT' ? '₮' : 'm'}
               </span>
             </div>
-            <input 
-              type="number" 
+            <input
+              type="number"
               inputMode="decimal"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
-              className="w-full pl-12 pr-24 py-7 text-4xl font-black text-slate-800 bg-slate-50/50 rounded-[2.5rem] ring-1 ring-slate-200/60 outline-none focus:ring-2 focus:ring-indigo-500/50 focus:bg-white transition-all duration-300 placeholder:text-slate-200 shadow-sm" 
+              className="w-full pl-12 pr-24 py-7 text-4xl font-black text-slate-800 bg-slate-50/50 rounded-[2.5rem] ring-1 ring-slate-200/60 outline-none focus:ring-2 focus:ring-indigo-500/50 focus:bg-white transition-all duration-300 placeholder:text-slate-200 shadow-sm"
             />
             <div className="absolute right-5 top-1/2 -translate-y-1/2 bg-white px-4 py-2 rounded-2xl shadow-sm ring-1 ring-slate-100 font-black text-sm text-slate-500">
               {direction === 'USDT_TO_TMT' ? 'USDT' : 'TMT'}
@@ -244,7 +241,7 @@ export default function ExchangeScreen() {
 
         {/* Кнопка реверса с анимацией */}
         <div className="flex justify-center -my-3.5 relative z-10">
-          <button 
+          <button
             onClick={handleReverse}
             className="group bg-white p-4 rounded-[1.5rem] shadow-[0_8px_20px_rgba(0,0,0,0.06)] ring-1 ring-slate-100 text-indigo-500 active:scale-90 hover:scale-110 transition-all duration-300 hover:rotate-180"
           >
@@ -298,12 +295,12 @@ export default function ExchangeScreen() {
             </label>
             <div className="flex items-center gap-4 bg-slate-50/50 p-5 rounded-2xl ring-1 ring-slate-200/60 focus-within:ring-2 focus-within:ring-indigo-500/50 focus-within:bg-white transition-all duration-300">
               <Phone className="w-6 h-6 text-slate-300" />
-              <input 
-                type="tel" 
+              <input
+                type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder={t(language, 'exPhonePlaceholder')}
-                className="w-full text-lg font-black text-slate-800 bg-transparent outline-none placeholder:text-slate-200" 
+                className="w-full text-lg font-black text-slate-800 bg-transparent outline-none placeholder:text-slate-200"
               />
             </div>
           </div>
@@ -313,11 +310,10 @@ export default function ExchangeScreen() {
         <button
           onClick={handleSubmit}
           disabled={isSubmitting || !amount}
-          className={`w-full py-6 rounded-[2rem] font-black text-xl shadow-2xl transition-all active:scale-[0.97] disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-4 group ${
-            direction === 'USDT_TO_TMT' 
-              ? 'bg-gradient-to-r from-rose-500 to-red-600 text-white shadow-rose-200' 
+          className={`w-full py-6 rounded-[2rem] font-black text-xl shadow-2xl transition-all active:scale-[0.97] disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-4 group ${direction === 'USDT_TO_TMT'
+              ? 'bg-gradient-to-r from-rose-500 to-red-600 text-white shadow-rose-200'
               : 'bg-gradient-to-r from-indigo-600 to-blue-700 text-white shadow-indigo-200'
-          }`}
+            }`}
         >
           {isSubmitting ? (
             <div className="w-7 h-7 border-4 border-white/30 border-t-white rounded-full animate-spin" />
@@ -331,7 +327,7 @@ export default function ExchangeScreen() {
 
         {/* Помощь для покупки */}
         {direction === 'TMT_TO_USDT' && (
-           <div className="bg-amber-50/60 p-5 rounded-[2rem] border border-amber-100/50 relative overflow-hidden">
+          <div className="bg-amber-50/60 p-5 rounded-[2rem] border border-amber-100/50 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-16 h-16 bg-amber-200/20 blur-xl rounded-full" />
             <div className="flex items-center gap-3 mb-2.5 relative z-10">
               <div className="w-6 h-6 bg-amber-100 rounded-lg flex items-center justify-center">
@@ -357,9 +353,8 @@ export default function ExchangeScreen() {
             {history.map(req => (
               <div key={req.id} className="bg-white p-5 rounded-[2.5rem] shadow-[0_10px_30px_rgba(0,0,0,0.03)] ring-1 ring-slate-100 flex justify-between items-center group active:scale-95 transition-all duration-300">
                 <div className="flex items-center gap-5">
-                  <div className={`w-14 h-14 rounded-[1.25rem] flex items-center justify-center shadow-inner transition-colors duration-500 ${
-                    req.direction === 'USDT_TO_TMT' ? 'bg-rose-50 text-rose-500 group-hover:bg-rose-100' : 'bg-indigo-50 text-indigo-500 group-hover:bg-indigo-100'
-                  }`}>
+                  <div className={`w-14 h-14 rounded-[1.25rem] flex items-center justify-center shadow-inner transition-colors duration-500 ${req.direction === 'USDT_TO_TMT' ? 'bg-rose-50 text-rose-500 group-hover:bg-rose-100' : 'bg-indigo-50 text-indigo-500 group-hover:bg-indigo-100'
+                    }`}>
                     {req.direction === 'USDT_TO_TMT' ? <ArrowRightLeft className="w-7 h-7 rotate-90" /> : <ArrowRightLeft className="w-7 h-7 -rotate-90" />}
                   </div>
                   <div>
@@ -373,7 +368,7 @@ export default function ExchangeScreen() {
                         <Clock className="w-3.5 h-3.5" /> {new Date(req.createdAt).toLocaleDateString('ru-RU')}
                       </p>
                       <div className="w-1 h-1 bg-slate-200 rounded-full" />
-                      <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{t(language, 'exCommission')}: {req.commission} USDT</p>
+                      <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{t(language, 'exCommission')}: {req.commission.toFixed(2)} USDT</p>
                     </div>
                   </div>
                 </div>

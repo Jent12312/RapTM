@@ -51,11 +51,15 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
   useEffect(() => {
     const fetchMarketPrices = async () => {
       try {
-        const pairs = ['USDT/TMT', 'USDT/USD', 'USDT/USDT', 'TMT/USDT', 'TMT/USD', 'USD/USDT'];
+        const pairs = ['USDT/TMT', 'USDT/USD', 'USDT/USDT', 'TMT/USDT', 'TMT/USD', 'USD/USDT', 'USD/USD', 'TMT/TMT'];
         const prices: Record<string, number> = {};
         
         await Promise.all(pairs.map(async (pair) => {
           const [a, f] = pair.split('/');
+          if (a === f) {
+            prices[pair] = 1.00;
+            return;
+          }
           const res = await fetch(`/api/market-price?asset=${a}&fiat=${f}`);
           const data = await res.json();
           if (data.basePrice) prices[pair] = data.basePrice;
@@ -81,7 +85,14 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
   // --- ВЫЧИСЛЕНИЯ (МЕМОИЗАЦИЯ) ---
   const getAdPrice = useCallback((ad: any) => {
     const pair = `${ad.asset}/${ad.fiat}`;
-    const basePrice = marketPrices[pair] || 0;
+    let basePrice = marketPrices[pair];
+
+    // Если валюты одинаковые, база всегда 1.0
+    if (ad.asset === ad.fiat) basePrice = 1.00;
+    
+    // Если база всё еще не найдена (и валюты разные), ставим 0 или пытаемся фоллбэк
+    if (basePrice === undefined) basePrice = 0;
+
     if (ad.priceType?.toUpperCase() === 'FLOATING') {
       const percent = Number(ad.price) || 0;
       return basePrice * (1 + percent / 100);
