@@ -82,7 +82,7 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
   const getAdPrice = useCallback((ad: any) => {
     const pair = `${ad.asset}/${ad.fiat}`;
     const basePrice = marketPrices[pair] || 0;
-    if (ad.priceType === 'floating') {
+    if (ad.priceType?.toUpperCase() === 'FLOATING') {
       const percent = Number(ad.price) || 0;
       return basePrice * (1 + percent / 100);
     }
@@ -231,89 +231,101 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
       <div className="pb-32 min-h-screen bg-slate-50/50 animate-in fade-in duration-300">
         
         {/* --- HEADER --- */}
-        <div className="bg-white px-4 pt-4 pb-3 shadow-sm shadow-slate-200/50 sticky top-0 z-30 border-b border-slate-100 space-y-3 rounded-b-3xl">
+        <div className="bg-white px-4 pt-4 pb-4 shadow-sm sticky top-0 z-30 border-b border-slate-100 space-y-4 rounded-b-[2.5rem]">
           
           {/* Top Actions: Buy/Sell Toggle & Icons */}
-          <div className="flex justify-between items-center gap-4">
-            <div className="flex bg-slate-100/80 p-1.5 rounded-2xl flex-1 relative">
+          <div className="flex justify-between items-center gap-3">
+            <div className="flex bg-slate-100/80 p-1 rounded-2xl flex-1 relative h-11">
               <div 
-                className={`absolute inset-y-1.5 w-[calc(50%-6px)] bg-white rounded-xl shadow-sm transition-all duration-300 ease-out
-                ${tradeType === 'buy' ? 'left-1.5' : 'left-[calc(50%+1.5px)]'}`} 
+                className={`absolute inset-y-1 w-[calc(50%-4px)] bg-white rounded-xl shadow-sm transition-all duration-300 ease-out
+                ${tradeType === 'buy' ? 'left-1' : 'left-[calc(50%+1px)]'}`} 
               />
               <button
                 onClick={() => { haptic.selection(); setTradeType('buy'); }}
-                className={`flex-1 py-2 text-sm font-bold rounded-xl relative z-10 transition-colors ${tradeType === 'buy' ? 'text-emerald-600' : 'text-slate-500'}`}
+                className={`flex-1 text-sm font-black rounded-xl relative z-10 transition-colors ${tradeType === 'buy' ? 'text-emerald-600' : 'text-slate-400'}`}
               >
                 {t(language, 'buy')}
               </button>
               <button
                 onClick={() => { haptic.selection(); setTradeType('sell'); }}
-                className={`flex-1 py-2 text-sm font-bold rounded-xl relative z-10 transition-colors ${tradeType === 'sell' ? 'text-red-500' : 'text-slate-500'}`}
+                className={`flex-1 text-sm font-black rounded-xl relative z-10 transition-colors ${tradeType === 'sell' ? 'text-red-500' : 'text-slate-400'}`}
               >
                 {t(language, 'sell')}
               </button>
             </div>
 
             <div className="flex gap-2 shrink-0">
-              <button onClick={() => { haptic.light(); setIsViewingChats(true); }} className="p-3 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-2xl active:scale-95 transition-all">
+              <button onClick={() => { haptic.light(); setIsViewingChats(true); }} className="w-11 h-11 flex items-center justify-center bg-slate-50 text-slate-500 rounded-2xl active:scale-95 transition-all border border-slate-100/50">
                 <User className="w-5 h-5" />
               </button>
-              <button onClick={() => { haptic.light(); setIsViewingChats(true); }} className="p-3 bg-blue-50 text-blue-600 rounded-2xl active:scale-95 transition-all relative">
+              <button onClick={() => { haptic.light(); setIsViewingChats(true); }} className="w-11 h-11 flex items-center justify-center bg-blue-50 text-blue-600 rounded-2xl active:scale-95 transition-all relative border border-blue-100/50">
                 <MessageSquare className="w-5 h-5" />
-                <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-blue-50"></span>
+                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full ring-2 ring-blue-50"></span>
               </button>
             </div>
           </div>
 
-          {/* Crypto / Fiat Selectors */}
-          <div className="flex items-center gap-3">
-            <div className="space-y-2 w-28">
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t(language, 'exYouGive')}</div>
-              <div className="flex gap-2 flex-1">
-              <button onClick={() => { haptic.selection(); setAsset('USDT'); }} className={`flex-1 py-2.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 border transition-all ${asset === 'USDT' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-100 bg-transparent text-slate-500'}`}>
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${asset === 'USDT' ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'}`}>₮</div> USDT
-              </button>
-              <button onClick={() => { haptic.selection(); setAsset('USD'); }} className={`flex-1 py-2.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 border transition-all ${asset === 'USD' ? 'border-green-500 bg-green-50 text-green-700' : 'border-slate-100 bg-transparent text-slate-500'}`}>
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${asset === 'USD' ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-500'}`}>$</div> USD
-              </button>
-              <button onClick={() => { haptic.selection(); setAsset('TMT'); }} className={`flex-1 py-2.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 border transition-all ${asset === 'TMT' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-100 bg-transparent text-slate-500'}`}>
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${asset === 'TMT' ? 'bg-blue-500 text-white' : 'bg-slate-200 text-slate-500'}`}>M</div> TMT
-              </button>
+          {/* Combined Selectors & Filter Row */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+              <div className="flex items-center gap-1.5 pr-2 border-r border-slate-100">
+                {(['USDT', 'USD', 'TMT'] as Asset[]).map((a) => (
+                  <button 
+                    key={a}
+                    onClick={() => { haptic.selection(); setAsset(a); }} 
+                    className={`px-3 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 border whitespace-nowrap
+                      ${asset === a 
+                        ? 'bg-slate-900 border-slate-900 text-white shadow-md' 
+                        : 'bg-white border-slate-100 text-slate-500 hover:border-slate-200'}`}
+                  >
+                    <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black ${asset === a ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                      {a === 'USDT' ? '₮' : a === 'USD' ? '$' : 'M'}
+                    </div>
+                    {a}
+                  </button>
+                ))}
+              </div>
+              
+              <div className="flex items-center gap-1.5 pl-1">
+                {(['TMT', 'USD', 'USDT'] as Fiat[]).map((f) => (
+                  <button 
+                    key={f}
+                    onClick={() => { haptic.selection(); setFiat(f); }} 
+                    className={`px-3 py-2 rounded-xl text-xs font-black transition-all border whitespace-nowrap
+                      ${fiat === f 
+                        ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
+                        : 'bg-white border-slate-100 text-slate-500 hover:border-slate-200'}`}
+                  >
+                    {f}
+                  </button>
+                ))}
               </div>
             </div>
-            <div className="space-y-2 w-24">
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t(language, 'receiveAmount')}</div>
-              <div className="flex gap-2">
-                <button onClick={() => { haptic.selection(); setFiat('TMT'); }} className={`flex-1 py-2.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-1 border transition-all ${fiat === 'TMT' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-100 bg-transparent text-slate-500'}`}>TMT</button>
-                <button onClick={() => { haptic.selection(); setFiat('USD'); }} className={`flex-1 py-2.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-1 border transition-all ${fiat === 'USD' ? 'border-green-500 bg-green-50 text-green-700' : 'border-slate-100 bg-transparent text-slate-500'}`}>USD</button>
-                <button onClick={() => { haptic.selection(); setFiat('USDT'); }} className={`flex-1 py-2.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-1 border transition-all ${fiat === 'USDT' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-100 bg-transparent text-slate-500'}`}>USDT</button>
-              </div>
-            </div>
-          </div>
 
-          {/* Filters Row */}
-          <div className="flex items-center justify-between gap-3 pt-1">
             <div className="flex items-center gap-2">
-              <div className="flex bg-slate-100 p-1 rounded-xl shrink-0">
-                <button onClick={() => { haptic.selection(); setFiat('TMT'); }} className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${fiat === 'TMT' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}>TMT</button>
-                <button onClick={() => { haptic.selection(); setFiat('USD'); }} className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${fiat === 'USD' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}>USD</button>
-                <button onClick={() => { haptic.selection(); setFiat('USDT'); }} className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${fiat === 'USDT' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}>USDT</button>
-              </div>
-              <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 transition-all focus-within:border-blue-400 focus-within:bg-white flex-1">
-                <Filter className="w-3.5 h-3.5 text-slate-400" />
+              <div className="flex items-center gap-2 bg-slate-50 px-4 h-11 rounded-2xl border border-slate-100 transition-all focus-within:border-blue-400 focus-within:bg-white focus-within:shadow-sm flex-1 group">
+                <Filter className="w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
                 <input 
                   type="number" 
                   placeholder={t(language, 'amount')}
                   value={filterAmount}
                   onChange={(e) => setFilterAmount(e.target.value)}
-                  className="bg-transparent outline-none text-xs font-bold w-full text-slate-800 placeholder-slate-400"
+                  className="bg-transparent outline-none text-sm font-bold w-full text-slate-800 placeholder-slate-400"
                 />
-                {filterAmount && <X className="w-3.5 h-3.5 text-slate-400" onClick={() => setFilterAmount('')}/>}
+                {filterAmount && (
+                  <button onClick={() => setFilterAmount('')} className="p-1 hover:bg-slate-200 rounded-lg transition-colors">
+                    <X className="w-4 h-4 text-slate-400" />
+                  </button>
+                )}
               </div>
+              <button 
+                onClick={() => { haptic.medium(); onPullRefresh(); }} 
+                className={`h-11 w-11 flex items-center justify-center bg-slate-50 text-slate-500 rounded-2xl active:rotate-180 transition-all duration-500 border border-slate-100/50 shrink-0
+                  ${isLoadingAds ? 'bg-blue-50' : ''}`}
+              >
+                <RefreshCw className={`w-5 h-5 ${isLoadingAds ? 'animate-spin text-blue-600' : ''}`} />
+              </button>
             </div>
-            <button onClick={() => { haptic.medium(); onPullRefresh(); }} className="p-2 bg-slate-50 text-slate-500 rounded-xl active:rotate-180 transition-all duration-300 shrink-0">
-              <RefreshCw className={`w-4 h-4 ${isLoadingAds ? 'animate-spin text-blue-500' : ''}`} />
-            </button>
           </div>
         </div>
 
@@ -323,21 +335,21 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
             [1, 2, 3].map(i => <Skeleton key={i} className="h-48 w-full rounded-[2rem]" />)
           ) : filteredAds.length > 0 ? (
             filteredAds.map((ad) => (
-              <div key={ad.id} className="bg-white p-4 rounded-[2rem] shadow-sm border border-slate-100 hover:border-blue-200 hover:shadow-md transition-all group">
+              <div key={ad.id} className="bg-white p-5 rounded-[2.5rem] shadow-sm border border-slate-100 hover:border-blue-100 hover:shadow-xl hover:shadow-slate-200/30 transition-all group active:scale-[0.98]">
                 
                 {/* Header: Merchant Info & Stats */}
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-5">
                   <div className="flex items-center gap-3">
                     <div className="relative">
                       {ad.user?.avatarUrl ? (
-                        <img src={ad.user.avatarUrl} alt="Avatar" className="w-10 h-10 rounded-full object-cover ring-2 ring-slate-50" />
+                        <img src={ad.user.avatarUrl} alt="Avatar" className="w-11 h-11 rounded-full object-cover ring-2 ring-slate-50" />
                       ) : (
-                        <div className="w-10 h-10 bg-gradient-to-br from-slate-50 to-slate-100 rounded-full flex items-center justify-center text-slate-400 font-bold text-sm ring-2 ring-slate-50">
+                        <div className="w-11 h-11 bg-gradient-to-br from-slate-100 to-slate-200 rounded-full flex items-center justify-center text-slate-500 font-black text-sm ring-2 ring-slate-50">
                           {(ad.user?.nickname || ad.user?.firstName || 'U').charAt(0)}
                         </div>
                       )}
                       {ad.user?.isVerified && (
-                        <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
+                        <div className="absolute -bottom-0.5 -right-0.5 bg-white rounded-full p-0.5 shadow-sm">
                           <BadgeCheck className="w-4 h-4 text-blue-500" />
                         </div>
                       )}
@@ -345,54 +357,54 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
                     <div>
                       <button 
                         onClick={() => { haptic.light(); setViewingMerchant(ad.user); }}
-                        className="font-bold text-slate-900 text-sm hover:text-blue-600 transition-colors flex items-center gap-1"
+                        className="font-black text-slate-900 text-[15px] hover:text-blue-600 transition-colors flex items-center gap-1 leading-tight"
                       >
                         {ad.user?.nickname || ad.user?.firstName || t(language, 'userLabel')}
-                        <TrendingUp className="w-3 h-3 text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
                       </button>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
                           {ad.user?.tradesCount || 0} {t(language, 'trades')}
                         </span>
                         <div className="w-1 h-1 rounded-full bg-slate-200"></div>
-                        <span className="text-[10px] font-black text-emerald-600">
+                        <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md">
                           {(ad.user?.rating || 0).toFixed(1)}%
                         </span>
                       </div>
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 text-[10px] font-bold text-slate-500 rounded-xl border border-slate-100/50">
-                    <Clock className="w-3 h-3" /> {ad.paymentTime || 15}m
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 text-[10px] font-black text-slate-500 rounded-xl border border-slate-100">
+                    <Clock className="w-3.5 h-3.5 text-slate-400" /> {ad.paymentTime || 15} {t(language, 'time')}
                   </div>
                 </div>
 
                 {/* Body: Price and Trade Details */}
                 <div className="flex items-end justify-between gap-4">
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     <div>
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t(language, 'price')}</div>
-                      <div className="flex items-baseline gap-1.5">
-                        <span className="text-2xl font-black text-slate-900 tracking-tight leading-none">
+                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1.5">{t(language, 'price')}</div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-black text-slate-900 tracking-tighter">
                           {getAdPrice(ad).toFixed(2)}
                         </span>
-                        <span className="text-xs font-bold text-slate-400">{ad.fiat}</span>
+                        <span className="text-sm font-black text-slate-400">{ad.fiat}</span>
                       </div>
                     </div>
 
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       <div className="flex items-center gap-2">
-                        <div className="text-[10px] font-medium text-slate-400">{t(language, 'limit')}</div>
-                        <div className="text-[10px] font-bold text-slate-700">
+                        <div className="text-[10px] font-bold text-slate-400">{t(language, 'limit')}</div>
+                        <div className="text-[11px] font-black text-slate-700">
                           {ad.minLimit.toLocaleString()} - {ad.maxLimit.toLocaleString()} {ad.fiat}
                         </div>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-700 text-[9px] font-black rounded-lg uppercase tracking-wider">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 text-[9px] font-black rounded-lg uppercase tracking-wider border border-emerald-100/50">
                           <MapPin className="w-2.5 h-2.5" /> {ad.city || t(language, 'cash')}
                         </span>
                         {ad.paymentMethods?.map((pm: any, idx: number) => (
-                          <span key={idx} className="px-2 py-1 bg-blue-50 text-blue-700 text-[9px] font-black rounded-lg uppercase tracking-wider">
+                          <span key={idx} className="px-2.5 py-1 bg-blue-50 text-blue-700 text-[9px] font-black rounded-lg uppercase tracking-wider border border-blue-100/50">
                             {pm}
                           </span>
                         ))}
@@ -402,7 +414,7 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
 
                   <button
                     onClick={() => { haptic.medium(); setSelectedAd(ad); }}
-                    className={`h-12 px-8 rounded-2xl font-black text-sm text-white transition-all active:scale-95 shadow-lg shadow-opacity-20
+                    className={`h-14 px-8 rounded-[1.5rem] font-black text-sm text-white transition-all active:scale-95 shadow-lg
                       ${tradeType === 'buy' 
                         ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-200' 
                         : 'bg-red-500 hover:bg-red-600 shadow-red-200'
@@ -427,35 +439,37 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
         {/* --- TRADE MODAL --- */}
         {selectedAd && (
           <div className="fixed inset-0 z-[60] flex items-end">
-            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={closeModal} />
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={closeModal} />
 
-            <div className="relative w-full bg-white rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[90vh] flex flex-col">
+            <div className="relative w-full bg-white rounded-t-[3rem] shadow-2xl animate-in slide-in-from-bottom duration-500 max-h-[92vh] flex flex-col overflow-hidden">
               
               {/* Modal Header */}
-              <div className="flex-shrink-0 flex items-center justify-between p-5 border-b border-slate-100">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${selectedAd.type === 'buy' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
-                    <ArrowDownUp className="w-5 h-5" />
+              <div className="flex-shrink-0 flex items-center justify-between px-6 py-5 border-b border-slate-100">
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${selectedAd.type === 'buy' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+                    <ArrowDownUp className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-black text-slate-900">
+                    <h3 className="text-xl font-black text-slate-900 leading-tight">
                       {selectedAd.type === 'buy' ? `${t(language, 'buy')} ${selectedAd.asset}` : `${t(language, 'sell')} ${selectedAd.asset}`}
                     </h3>
-                    <p className="text-xs text-slate-500 font-medium">{t(language, 'price')}: {getAdPrice(selectedAd).toFixed(2)} {selectedAd.fiat}</p>
+                    <p className="text-[13px] text-slate-500 font-bold mt-0.5">
+                      {t(language, 'price')}: <span className="text-slate-900">{getAdPrice(selectedAd).toFixed(2)} {selectedAd.fiat}</span>
+                    </p>
                   </div>
                 </div>
-                <button onClick={closeModal} className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors">
+                <button onClick={closeModal} className="w-10 h-10 flex items-center justify-center bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors active:scale-90">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               {/* Modal Body */}
-              <div className="p-5 overflow-y-auto space-y-6 pb-12">
+              <div className="px-6 py-6 overflow-y-auto space-y-6 pb-12 custom-scrollbar">
                 
-                {/* Inputs */}
-                <div className="space-y-3 relative">
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 focus-within:border-blue-500 focus-within:bg-white transition-colors">
-                    <div className="flex justify-between text-xs text-slate-500 mb-2 font-medium">
+                {/* Inputs Row */}
+                <div className="space-y-4 relative">
+                  <div className="bg-slate-50 p-5 rounded-[2rem] border border-slate-100 focus-within:border-blue-500 focus-within:bg-white focus-within:shadow-lg focus-within:shadow-blue-500/5 transition-all duration-300">
+                    <div className="flex justify-between text-[11px] text-slate-400 mb-3 font-black uppercase tracking-widest">
                       <span>{selectedAd.type === 'buy' ? t(language, 'exYouPay') : t(language, 'exYouGive')}</span>
                       <span>{t(language, 'limit')}: {selectedAd.minLimit} - {selectedAd.maxLimit}</span>
                     </div>
@@ -465,25 +479,27 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
                         placeholder="0.00"
                         value={tradeAmount}
                         onChange={(e) => setTradeAmount(e.target.value)}
-                        className="w-full text-3xl font-black text-slate-900 bg-transparent outline-none placeholder-slate-300"
+                        className="w-full text-4xl font-black text-slate-900 bg-transparent outline-none placeholder-slate-200 tracking-tighter"
                       />
-                      <span className="text-lg font-bold text-slate-900 ml-2">
+                      <span className="text-xl font-black text-slate-900 ml-3 bg-white px-3 py-1.5 rounded-xl border border-slate-100 shadow-sm">
                         {selectedAd.type === 'buy' ? selectedAd.fiat : selectedAd.asset}
                       </span>
                     </div>
                   </div>
 
-                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white p-1 rounded-full border border-slate-100">
-                    <ArrowDownUp className="w-5 h-5 text-slate-400" />
+                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white p-2 rounded-2xl border-4 border-white shadow-xl z-10">
+                    <div className="bg-slate-900 p-2 rounded-xl">
+                      <ArrowDownUp className="w-5 h-5 text-white" />
+                    </div>
                   </div>
 
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                    <div className="text-xs text-slate-500 mb-2 font-medium">{t(language, 'receiveAmount')}</div>
+                  <div className="bg-blue-50/50 p-5 rounded-[2rem] border border-blue-100/50">
+                    <div className="text-[11px] text-blue-400 mb-3 font-black uppercase tracking-widest">{t(language, 'receiveAmount')}</div>
                     <div className="flex items-center justify-between">
-                      <div className={`text-3xl font-black ${selectedAd.type === 'buy' ? 'text-emerald-600' : 'text-blue-600'}`}>
+                      <div className={`text-4xl font-black tracking-tighter ${selectedAd.type === 'buy' ? 'text-emerald-600' : 'text-blue-600'}`}>
                         {calculateReceiveAmount}
                       </div>
-                      <span className="text-lg font-bold text-slate-900 ml-2">
+                      <span className="text-xl font-black text-slate-900 ml-3 bg-white px-3 py-1.5 rounded-xl border border-blue-100 shadow-sm">
                         {selectedAd.type === 'buy' ? selectedAd.asset : selectedAd.fiat}
                       </span>
                     </div>
@@ -491,14 +507,14 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
                 </div>
 
                 {/* Info Card */}
-                <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100/50">
-                  <div className="flex items-center gap-2 mb-2 text-amber-800">
-                    <ShieldAlert className="w-4 h-4" />
-                    <span className="text-xs font-bold uppercase tracking-wider">{t(language, 'p2pTradeConditions')}</span>
+                <div className="bg-amber-50/70 p-5 rounded-[2rem] border border-amber-100/50">
+                  <div className="flex items-center gap-2 mb-3 text-amber-800">
+                    <ShieldAlert className="w-5 h-5" />
+                    <span className="text-[11px] font-black uppercase tracking-[0.15em]">{t(language, 'p2pTradeConditions')}</span>
                   </div>
-                  <p className="text-xs font-medium text-amber-900/80 leading-relaxed whitespace-pre-wrap">
+                  <div className="bg-white/60 p-4 rounded-2xl text-sm font-bold text-amber-900/80 leading-relaxed whitespace-pre-wrap border border-amber-200/20">
                     {selectedAd.description || 'Условия не указаны мерчантом.'}
-                  </p>
+                  </div>
                 </div>
 
                 {/* Validation & Button */}
@@ -506,10 +522,10 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
                   const userTrades = (user?.ordersAsBuyer || []).length || 0;
                   
                   if (selectedAd.reqKyc && !user?.isVerified) {
-                    return <div className="w-full py-4 text-center rounded-xl font-bold text-sm bg-red-50 text-red-500">{t(language, 'kycRequired')}</div>;
+                    return <div className="w-full py-5 text-center rounded-[1.5rem] font-black text-sm bg-red-50 text-red-500 border border-red-100">{t(language, 'kycRequired')}</div>;
                   }
                   if (selectedAd.reqMinTrades > userTrades) {
-                    return <div className="w-full py-4 text-center rounded-xl font-bold text-sm bg-red-50 text-red-500">
+                    return <div className="w-full py-5 text-center rounded-[1.5rem] font-black text-sm bg-red-50 text-red-500 border border-red-100 px-4">
                       {t(language, 'minTradesRequired').replace('{min}', selectedAd.reqMinTrades.toString()).replace('{current}', userTrades.toString())}
                     </div>;
                   }
@@ -518,11 +534,15 @@ export default function P2PScreen({ initialAd, onAdClose }: P2PScreenProps) {
                     <button
                       onClick={handleStartOrder}
                       disabled={isProcessing || !tradeAmount}
-                      className={`w-full py-4 rounded-2xl font-bold text-base text-white transition-all active:scale-95 flex items-center justify-center gap-2
-                        ${!tradeAmount ? 'bg-slate-300' : selectedAd.type === 'buy' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600'}
+                      className={`w-full py-5 rounded-[1.5rem] font-black text-lg text-white transition-all active:scale-[0.98] flex items-center justify-center gap-3 shadow-xl
+                        ${!tradeAmount 
+                          ? 'bg-slate-200 text-slate-400 shadow-none cursor-not-allowed' 
+                          : selectedAd.type === 'buy' 
+                            ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-200' 
+                            : 'bg-red-500 hover:bg-red-600 shadow-red-200'}
                       `}
                     >
-                      {isProcessing ? <RefreshCw className="w-5 h-5 animate-spin" /> : t(language, 'openOrderBtn')}
+                      {isProcessing ? <RefreshCw className="w-6 h-6 animate-spin" /> : t(language, 'openOrderBtn')}
                     </button>
                   );
                 })()}

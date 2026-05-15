@@ -25,11 +25,11 @@ export default function DisputeDetail({
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <span className="text-slate-500 font-medium">{t(language, 'adminBuyer')}:</span>
-            <span className="font-bold text-blue-600 ml-2">{selectedDispute.buyer.firstName}</span>
+            <span className="font-bold text-blue-600 ml-2">{selectedDispute.buyer.nickname || selectedDispute.buyer.firstName || selectedDispute.buyer.username || 'User'}</span>
           </div>
           <div>
             <span className="text-slate-500 font-medium">{t(language, 'adminSeller')}:</span>
-            <span className="font-bold text-emerald-600 ml-2">{selectedDispute.seller.firstName}</span>
+            <span className="font-bold text-emerald-600 ml-2">{selectedDispute.seller.nickname || selectedDispute.seller.firstName || selectedDispute.seller.username || 'User'}</span>
           </div>
           <div>
             <span className="text-slate-500 font-medium">{t(language, 'adminAmount')}:</span>
@@ -68,7 +68,9 @@ export default function DisputeDetail({
                   }`}
                 >
                   <div className="font-black mb-1 text-[9px] uppercase opacity-70">
-                    {isBuyer ? selectedDispute.buyer.firstName : selectedDispute.seller.firstName}
+                    {isBuyer 
+                      ? (selectedDispute.buyer.nickname || selectedDispute.buyer.firstName || selectedDispute.buyer.username || 'Buyer') 
+                      : (selectedDispute.seller.nickname || selectedDispute.seller.firstName || selectedDispute.seller.username || 'Seller')}
                   </div>
                   {msg.text}
                   <div className="text-[8px] mt-1 opacity-50">{new Date(msg.createdAt).toLocaleTimeString()}</div>

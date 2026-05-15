@@ -46,11 +46,11 @@ export default function DisputesTab({
             </div>
             <div className="flex justify-between font-medium">
               <span className="text-slate-500">{t(language, 'buy')}:</span>
-              <span className="font-bold text-blue-600">{order.buyer.firstName}</span>
+              <span className="font-bold text-blue-600">{order.buyer.nickname || order.buyer.firstName || order.buyer.username || 'User'}</span>
             </div>
             <div className="flex justify-between font-medium">
               <span className="text-slate-500">{t(language, 'sell')}:</span>
-              <span className="font-bold text-emerald-600">{order.seller.firstName}</span>
+              <span className="font-bold text-emerald-600">{order.seller.nickname || order.seller.firstName || order.seller.username || 'User'}</span>
             </div>
           </div>
 

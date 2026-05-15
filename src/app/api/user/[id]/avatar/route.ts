@@ -19,18 +19,17 @@ export async function POST(
       return NextResponse.json({ error: 'File must be an image' }, { status: 400 });
     }
 
-    // Читаем файл и конвертируем его в строку Base64
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const base64Image = `data:${file.type};base64,${buffer.toString('base64')}`;
-
-    // Сохраняем строку Base64 прямо в базу данных
+    // Сохраняем файл на сервере
+    const { saveFile } = await import('@/lib/upload');
+    const avatarUrl = await saveFile(file);
+    
+    // Обновляем пользователя: сохраняем URL аватарки
     const user = await prisma.user.update({
       where: { id },
-      data: { avatarUrl: base64Image }
+      data: { avatarUrl }
     });
 
-    return NextResponse.json({ success: true, avatarUrl: base64Image, user });
+    return NextResponse.json({ success: true, avatarUrl, user });
   } catch (error) {
     console.error('Avatar upload error:', error);
     return NextResponse.json({ error: 'Failed to upload avatar' }, { status: 500 });

@@ -32,7 +32,9 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
   const isBuyer = user.id === order.buyerId; // Тот кто ПОЛУЧАЕТ крипту
   const isSeller = user.id === order.sellerId; // Тот кто ОТДАЕТ крипту
   
-  const partnerName = isBuyer ? order.seller.firstName : order.buyer.firstName;
+  const partnerName = isBuyer 
+    ? (order.seller?.nickname || order.seller?.firstName || 'User') 
+    : (order.buyer?.nickname || order.buyer?.firstName || 'User');
   const partnerId = isBuyer ? order.sellerId : order.buyerId;
 
   useEffect(() => {
