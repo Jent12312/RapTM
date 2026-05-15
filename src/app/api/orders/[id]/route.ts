@@ -64,6 +64,11 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     const appUrl = process.env.APP_URL || 'https://raptm.jents.online';
     const orderUrl = `${appUrl}/orders/${order.id}`;
 
+    // ИСПРАВЛЕНО: Строгая привязка поля. Если это USD - возвращает null и кошелек не трогается
+    let assetField: string | null = null;
+    if (order.ad.asset === 'TMT') assetField = 'tmtBalance';
+    else if (order.ad.asset === 'USDT') assetField = 'usdtBalance';
+
     // 1. COMPLETED - Only Seller can confirm completion (release crypto)
     if (status === 'COMPLETED' && order.status !== 'COMPLETED') {
       if (order.sellerId !== authUser.userId) {
@@ -71,25 +76,32 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       }
 
       const feeAmount = Number(order.feeAmount);
+      const txs: any[] = [];
 
-      const assetField = order.ad.asset === 'TMT' ? 'tmtBalance' : 'usdtBalance';
+      // ИСПРАВЛЕНО: Обновляем кошельки только если это системный ассет (USDT/TMT)
+      if (assetField) {
+        txs.push(
+          prisma.wallet.update({
+            where: { userId: order.sellerId },
+            data: { frozenBalance: { decrement: Number(order.amountAsset) + feeAmount } }
+          }),
+          prisma.wallet.update({
+            where: { userId: order.buyerId },
+            data: { [assetField]: { increment: Number(order.amountAsset) } }
+          })
+        );
+      }
 
-      // Execute transaction: Release escrow
-      const [ , , updatedOrder ] = await prisma.$transaction([
-        prisma.wallet.update({
-          where: { userId: order.sellerId },
-          data: { frozenBalance: { decrement: Number(order.amountAsset) + feeAmount } }
-        }),
-        prisma.wallet.update({
-          where: { userId: order.buyerId },
-          data: { [assetField]: { increment: Number(order.amountAsset) } }
-        }),
+      txs.push(
         prisma.order.update({
           where: { id },
           data: { status: 'COMPLETED' },
           include: { ad: true, seller: true, buyer: true }
         })
-      ]);
+      );
+
+      const results = await prisma.$transaction(txs);
+      const updatedOrder = results[results.length - 1];
 
       // Update user stats (trades count, volume)
       const { updateUserStats } = await import('@/lib/userStats');
@@ -148,23 +160,31 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       }
 
       const feeAmount = Number(order.feeAmount);
+      const txs: any[] = [];
 
-      const assetField = order.ad.asset === 'TMT' ? 'tmtBalance' : 'usdtBalance';
+      // ИСПРАВЛЕНО: Возвращаем на баланс только если замораживали (USDT/TMT)
+      if (assetField) {
+        txs.push(
+          prisma.wallet.update({
+            where: { userId: order.sellerId },
+            data: { 
+              frozenBalance: { decrement: Number(order.amountAsset) + feeAmount },
+              [assetField]: { increment: Number(order.amountAsset) + feeAmount }
+            }
+          })
+        );
+      }
 
-      const [ , updatedOrder ] = await prisma.$transaction([
-        prisma.wallet.update({
-          where: { userId: order.sellerId },
-          data: { 
-            frozenBalance: { decrement: Number(order.amountAsset) + feeAmount },
-            [assetField]: { increment: Number(order.amountAsset) + feeAmount }
-          }
-        }),
+      txs.push(
         prisma.order.update({
           where: { id },
           data: { status: 'CANCELLED' },
           include: { ad: true, seller: true, buyer: true }
         })
-      ]);
+      );
+
+      const results = await prisma.$transaction(txs);
+      const updatedOrder = results[results.length - 1];
 
       await Promise.all([
         notifyUser(order.buyerId, 'order_cancelled', {
@@ -205,32 +225,30 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         })
       );
 
-      const assetField = order.ad.asset === 'TMT' ? 'tmtBalance' : 'usdtBalance';
-
-      // 2. Wallet updates
-      if (status === 'COMPLETED') {
-        // From seller's frozen to buyer's balance
-        transactions.push(
-          prisma.wallet.update({
-            where: { userId: order.sellerId },
-            data: { frozenBalance: { decrement: totalToSubtract } }
-          }),
-          prisma.wallet.update({
-            where: { userId: order.buyerId },
-            data: { [assetField]: { increment: Number(amount) } }
-          })
-        );
-      } else {
-        // Return to seller's balance
-        transactions.push(
-          prisma.wallet.update({
-            where: { userId: order.sellerId },
-            data: { 
-              frozenBalance: { decrement: totalToSubtract },
-              [assetField]: { increment: totalToSubtract }
-            }
-          })
-        );
+      // ИСПРАВЛЕНО: Движения по кошельку арбитражем только если это крипта
+      if (assetField) {
+        if (status === 'COMPLETED') {
+          transactions.push(
+            prisma.wallet.update({
+              where: { userId: order.sellerId },
+              data: { frozenBalance: { decrement: totalToSubtract } }
+            }),
+            prisma.wallet.update({
+              where: { userId: order.buyerId },
+              data: { [assetField]: { increment: Number(amount) } }
+            })
+          );
+        } else {
+          transactions.push(
+            prisma.wallet.update({
+              where: { userId: order.sellerId },
+              data: { 
+                frozenBalance: { decrement: totalToSubtract },
+                [assetField]: { increment: totalToSubtract }
+              }
+            })
+          );
+        }
       }
 
       // 3. Admin action log

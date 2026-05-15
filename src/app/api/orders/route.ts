@@ -86,29 +86,36 @@ export async function POST(req: Request) {
       feeAmount = new Prisma.Decimal(0); 
     }
 
-    const asset = ad.asset; // 'USDT' или 'TMT'
-    const balanceField = asset === 'TMT' ? 'tmtBalance' : 'usdtBalance';
-    const sellerBalance = new Prisma.Decimal(seller.wallet[balanceField] as any);
+    // ИСПРАВЛЕНО: Строгая проверка ассета. Если это USD, мы не чекаем баланс.
+    const asset = ad.asset;
+    let balanceField: string | null = null;
+    if (asset === 'TMT') balanceField = 'tmtBalance';
+    else if (asset === 'USDT') balanceField = 'usdtBalance';
 
     const totalRequired = amountAsset.plus(feeAmount);
 
-    if (sellerBalance.lt(totalRequired)) {
-      console.warn(`Insufficient balance for order: sellerBalance=${sellerBalance}, totalRequired=${totalRequired}`);
-      return NextResponse.json({ 
-        error: `Недостаточно ${asset} на балансе (включая комиссию ${feeAmount.toString()}). Доступно: ${sellerBalance.toString()}` 
-      }, { status: 400 });
+    // Проверяем баланс только если сделка затрагивает крипту внутри платформы (USDT/TMT)
+    if (balanceField) {
+      const sellerBalance = new Prisma.Decimal(seller.wallet[balanceField as keyof typeof seller.wallet] as any);
+      if (sellerBalance.lt(totalRequired)) {
+        return NextResponse.json({ 
+          error: `Недостаточно ${asset} на балансе (включая комиссию ${feeAmount.toString()}). Доступно: ${sellerBalance.toString()}` 
+        }, { status: 400 });
+      }
     }
 
     // 6. АТОМАРНАЯ ТРАНЗАКЦИЯ: Заморозка средств + создание ордера + первое сообщение
     const order = await prisma.$transaction(async (tx) => {
-      // 6.1 Замораживаем средства у продавца
-      await tx.wallet.update({
-        where: { userId: sellerId },
-        data: {
-          [balanceField]: { decrement: totalRequired },
-          frozenBalance: { increment: totalRequired }
-        }
-      });
+      // ИСПРАВЛЕНО: Замораживаем средства ТОЛЬКО если это системная крипта (TMT/USDT)
+      if (balanceField) {
+        await tx.wallet.update({
+          where: { userId: sellerId },
+          data: {
+            [balanceField]: { decrement: totalRequired },
+            frozenBalance: { increment: totalRequired }
+          }
+        });
+      }
 
       // 6.2 Создаем сделку
       const newOrder = await tx.order.create({

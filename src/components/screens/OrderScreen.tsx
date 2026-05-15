@@ -28,9 +28,14 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number>(0);
 
-  // РОЛИ ТЕПЕРЬ ЖЕЛЕЗОБЕТОННЫЕ:
-  const isBuyer = user.id === order.buyerId; // Тот кто ПОЛУЧАЕТ крипту
-  const isSeller = user.id === order.sellerId; // Тот кто ОТДАЕТ крипту
+  // ИСПРАВЛЕНО: РОЛИ ЖЕЛЕЗОБЕТОННЫЕ с защитой от undefined
+  const actualBuyerId = order?.buyerId || order?.buyer?.id;
+  const actualSellerId = order?.sellerId || order?.seller?.id;
+  const isBuyer = user?.id === actualBuyerId;
+  const isSeller = user?.id === actualSellerId;
+
+  // ИСПРАВЛЕНО: Проверка, является ли метод оплаты ТОЛЬКО наличными
+  const isCashOnly = order.ad?.paymentMethods?.length === 1 && order.ad.paymentMethods[0] === 'Cash';
   
   const partnerName = isBuyer 
     ? (order.seller?.nickname || order.seller?.firstName || 'User') 
@@ -38,6 +43,9 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
   const partnerId = isBuyer ? order.sellerId : order.buyerId;
 
   useEffect(() => {
+    // ИСПРАВЛЕНО: Защита от краша, если order не прогрузился
+    if (!order || !order.id) return;
+
     if (status === 'COMPLETED' || status === 'CANCELLED') {
       setTimeLeft(0);
       return;
@@ -49,11 +57,6 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
       const now = new Date().getTime();
       const diff = Math.max(0, (createdAt + limitMs) - now);
       setTimeLeft(diff);
-      
-      // Auto-cancel if expired on client-side (backend should handle this too)
-      if (diff === 0 && status === 'PENDING') {
-        // updateOrderStatus('CANCELLED'); // Optional: auto-trigger cancel
-      }
     };
 
     calculateTimeLeft();
@@ -64,17 +67,20 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
         const res = await fetch(`/api/orders/${order.id}`);
         const freshOrder = await res.json();
         
-        if (freshOrder.status !== status || freshOrder.isDisputed !== order.isDisputed) {
-          setStatus(freshOrder.status);
+        // ИСПРАВЛЕНО: Проверка на валидность пришедшего объекта
+        if (res.ok && freshOrder && freshOrder.id) {
+          if (freshOrder.status !== status || freshOrder.isDisputed !== order.isDisputed) {
+            setStatus(freshOrder.status);
+          }
           setOrder(freshOrder);
-        }
-        
-        if (freshOrder.reviews) {
-           const newMyReview = freshOrder.reviews.find((r: any) => r.authorId === user.id);
-           if (newMyReview && !hasReviewed) {
-             setHasReviewed(true);
-             setSelectedRating(newMyReview.rating);
-           }
+          
+          if (freshOrder.reviews) {
+             const newMyReview = freshOrder.reviews.find((r: any) => r.authorId === user.id);
+             if (newMyReview && !hasReviewed) {
+               setHasReviewed(true);
+               setSelectedRating(newMyReview.rating);
+             }
+          }
         }
       } catch (e) {
         console.error('Failed to fetch order updates:', e);
@@ -85,7 +91,7 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
       clearInterval(timer);
       clearInterval(updateInterval);
     };
-  }, [order.id, status, hasReviewed, user.id, order.isDisputed, order.createdAt, order.ad.paymentTime]);
+  }, [order?.id, status, hasReviewed, user.id]);
 
   const formatTime = (ms: number) => {
     const mins = Math.floor(ms / 60000);
@@ -94,7 +100,8 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
   };
 
   const updateOrderStatus = async (newStatus: string) => {
-    if (newStatus === 'PAID' && isBuyer && !paymentPhoto) {
+    // ИСПРАВЛЕНО: Не требуем фото, если это исключительно оплата наличными
+    if (newStatus === 'PAID' && isBuyer && !paymentPhoto && !isCashOnly) {
       alert(t(language, 'orderAttachPhoto'));
       return;
     }
@@ -259,7 +266,10 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
                   <Clock className="w-4 h-4" /> {timeLeft > 0 ? formatTime(timeLeft) : t(language, 'statusCancelled')}
                 </div>
                 <h3 className="text-2xl font-black text-slate-800 mb-2">
-                  {isBuyer ? `${t(language, 'adminSendAmount')} ${order.amountFiat} ${order.ad.fiat}` : `${t(language, 'adminReceiveAmount')} ${order.amountFiat} ${order.ad.fiat}`}
+                  {/* ИСПРАВЛЕНО: Четкое разделение кто сколько кому платит */}
+                  {isBuyer 
+                    ? `${t(language, 'adminSendAmount')} ${order.amountFiat} ${order.ad.fiat}` 
+                    : `${t(language, 'adminReceiveAmount')} ${order.amountFiat} ${order.ad.fiat}`}
                 </h3>
                 <p className="text-sm text-slate-500 font-medium">{t(language, 'step1')}</p>
               </>
@@ -285,11 +295,39 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
                 <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
                   <CheckCircle2 className="w-8 h-8" />
                 </div>
-                <h3 className="text-2xl font-black text-slate-800 mb-2">{t(language, 'statusCompleted')}</h3>
-                <p className={`text-sm font-bold mb-6 ${isBuyer ? 'text-emerald-600' : 'text-red-500'}`}>
-                  {isBuyer ? '+' : '-'}{order.amountAsset} {order.ad.asset} {isBuyer ? t(language, 'adminCredited') : t(language, 'adminDebited')}
-                </p>
-                
+                <h3 className="text-2xl font-black text-slate-800 mb-6">{t(language, 'statusCompleted')}</h3>
+
+                {/* НОВЫЙ БЛОК: Детальный чек сделки, который показывает и 59, и 50 */}
+                <div className="flex flex-col gap-3 mb-8 text-left">
+                  
+                  {/* Блок Фиата (внешняя оплата) */}
+                  <div className={`p-4 rounded-2xl border ${isBuyer ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100'}`}>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">
+                      Внешняя оплата (Наличные / Перевод)
+                    </p>
+                    <p className={`text-lg font-black ${isBuyer ? 'text-red-600' : 'text-emerald-600'}`}>
+                      {isBuyer ? '-' : '+'}{order.amountFiat} {order.ad.fiat}
+                    </p>
+                    <p className="text-xs font-bold text-slate-500 mt-0.5">
+                      {isBuyer ? 'Отправлено партнеру' : 'Получено от партнера'}
+                    </p>
+                  </div>
+
+                  {/* Блок Крипты (баланс кошелька RapTM) */}
+                  <div className={`p-4 rounded-2xl border ${isBuyer ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">
+                      Баланс RapTM Wallet
+                    </p>
+                    <p className={`text-lg font-black ${isBuyer ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {isBuyer ? '+' : '-'}{order.amountAsset} {order.ad.asset}
+                    </p>
+                    <p className="text-xs font-bold text-slate-500 mt-0.5">
+                      {isBuyer ? t(language, 'adminCredited') : t(language, 'adminDebited')}
+                    </p>
+                  </div>
+
+                </div>
+
                 <div className="border-t border-slate-100 pt-6">
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
                     {t(language, 'reviewTitle')} {partnerName}
@@ -332,7 +370,10 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
             <div className="space-y-4">
               <div className="bg-white p-6 rounded-[2rem] shadow-sm ring-1 ring-slate-100 space-y-4">
                 <div className="flex justify-between items-center pb-4 border-b border-slate-50">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t(language, 'adminSendAmount')}</span>
+                  {/* ИСПРАВЛЕНО: Динамический текст Отдает / Получает для фиата */}
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    {isBuyer ? t(language, 'adminSendAmount') : t(language, 'adminReceiveAmount')}
+                  </span>
                   <span className="text-lg font-black text-slate-800">{order.amountFiat} {order.ad.fiat}</span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -342,7 +383,10 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
                   </span>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{isBuyer ? t(language, 'orderDebited') : t(language, 'orderCredited')}</p>
+                  {/* ИСПРАВЛЕНО: Логика поменяна. Покупатель получает крипту (Credited), продавец отдает (Debited) */}
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                    {isBuyer ? t(language, 'orderCredited') : t(language, 'orderDebited')}
+                  </p>
                   <p className="text-sm font-black text-slate-800">RapTM Wallet</p>
                 </div>
               </div>
@@ -361,7 +405,8 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
                     </div>
                   ))}
                   
-                  {timeLeft > 0 && (
+                  {/* ИСПРАВЛЕНО: Прячем блок загрузки фото, если метод ТОЛЬКО наличные */}
+                  {timeLeft > 0 && !isCashOnly && (
                     <div className="pt-4 border-t border-blue-200 mt-4">
                       <p className="text-xs font-bold text-blue-800 uppercase mb-3 flex items-center gap-2">
                         <AlertTriangle className="w-4 h-4" /> {t(language, 'orderAttachCheck')}
