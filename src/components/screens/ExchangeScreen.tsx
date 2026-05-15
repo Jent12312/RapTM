@@ -368,7 +368,7 @@ export default function ExchangeScreen() {
                         <Clock className="w-3.5 h-3.5" /> {new Date(req.createdAt).toLocaleDateString('ru-RU')}
                       </p>
                       <div className="w-1 h-1 bg-slate-200 rounded-full" />
-                      <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{t(language, 'exCommission')}: {req.commission.toFixed(2)} USDT</p>
+                      <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{t(language, 'exCommission')}: {Number(req.commission || 0).toFixed(2)} USDT</p>
                     </div>
                   </div>
                 </div>
