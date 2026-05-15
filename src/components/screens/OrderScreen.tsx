@@ -31,11 +31,9 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
   // ИСПРАВЛЕНО: РОЛИ ЖЕЛЕЗОБЕТОННЫЕ с защитой от undefined
   const actualBuyerId = order?.buyerId || order?.buyer?.id;
   const actualSellerId = order?.sellerId || order?.seller?.id;
-  const isBuyer = user?.id === actualBuyerId;
-  const isSeller = user?.id === actualSellerId;
-
-  // ИСПРАВЛЕНО: Проверка, является ли метод оплаты ТОЛЬКО наличными
-  const isCashOnly = order.ad?.paymentMethods?.length === 1 && order.ad.paymentMethods[0] === 'Cash';
+  const currentUserId = user?.id; // Текущий авторизованный юзер
+  const isBuyer = Boolean(currentUserId && currentUserId === order?.buyerId);
+  const isSeller = Boolean(currentUserId && currentUserId === order?.sellerId);
   
   const partnerName = isBuyer 
     ? (order.seller?.nickname || order.seller?.firstName || 'User') 
@@ -100,12 +98,7 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
   };
 
   const updateOrderStatus = async (newStatus: string) => {
-    // ИСПРАВЛЕНО: Не требуем фото, если это исключительно оплата наличными
-    if (newStatus === 'PAID' && isBuyer && !paymentPhoto && !isCashOnly) {
-      alert(t(language, 'orderAttachPhoto'));
-      return;
-    }
-
+    // ИСПРАВЛЕНО: Убрано обязательное требование фото. Чек - опциональная вещь.
     setIsUploadingPhoto(true);
     try {
       if (newStatus === 'PAID' && paymentPhoto) {
@@ -277,11 +270,9 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
 
             {status === 'PAID' && (
               <>
-                <div className="text-center py-12 px-6 border-2 border-dashed border-slate-200 rounded-3xl group-hover:border-emerald-300 transition-colors">
-                  <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-3 group-hover:bg-emerald-50 transition-colors">
-                    <Camera className="w-7 h-7 text-slate-300 group-hover:text-emerald-500 transition-colors" />
-                  </div>
-                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest group-hover:text-emerald-600 transition-colors">{t(language, 'orderUploadCheck')}</p>
+                {/* ИСПРАВЛЕНО: Убрана визуальная обманка с пустой камерой */}
+                <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner animate-pulse">
+                  <Clock className="w-8 h-8" />
                 </div>
                 <h3 className="text-2xl font-black text-slate-800 mb-2">{t(language, 'adminPending')}</h3>
                 <p className="text-sm text-slate-500 font-medium">
@@ -360,7 +351,7 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
                 </div>
                 <h3 className="text-2xl font-black text-slate-800 mb-2">{t(language, 'statusCancelled')}</h3>
                 <p className={`text-sm font-bold mb-6 ${isBuyer ? 'text-red-500' : 'text-emerald-600'}`}>
-                  {isBuyer ? '-' : '+'}{order.amountAsset} {order.ad.asset} {isBuyer ? t(language, 'adminNoOps') : t(language, 'adminReturn')}
+                  Сделка отменена
                 </p>
               </>
             )}
@@ -394,10 +385,14 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
               {isBuyer && status === 'PENDING' && (
                 <div className="bg-blue-50 p-6 rounded-[2rem] ring-1 ring-blue-100 space-y-4">
                   {order.ad.paymentMethods?.map((method: string) => (
-                    <div key={method} className="bg-white p-4 rounded-2xl border border-blue-100">
+                    <div key={method} className="bg-white p-4 rounded-2xl border border-blue-100 mb-2">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t(language, 'p2pMethod')}</p>
                       <p className="text-sm font-black text-slate-800">
-                        {method === 'Cash' ? t(language, 'orderCash') : method === 'Card' ? t(language, 'orderCard') : t(language, 'orderTmcell')}
+                        {/* ИСПРАВЛЕНО: Выводит реальное название метода, если это не Cash/Card/Tmcell */}
+                        {method === 'Cash' ? t(language, 'orderCash') : 
+                        method === 'Card' ? t(language, 'orderCard') : 
+                        method === 'Tmcell' ? t(language, 'orderTmcell') : 
+                        method} 
                       </p>
                       <p className="text-[11px] font-bold text-slate-400 mt-0.5">
                         {method === 'Cash' ? order.ad.city : t(language, 'orderDetailsInChat')}
@@ -405,11 +400,12 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
                     </div>
                   ))}
                   
-                  {/* ИСПРАВЛЕНО: Прячем блок загрузки фото, если метод ТОЛЬКО наличные */}
-                  {timeLeft > 0 && !isCashOnly && (
+                  {/* ИСПРАВЛЕНО: Показываем блок загрузки фото всегда (опционально) */}
+                  {timeLeft > 0 && (
                     <div className="pt-4 border-t border-blue-200 mt-4">
+                      {/* ИСПРАВЛЕНО: Явно пишем, что чек опционален */}
                       <p className="text-xs font-bold text-blue-800 uppercase mb-3 flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4" /> {t(language, 'orderAttachCheck')}
+                        <Camera className="w-4 h-4" /> Чек (Необязательно)
                       </p>
                       <div className="flex gap-3">
                         <div className="relative flex-1">
@@ -436,8 +432,8 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
                               </div>
                             ) : (
                               <>
-                                <AlertTriangle className="w-6 h-6 text-blue-400 mb-1" />
-                                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-tight">{t(language, 'orderUploadCheck')}</span>
+                                <Camera className="w-6 h-6 text-blue-400 mb-1" />
+                                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-tight">Загрузить фото (по желанию)</span>
                               </>
                             )}
                           </label>
@@ -458,6 +454,7 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
             </div>
           )}
 
+          {/* КНОПКИ ПОКУПАТЕЛЯ (Тот, кто переводит фиат) */}
           {status === 'PENDING' && isBuyer && !order.isDisputed && (
             <div className="flex gap-3">
               <button 
@@ -485,40 +482,37 @@ export default function OrderScreen({ order: initialOrder, onClose }: Props) {
             </div>
           )}
 
-          {status === 'PAID' && !isBuyer && !order.isDisputed && (
+          {/* КНОПКА ПРОДАВЦА (Тот, кто получает фиат и отдает крипту) */}
+          {status === 'PAID' && isSeller && !order.isDisputed && (
             <button onClick={() => updateOrderStatus('COMPLETED')} className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-200 active:scale-95 transition-all uppercase tracking-wide">
               {t(language, 'confirmRec')}
             </button>
           )}
 
-          {status === 'COMPLETED' && (
+          {/* КНОПКИ ЗАВЕРШЕНИЯ (Для обоих) */}
+          {(status === 'COMPLETED' || status === 'CANCELLED') && (
             <button onClick={onClose} className="w-full bg-slate-100 text-slate-600 font-bold py-4 rounded-2xl active:scale-95 transition-all uppercase tracking-wide">
               {t(language, 'returnToWallet')}
             </button>
           )}
 
-          {status === 'CANCELLED' && (
-            <button onClick={onClose} className="w-full bg-slate-100 text-slate-600 font-bold py-4 rounded-2xl active:scale-95 transition-all uppercase tracking-wide">
-              {t(language, 'returnToWallet')}
-            </button>
-          )}
-
-          {/* Кнопка апелляции появляется через 1 минуту после PAID и только для активных сделок */}
+          {/* КНОПКА СПОРА (Доступна обоим, но проверяем функцию) */}
           {status === 'PAID' && canShowDisputeButton() && !order.isDisputed && !['COMPLETED', 'CANCELLED'].includes(status) && (
             <button
               onClick={handleDispute}
-              className="w-full bg-amber-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-amber-200 active:scale-95 transition-all uppercase tracking-wide mb-3"
+              className="w-full bg-amber-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-amber-200 active:scale-95 transition-all uppercase tracking-wide mb-3 mt-3"
             >
               <Gavel className="w-5 h-5 inline mr-2" />
               {t(language, 'adminDisputes')}
             </button>
           )}
 
-          {status === 'PENDING' && !isBuyer && (
-            <div className="text-center text-slate-500 font-bold text-sm">{t(language, 'statusPending')}...</div>
+          {/* ТЕКСТЫ ОЖИДАНИЯ (Когда другой юзер должен нажать кнопку) */}
+          {status === 'PENDING' && isSeller && (
+            <div className="text-center text-slate-500 font-bold text-sm">Ожидание оплаты от покупателя...</div>
           )}
           {status === 'PAID' && isBuyer && !order.isDisputed && (
-            <div className="text-center text-blue-500 font-bold text-sm animate-pulse">{t(language, 'confirmRec')}...</div>
+            <div className="text-center text-blue-500 font-bold text-sm animate-pulse">Ожидание подтверждения от продавца...</div>
           )}
         </div>
 
