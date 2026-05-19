@@ -22,8 +22,6 @@ export default function RootLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         <script src="https://telegram.org/js/telegram-web-app.js" async></script>
-        <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-        <script>eruda.init();</script>
       </head>
       <body className={`${inter.className} bg-[#f8fafc] text-slate-900 pb-28 min-h-screen overflow-x-hidden selection:bg-emerald-200`}>
         <TelegramProvider>
